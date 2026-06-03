@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -8,24 +9,43 @@ function generateCode() {
 }
 
 export default function Home() {
+  const [pseudo, setPseudo] = useState('')
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   async function createRoom() {
-    const code = generateCode()
-    const hostId = crypto.randomUUID()
+    if (!pseudo.trim()) return
+    setLoading(true)
 
-    const { data, error } = await supabase
+    const code = generateCode()
+
+    const { data: room, error } = await supabase
       .from('rooms')
-      .insert({ code, host_id: hostId })
+      .insert({ code, host_id: crypto.randomUUID() })
       .select()
       .single()
 
-    if (error) {
+    if (error || !room) {
       console.error(error)
+      setLoading(false)
       return
     }
 
-    router.push(`/room/${data.code}`)
+    const { data: player } = await supabase
+      .from('players')
+      .insert({
+        room_id: room.id,
+        pseudo: pseudo.trim(),
+        is_host: true,
+      })
+      .select()
+      .single()
+
+    if (player) {
+      localStorage.setItem('player_id', player.id)
+    }
+
+    router.push(`/room/${code}/lobby`)
   }
 
   return (
@@ -36,13 +56,25 @@ export default function Home() {
       </p>
 
       <div className="flex flex-col gap-4 w-full max-w-xs">
+        <input
+          type="text"
+          placeholder="Ton pseudo"
+          value={pseudo}
+          onChange={(e) => setPseudo(e.target.value)}
+          maxLength={20}
+          className="bg-white/10 border border-white/20 rounded-2xl px-4 py-4 text-white placeholder-gray-500 text-lg outline-none"
+        />
         <button
           onClick={createRoom}
-          className="bg-white text-black font-bold py-4 rounded-2xl text-lg"
+          disabled={loading || !pseudo.trim()}
+          className="bg-white text-black font-bold py-4 rounded-2xl text-lg disabled:opacity-40"
         >
-          Créer une room
+          {loading ? 'Création...' : 'Créer une room'}
         </button>
-        <button className="border border-white text-white font-bold py-4 rounded-2xl text-lg">
+        <button
+          onClick={() => router.push('/join')}
+          className="border border-white text-white font-bold py-4 rounded-2xl text-lg"
+        >
           Rejoindre une room
         </button>
       </div>

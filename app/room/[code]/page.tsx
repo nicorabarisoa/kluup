@@ -15,7 +15,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (!pseudo.trim()) return
     setLoading(true)
 
-    // Vérifier que la room existe
     const { data: room, error } = await supabase
       .from('rooms')
       .select()
@@ -28,12 +27,19 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       return
     }
 
-    // Ajouter le joueur
-    await supabase.from('players').insert({
-      room_id: room.id,
-      pseudo: pseudo.trim(),
-      is_host: false,
-    })
+    const { data: player } = await supabase
+      .from('players')
+      .insert({
+        room_id: room.id,
+        pseudo: pseudo.trim(),
+        is_host: false,
+      })
+      .select()
+      .single()
+
+    if (player) {
+      localStorage.setItem('player_id', player.id)
+    }
 
     router.push(`/room/${code}/lobby`)
   }
