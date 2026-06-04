@@ -1,1 +1,349 @@
-@AGENTS.md
+# CLAUDE.md — Kluup
+> Contexte projet pour Claude Code. Lit ce fichier en priorité à chaque session.
+
+---
+
+## 🎯 Concept
+
+Kluup (kluup.app) est une **web app de party game** conçue pour briser la glace et créer des connexions humaines authentiques lors de soirées apéro. Format **hôte + joueurs sur leurs phones** : l'hôte lance la session, les joueurs rejoignent via un code de room depuis leur navigateur, sans installation.
+
+- Référence format : **Jackbox Games** (technique)
+- Référence contenu : **We're Not Really Strangers** (esprit)
+- Positionnement : "le jeu qui révèle votre groupe"
+
+---
+
+## 🏗️ Stack technique
+
+- **Framework** : Next.js (App Router)
+- **Backend / Realtime** : Supabase (Realtime pour le websocket)
+- **Styling** : Tailwind CSS
+- **Hosting** : Railway ou Render (~10€/mois au MVP)
+- **Format** : PWA / Web app — pas d'installation, pas d'App Store
+- **i18n** : intégré dès le départ, **zéro texte hardcodé**
+- **Langues** : FR d'abord → EN, ES, DE
+
+### Architecture
+Modulaire — core engine (room manager, websocket, vote system) séparé des game modes pour permettre l'ajout de futurs modes sans rework.
+
+### État du build
+- ✅ Projet Next.js + Supabase configuré
+- ✅ Création de room avec pseudo hôte
+- ✅ Rejoindre une room via code
+- ✅ Lobby temps réel multi-joueurs
+- ✅ Identification hôte / joueur avec persistance
+- ✅ Bouton "Lancer la partie" hôte only
+- 🔜 Page de jeu `/room/[code]/game`
+
+---
+
+## 🎮 Flow global d'une session
+
+```
+App propose 3 questions (tirées aléatoirement selon thème + niveau d'intensité croissant)
+       ↓
+Tous les joueurs votent pour choisir laquelle jouer  [vote anonyme]
+       ↓
+Round selon le type de la question (A, B ou C)
+       ↓
+Refus possible — pas de conséquence imposée par l'app
+(la dynamique sociale du groupe gère)
+       ↓
+Round suivant
+       ↓
+[Fin de session]
+       ↓
+Écran stats + Titre du groupe + Stats personnelles
+```
+
+**Principe core** : Kluup est un catalyseur social, pas un jeu de règles. L'app crée le moment, le groupe gère la dynamique.
+
+---
+
+## 📋 Types de questions
+
+> Distinction fondamentale : Type A = on juge les autres. Type B = on s'expose soi-même. Type C = question ouverte, quelqu'un se sacrifie ou le groupe choisit.
+
+### Type A — Désignation ("le plus susceptible de…")
+1. Question affichée sur tous les écrans
+2. Chaque joueur vote anonymement pour désigner **quelqu'un d'autre** du groupe
+3. Révélation : la personne la plus désignée
+4. Elle répond à voix haute (refus libre, pas de conséquence imposée)
+
+> Usage progressif : rare en Hello Stranger, dominant en No Filter / Unmasked.
+
+---
+
+### Type B — Confession collective ("t'as déjà…")
+Chaque joueur se désigne **lui-même** s'il se sent concerné. Vote secret (oui/non). Au moment de la révélation, le sous-mode est **tiré aléatoirement** selon le ratio du thème :
+
+**B1 — Révélation totale**
+Tous ceux qui ont répondu "oui" sont révélés simultanément → moment de groupe.
+
+**B2 — Pourcentage + Roulette**
+1. Affichage du % du groupe ("67% se sont reconnus")
+2. Roulette qui désigne **une seule personne** parmi les "oui"
+3. Les autres restent anonymes — tension individuelle
+
+**Ratio B1/B2 par thème :**
+| Thème | B1 (révélation totale) | B2 (roulette) |
+|---|---|---|
+| Hello Stranger | 30% | 70% |
+| Apéro | 30% | 70% |
+| No Filter | 70% | 30% |
+| Unmasked | 70% | 30% |
+
+> À calibrer lors des sessions de test réelles.
+
+---
+
+### Type C — Question ouverte
+1. Question affichée sur tous les écrans
+2. **Fenêtre de volontariat** — quelques secondes pour se désigner soi-même
+3. **Si quelqu'un se manifeste** → il répond, fin du round
+4. **Si personne** → vote anonyme du groupe pour désigner quelqu'un → cette personne répond
+
+> La tension vient du dilemme : "Est-ce que je lève la main ou j'attends que quelqu'un d'autre le fasse ?"
+
+---
+
+## 🎭 Anonymat des votes
+
+| Action | Anonyme ? |
+|---|---|
+| Vote pour choisir la question | ✅ Fixe — toujours anonyme |
+| Vote de désignation Type A | ✅ Fixe — toujours anonyme |
+| Vote de désignation Type C | ✅ Fixe — toujours anonyme |
+| Réponses Type B | Dépend du sous-mode tiré (B1 = révélé, B2 = roulette) |
+
+> **Toggle anonyme/révélé supprimé** — inutile sur A et C (votes anonymes fixes), déjà géré par B1/B2 sur le Type B. Le thème gère tout automatiquement.
+
+---
+
+## 🎨 Thèmes v1 (gratuits)
+
+| Ordre | Thème | Ambiance | Flow dominant |
+|---|---|---|---|
+| 1 | **Hello Stranger** | On se découvre — léger, safe | Type B dominant |
+| 2 | **Apéro** | On se détend — début de soirée | Type B + A |
+| 3 | **No Filter** | On se lâche — sans retenue | Type A dominant |
+| 4 | **Unmasked** | On se révèle — confessions profondes | Type A pur |
+
+Chaque thème contient un **mix des 3 types** (A, B, C).
+
+### Thèmes premium (post-v1)
+Confessions coupables, Nostalgie, Opinions chaudes, Et toi dans 10 ans, Team Kluup, Couple, Famille, After.
+
+---
+
+## 📊 Structure des questions en base
+
+Chaque question a :
+- `theme` : hello-stranger / apero / no-filter / unmasked
+- `type` : A / B / C
+- `intensity` : 1 / 2 / 3 *(relatif au thème, pas absolu)*
+- `question` : `{ fr: "...", en: "...", es: "...", de: "..." }`
+
+L'algorithme de sélection monte en intensité au fil des rounds — les questions niveau 1 passent en premier, niveau 3 en fin de session.
+
+### Système analytics interne (post-MVP)
+Chaque question trackée : taux de sélection, taux de complétion, taux de skip → auto-cycling pour éviter la répétition.
+
+---
+
+## 🎯 Système de gages — hors scope v1
+
+Les gages sont retirés du core game. L'app ne sanctionne pas les refus — la dynamique sociale du groupe gère.
+
+> **Post-v1** : mode optionnel "Dare pack" activable par l'hôte pour les groupes qui veulent cette dimension.
+
+---
+
+## 🖥️ Écrans de la page de jeu
+
+### Paramètre hôte (avant création du lobby)
+L'hôte choisit s'il joue ou non.
+
+**Si l'hôte joue** : il voit l'écran joueur normal + un bouton discret pour accéder aux contrôles hôte (Option B — écran joueur d'abord).
+
+---
+
+### Écrans Type A
+
+**Écran 1A — Affichage question**
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Question + "Les joueurs votent…" + compteur | Question + liste des pseudos à voter |
+| Action | Attendre (ou voter si hôte joueur) | Voter pour quelqu'un |
+| Transition | Automatique quand tous ont voté | — |
+
+**Écran 2A — Révélation**
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Qui a été désigné + "X répond…" + bouton "Round suivant" | Qui a été désigné + "X répond…" |
+| Action | Bouton "Round suivant" | Attendre |
+| Transition | L'hôte passe au round suivant | — |
+
+---
+
+### Écrans Type B
+
+**Écran 1B — Vote secret**
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Question + "Les joueurs répondent…" + compteur | Question + boutons Oui / Non |
+| Action | Attendre (ou répondre si hôte joueur) | Répondre oui/non |
+| Transition | Automatique quand tous ont répondu | — |
+
+**Écran 2B1 — Révélation totale**
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Liste de tous ceux qui ont dit "oui" + bouton "Round suivant" | Liste de tous ceux qui ont dit "oui" |
+| Action | Bouton "Round suivant" | Discussion hors app |
+| Transition | L'hôte décide | — |
+
+**Écran 2B2 — Roulette**
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | % du groupe + animation roulette + révélation + bouton "Round suivant" | % du groupe + animation roulette + révélation |
+| Action | Bouton "Round suivant" | Attendre ou discussion hors app |
+| Transition | L'hôte décide | — |
+
+---
+
+### Écrans Type C
+
+**Écran 1C — Affichage question + fenêtre volontariat**
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Question + timer volontariat | Question + bouton "Je réponds" + timer |
+| Action | Attendre ou lancer le vote si timer expiré | Se manifester ou attendre |
+| Transition | Si volontaire → Écran 3C / Sinon → Écran 4C | — |
+
+**Écran 2C — Volontaire désigné**
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Qui s'est manifesté + bouton "Round suivant" | Qui s'est manifesté |
+| Action | Bouton "Round suivant" | Discussion hors app |
+| Transition | L'hôte décide | — |
+
+**Écran 3C — Vote de désignation** *(si personne)*
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Question + compteur de votes | Question + liste des joueurs |
+| Action | Attendre (ou voter si hôte joueur) | Voter pour quelqu'un |
+| Transition | Automatique quand tous ont voté | — |
+
+**Écran 4C — Révélation désigné** *(si vote)*
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Qui a été désigné + bouton "Round suivant" | Qui a été désigné |
+| Action | Bouton "Round suivant" | Attendre |
+| Transition | L'hôte décide | — |
+
+---
+
+### Écran de fin de session
+
+**Stats + Titre + Carte de partage**
+| | Hôte | Joueurs |
+|---|---|---|
+| Affichage | Titre du groupe + texte + stat marquante + boutons "Nouvelle manche" / "Terminer" | Titre du groupe + stats personnelles + carte de partage |
+| Action | Choisir de continuer ou terminer | Attendre |
+
+> Total : **12 écrans distincts** pour la page de jeu.
+
+---
+
+## 🏆 Titres de groupe (écran de fin)
+
+10 titres possibles, déclenchés selon les stats de session. Traduits en FR/EN/ES/DE.
+
+| Clé | Condition principale | Ton |
+|---|---|---|
+| `title_ruthless` | Type A > 60% + votes concentrés | Cash, No Filter |
+| `title_transparent` | Type B > 60% + B1 dominant | Chaleureux, Apéro |
+| `title_mysterious` | Type B > 60% + B2 dominant | Mystérieux, Unmasked |
+| `title_brave` | Type C élevé + beaucoup de volontaires | Admiratif, tous thèmes |
+| `title_cautious` | Type C élevé + peu de volontaires | Amusé, Hello Stranger |
+| `title_nofilter` | No Filter/Unmasked + Type A élevé | Provoc, No Filter |
+| `title_accomplices` | Hello Stranger + session complète | Chaleureux, Hello Stranger |
+| `title_daring` | Unmasked + B1 élevé | Sincère, Unmasked |
+| `title_unfathomable` | B2 très élevé sur toute la session | Mystérieux, tous thèmes |
+| `title_unclassifiable` | Mix équilibré, aucun pattern dominant | Complice, tous thèmes |
+
+**Structure de chaque titre :**
+- Titre du groupe (clé i18n)
+- Texte expliquant pourquoi ce titre (ton adapté au thème joué)
+- Stat marquante du groupe
+- Stats personnelles pour chaque joueur (4 stats : fois désigné, confessions, volontariats, diversité des votes)
+
+**Variables dynamiques :**
+- `{nom}` — pseudo du joueur le plus désigné
+- `{n}` — chiffre calculé selon la stat concernée
+- `{nA}` `{nB}` `{nC}` — nombre de questions par type joué
+
+> Toutes les variables sont générées côté client à partir des stats de session — zéro appel API, zéro coût.
+
+---
+
+## 💰 Modèle économique
+
+- **Freemium** : Hello Stranger gratuit, autres thèmes vendus individuellement (1,99–3,99€)
+- **Abonnement** : envisagé long terme (1,99€/mois)
+- **B2B** : licences pour événements et team building (200–2 000€/événement)
+
+---
+
+## 🗺️ Roadmap modes de jeu
+
+- **MVP** : Classic (flow décrit ci-dessus)
+- **V3** : Mode Couples en groupe
+- **V4** : Mode Dating (2 joueurs, compatibilité)
+- **Plus tard** : Mode Tribunal, Mode Caption ça, méta-jeu/badges, Mode Team Building pro
+
+### À ne pas faire
+| Concept | Pourquoi |
+|---|---|
+| Chat intégré | WhatsApp le fait mieux |
+| Blind test musical | Droits d'auteur complexes |
+| Mode solo | Casse le principe social |
+
+---
+
+## 📌 Règles de développement
+
+1. **Zéro texte hardcodé** — tout passe par le système i18n
+2. **Mobile-first** — design responsive, pensé pour les téléphones
+3. **Modularité** — core engine séparé des game modes
+4. **Supabase Realtime** pour toute synchronisation entre hôte et joueurs
+5. **Pas de sanctions automatiques** — l'app ne force rien, la dynamique sociale gère
+
+---
+
+## 💬 Principe d'interaction — hors-app intentionnel
+
+**Les joueurs interagissent entre eux en dehors de l'app, pas dedans.**
+
+L'app déclenche les moments — questions, révélations, désignations — mais la vraie interaction (réactions, débats, fous rires, confessions à voix haute) se passe en physique autour de la table. C'est le cœur du concept.
+
+**Implications concrètes sur le dev :**
+- Pas de chat intégré
+- Pas de système de commentaires ou réactions in-app
+- Les écrans d'attente ne doivent pas chercher à combler le silence — le silence c'est la conversation qui se passe
+- Les transitions entre rounds doivent être fluides mais pas précipitées — laisser le groupe respirer
+- L'app est un arbitre, pas un animateur
+
+---
+
+## ⏸️ Système de pause hôte
+
+L'hôte peut mettre la partie en pause à tout moment — pendant une révélation, entre deux rounds, pendant qu'une personne répond — si un débat s'engage, qu'un imprévu arrive, ou que le groupe a besoin de temps.
+
+**Comportement :**
+- Bouton pause accessible en permanence depuis le panel hôte (discret, pas envahissant)
+- En pause : tous les écrans affichent un état "en pause" — les timers se figent, aucune action possible pour les joueurs
+- La reprise est déclenchée uniquement par l'hôte
+- Pas de timeout automatique — la pause peut durer indéfiniment
+
+**Principe** : l'app suit le rythme du groupe, pas l'inverse.

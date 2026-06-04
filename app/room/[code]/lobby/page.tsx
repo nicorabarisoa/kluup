@@ -1,112 +1,277 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { use } from 'react'
-import { useRouter } from 'next/navigation'
+import { makeInitialGameState, pickCandidates } from '@/lib/game'
+import { Player } from '@/lib/types'
+import { copyToClipboard } from '@/lib/utils'
 
-type Player = {
-  id: string
-  pseudo: string
-  is_host: boolean
-  is_online: boolean
-}
+const THEMES = [
+  {
+    id: 'hello-stranger',
+    name: 'Hello Stranger',
+    emoji: '👋',
+    desc: 'On se découvre — léger, safe',
+  },
+  {
+    id: 'apero',
+    name: 'Apéro',
+    emoji: '🥂',
+    desc: 'On se détend — début de soirée',
+  },
+  {
+    id: 'no-filter',
+    name: 'No Filter',
+    emoji: '🔥',
+    desc: 'On se lâche — sans retenue',
+  },
+  {
+    id: 'unmasked',
+    name: 'Unmasked',
+    emoji: '🎭',
+    desc: 'On se révèle — confessions profondes',
+  },
+]
 
-export default function LobbyPage({ params }: { params: Promise<{ code: string }> }) {
-  const { code } = use(params)
-  const [players, setPlayers] = useState<Player[]>([])
-  const [myId, setMyId] = useState<string | null>(null)
+export default function LobbyPage() {
+  const params = useParams<{ code: string }>()
+  const code = params?.code ?? ''
   const router = useRouter()
 
-useEffect(() => {
-  const id = localStorage.getItem('player_id')
-  setMyId(id)
+  const [players, setPlayers] = useState<Player[]>([])
+  const [myId, setMyId] = useState<string | null>(null)
+  const [roomId, setRoomId] = useState<string | null>(null)
+  const [selectedTheme, setSelectedTheme] = useState('hello-stranger')
+  const [starting, setStarting] = useState(false)
+  const navigatedRef = useRef(false)
 
-  async function loadPlayers() {
-    const { data: room } = await supabase
-      .from('rooms')
-      .select()
-      .eq('code', code)
-      .single()
+  useEffect(() => {
+    const id = sessionStorage.getItem('player_id')
+    setMyId(id)
 
-    if (!room) return
+    async function loadRoom() {
+      const { data: room } = await supabase
+        .from('rooms')
+        .select()
+        .eq('code', code)
+        .single()
 
-    const { data } = await supabase
-      .from('players')
-      .select()
-      .eq('room_id', room.id)
+      if (!room) return
+      setRoomId(room.id)
 
-    if (data) setPlayers(data)
-  }
+      if (room.status === 'playing' || room.status === 'ended') {
+        navigate()
+        return
+      }
 
-  loadPlayers()
+      const { data } = await supabase
+        .from('players')
+        .select()
+        .eq('room_id', room.id)
 
-  const channel = supabase
-    .channel(`lobby-${code}`)
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'players',
-    }, (payload) => {
-      setPlayers((prev) => {
-        const exists = prev.find((p) => p.id === payload.new.id)
-        if (exists) return prev
-        return [...prev, payload.new as Player]
+      if (data) setPlayers(data as Player[])
+    }
+
+    loadRoom()
+
+    const channel = supabase
+      .channel(`lobby-${code}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'players',
+      }, (payload) => {
+        setPlayers((prev) => {
+          if (prev.find((p) => p.id === payload.new.id)) return prev
+          return [...prev, payload.new as Player]
+        })
       })
-    })
-    .subscribe()
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'rooms',
+        filter: `code=eq.${code}`,
+      }, (payload) => {
+        if (payload.new.status === 'playing') navigate()
+      })
+      .subscribe()
 
-  return () => {
-    supabase.removeChannel(channel)
+    return () => { supabase.removeChannel(channel) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code])
+
+  function navigate() {
+    if (navigatedRef.current) return
+    navigatedRef.current = true
+    router.push(`/room/${code}/game`)
   }
-}, [code])
 
   const me = players.find((p) => p.id === myId)
   const isHost = me?.is_host ?? false
 
-  async function startGame() {
-    router.push(`/room/${code}/game`)
+  const [copied, setCopied] = useState(false)
+
+  async function copyLink() {
+    const url = `${window.location.origin}/join?code=${code}`
+    await copyToClipboard(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-black text-white p-6">
-      <h1 className="text-3xl font-bold mb-2">Lobby</h1>
-      <p className="text-gray-400 mb-8">
-        Code : <span className="text-white font-bold">{code}</span>
-      </p>
+  async function startGame() {
+    if (!roomId) return
+    setStarting(true)
 
-      <div className="w-full max-w-xs flex flex-col gap-3 mb-8">
-        {players.map((player) => (
-          <div
-            key={player.id}
-            className="bg-white/10 rounded-2xl px-4 py-3 flex items-center justify-between"
+    const candidates = await pickCandidates(selectedTheme, 1, [])
+    const gs = makeInitialGameState(candidates)
+
+    await supabase
+      .from('rooms')
+      .update({ status: 'playing', theme: selectedTheme, game_state: gs })
+      .eq('id', roomId)
+
+    navigate()
+  }
+
+  const AVATAR_COLORS = ['#FF3C6F', '#7B2FFF', '#FFD600', '#00C896']
+  const C = { bg: '#0D0D0D', surface: '#1A1A1A', border: '#252525', muted: '#888', a: '#FF3C6F' }
+
+  return (
+    <main
+      className="flex min-h-screen flex-col pb-8"
+      style={{ background: C.bg, color: '#fff' }}
+    >
+      {/* Header */}
+      <div className="flex flex-col items-center pt-12 pb-6 px-5">
+        <h1
+          className="text-4xl font-extrabold mb-4"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          Klu<span style={{ color: C.a }}>up</span>
+        </h1>
+        <div className="flex items-center gap-3">
+          <span
+            className="text-2xl font-extrabold tracking-widest"
+            style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.2em' }}
           >
-            <span className="font-medium">
-              {player.pseudo}
-              {player.id === myId && (
-                <span className="text-gray-400 text-sm ml-2">(toi)</span>
-              )}
-            </span>
-            {player.is_host && (
-              <span className="text-xs text-gray-400">Hôte</span>
-            )}
-          </div>
-        ))}
+            {code}
+          </span>
+          <button
+            onClick={copyLink}
+            className="text-xs font-medium px-3 py-1.5 rounded-xl"
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: '#fff', fontFamily: 'var(--font-body)' }}
+          >
+            {copied ? '✓ Copié' : 'Copier le lien'}
+          </button>
+        </div>
       </div>
 
-      {isHost ? (
-        <button
-          onClick={startGame}
-          disabled={players.length < 3}
-          className="bg-white text-black font-bold py-4 px-8 rounded-2xl text-lg disabled:opacity-40 w-full max-w-xs"
-        >
-          {players.length < 3
-            ? `Encore ${3 - players.length} joueur(s)...`
-            : 'Lancer la partie 🎉'}
-        </button>
-      ) : (
-        <p className="text-gray-500 text-sm">En attente de l'hôte...</p>
-      )}
+      <div className="flex flex-col gap-4 px-5 flex-1">
+        {/* Players */}
+        <div className="flex flex-col gap-2">
+          {players.map((player, i) => {
+            const color = AVATAR_COLORS[i % AVATAR_COLORS.length]
+            return (
+              <div
+                key={player.id}
+                className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                style={{ background: C.surface }}
+              >
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                  style={{ background: `${color}33`, border: `2px solid ${color}`, color, fontFamily: 'var(--font-display)' }}
+                >
+                  {player.pseudo.charAt(0).toUpperCase()}
+                </div>
+                <span className="font-medium text-sm flex-1" style={{ fontFamily: 'var(--font-body)' }}>
+                  {player.pseudo}
+                  {player.id === myId && (
+                    <span className="ml-2 text-xs" style={{ color: '#555' }}>toi</span>
+                  )}
+                </span>
+                {player.is_host && (
+                  <span
+                    className="text-xs font-medium px-2 py-0.5 rounded-full"
+                    style={{ background: `${C.a}22`, color: C.a, fontFamily: 'var(--font-body)' }}
+                  >
+                    Hôte
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Theme selector — hôte only */}
+        {isHost && (
+          <div>
+            <p className="text-xs mb-2 font-medium" style={{ color: '#888', fontFamily: 'var(--font-body)' }}>
+              Thème
+            </p>
+            <div className="flex flex-col gap-2">
+              {THEMES.map((theme) => {
+                const isSelected = selectedTheme === theme.id
+                return (
+                  <button
+                    key={theme.id}
+                    onClick={() => setSelectedTheme(theme.id)}
+                    className="rounded-2xl px-4 py-3 text-left flex items-center gap-3 transition-all"
+                    style={{
+                      background: isSelected ? '#fff' : C.surface,
+                      border: `1px solid ${isSelected ? '#fff' : C.border}`,
+                    }}
+                  >
+                    <span className="text-xl">{theme.emoji}</span>
+                    <div>
+                      <p
+                        className="font-bold text-sm"
+                        style={{ color: isSelected ? '#0D0D0D' : '#fff', fontFamily: 'var(--font-body)' }}
+                      >
+                        {theme.name}
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{ color: isSelected ? '#444' : '#666', fontFamily: 'var(--font-body)' }}
+                      >
+                        {theme.desc}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {!isHost && (
+          <p className="text-sm text-center" style={{ color: '#555', fontFamily: 'var(--font-body)' }}>
+            En attente du choix de thème de l'hôte…
+          </p>
+        )}
+      </div>
+
+      {/* CTA */}
+      <div className="px-5 mt-6">
+        {isHost ? (
+          <button
+            onClick={startGame}
+            disabled={players.length < 2 || starting}
+            className="w-full font-bold py-4 rounded-2xl text-base disabled:opacity-40"
+            style={{ background: C.a, color: '#fff', fontFamily: 'var(--font-body)' }}
+          >
+            {starting
+              ? 'Démarrage…'
+              : players.length < 2
+              ? `Encore ${2 - players.length} joueur(s)…`
+              : 'Lancer la partie'}
+          </button>
+        ) : (
+          <p className="text-sm text-center" style={{ color: '#555', fontFamily: 'var(--font-body)' }}>
+            En attente de l'hôte…
+          </p>
+        )}
+      </div>
     </main>
   )
 }
