@@ -69,7 +69,8 @@ export type GameState = {
 export type Room = {
   id: string
   code: string
-  status: 'lobby' | 'playing' | 'ended'
+  // 'waiting' is the DB default (lobby), then 'playing' once started, 'ended' at the end.
+  status: 'waiting' | 'playing' | 'ended'
   theme: string
   game_state: GameState | null
 }

@@ -21,6 +21,7 @@ export default function LobbyPage() {
   const [selectedTheme, setSelectedTheme] = useState('hello-stranger')
   const [starting, setStarting] = useState(false)
   const navigatedRef = useRef(false)
+  const roomIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const id = sessionStorage.getItem('player_id')
@@ -31,10 +32,11 @@ export default function LobbyPage() {
         .from('rooms')
         .select()
         .eq('code', code)
-        .single()
+        .maybeSingle()
 
       if (!room) return
       setRoomId(room.id)
+      roomIdRef.current = room.id
 
       if (room.status === 'playing' || room.status === 'ended') {
         navigate()
@@ -58,10 +60,22 @@ export default function LobbyPage() {
         schema: 'public',
         table: 'players',
       }, (payload) => {
+        // No server-side room filter on the realtime sub (room_id isn't known
+        // when the channel is created), so guard against players from other rooms.
+        if (payload.new.room_id !== roomIdRef.current) return
         setPlayers((prev) => {
           if (prev.find((p) => p.id === payload.new.id)) return prev
           return [...prev, payload.new as Player]
         })
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'players',
+      }, (payload) => {
+        // DELETE payloads only carry the primary key; removing an id we don't
+        // have is a harmless no-op, so no room filter is needed here.
+        setPlayers((prev) => prev.filter((p) => p.id !== payload.old.id))
       })
       .on('postgres_changes', {
         event: 'UPDATE',

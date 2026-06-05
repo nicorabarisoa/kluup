@@ -42,6 +42,7 @@ export const fr = {
   game: {
     waiting_for_votes: (n: number, total: number) => `${n} / ${total} ont voté`,
     vote_sent: "Vote enregistré !",
+    skip_wait: "Passer sans attendre les absents",
     next_round: "Round suivant",
     see_results: "Voir les résultats",
     end_game: "Terminer la session",
@@ -102,6 +103,7 @@ export const fr = {
     share_cta: "Partager la soirée",
     new_round: "Rejouer une manche",
     end_cta: "Terminer",
+    leave: "Quitter",
     thanks: "Merci d'avoir joué. À bientôt.",
   },
   card: {

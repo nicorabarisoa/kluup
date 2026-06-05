@@ -232,6 +232,21 @@ function VoteProgress({ count, total, voted }: { count: number; total: number; v
   )
 }
 
+// Host-only escape hatch on vote phases: resolve with the votes cast so far so
+// a disconnected/AFK player can't freeze the game waiting for a vote that never comes.
+function HostSkipBtn({ show, onForce }: { show: boolean; onForce: () => void }) {
+  if (!show) return null
+  return (
+    <button
+      onClick={onForce}
+      className="w-full py-3 text-xs font-medium mt-2"
+      style={{ color: C.muted, fontFamily: 'var(--font-body)' }}
+    >
+      {fr.game.skip_wait}
+    </button>
+  )
+}
+
 function WaitingDots() {
   return (
     <div className="flex gap-1 justify-center mt-6">
@@ -294,9 +309,9 @@ function PausedScreen({ isHost, onResume }: { isHost: boolean; onResume: () => v
 // ---- Question selection ----
 
 function QuestionSelectionScreen({
-  gs, isHost, hasVoted, voteCount, playerCount, onVote,
+  gs, isHost, hasVoted, voteCount, playerCount, onVote, onForce,
 }: {
-  gs: GameState; isHost: boolean; hasVoted: boolean; voteCount: number; playerCount: number; onVote: (i: number) => void
+  gs: GameState; isHost: boolean; hasVoted: boolean; voteCount: number; playerCount: number; onVote: (i: number) => void; onForce: () => void
 }) {
   // A round has a single type — read it once from the candidates.
   const roundType = gs.candidates[0]?.type
@@ -333,6 +348,7 @@ function QuestionSelectionScreen({
         </div>
 
         <VoteProgress count={voteCount} total={playerCount} voted={hasVoted} />
+        <HostSkipBtn show={isHost && hasVoted && voteCount < playerCount} onForce={onForce} />
       </div>
     </GameScreen>
   )
@@ -341,9 +357,9 @@ function QuestionSelectionScreen({
 // ---- Designation vote (Type A + Type C vote) ----
 
 function DesignationVoteScreen({
-  gs, players, myId, hasVoted, voteCount, accent, onVote,
+  gs, players, myId, isHost, hasVoted, voteCount, accent, onVote, onForce,
 }: {
-  gs: GameState; players: Player[]; myId: string | null; hasVoted: boolean; voteCount: number; accent: string; onVote: (id: string) => void
+  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; hasVoted: boolean; voteCount: number; accent: string; onVote: (id: string) => void; onForce: () => void
 }) {
   const q = gs.current_question!
   const isTypeC = q.type === 'C'
@@ -354,7 +370,12 @@ function DesignationVoteScreen({
   return (
     <GameScreen
       header={<RoundHeader round={gs.round} label={label} accent={accent} />}
-      footer={<VoteProgress count={voteCount} total={players.length} voted={hasVoted} />}
+      footer={
+        <>
+          <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
+          <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
+        </>
+      }
     >
       <div className="w-full max-w-sm">
         <QuestionCard text={q.question.fr} accent={accent} />
@@ -474,9 +495,9 @@ function DesignationRevealScreen({
 // ---- Confession vote (Type B) ----
 
 function ConfessionVoteScreen({
-  gs, players, hasVoted, voteCount, onVote,
+  gs, players, isHost, hasVoted, voteCount, onVote, onForce,
 }: {
-  gs: GameState; players: Player[]; hasVoted: boolean; voteCount: number; onVote: (a: boolean) => void
+  gs: GameState; players: Player[]; isHost: boolean; hasVoted: boolean; voteCount: number; onVote: (a: boolean) => void; onForce: () => void
 }) {
   const q = gs.current_question!
 
@@ -516,6 +537,7 @@ function ConfessionVoteScreen({
           </p>
         )}
         <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
+        <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
       </div>
     </GameScreen>
   )
@@ -949,11 +971,13 @@ const ShareCard = forwardRef<HTMLDivElement, {
 // ---- End screen ----
 
 function EndScreen({
-  gs, players, isHost, theme, onNewRound,
+  gs, players, isHost, theme, onNewRound, onLeave,
 }: {
-  gs: GameState; players: Player[]; isHost: boolean; theme: string; onNewRound: () => void
+  gs: GameState; players: Player[]; isHost: boolean; theme: string; onNewRound: () => void; onLeave: () => void
 }) {
-  const totalRounds = Math.max(gs.round - 1, 0)
+  // Derive from the accumulated stats so the count and the title percentages
+  // share the same denominator (every completed round lands in exactly one of these).
+  const totalRounds = gs.stats.rounds_a + gs.stats.rounds_b + gs.stats.rounds_c
   const titleKey = computeGroupTitle(gs.stats, theme, totalRounds)
   const title = fr.titles[titleKey]
   const statText = momentStat(titleKey, gs.stats, totalRounds)
@@ -989,6 +1013,7 @@ function EndScreen({
         <div className="flex flex-col gap-2">
           <PrimaryBtn onClick={() => setShowCard(true)} accent={C.a}>{fr.end.share_cta}</PrimaryBtn>
           {isHost && <GhostBtn onClick={onNewRound}>{fr.end.new_round}</GhostBtn>}
+          <GhostBtn onClick={onLeave}>{fr.end.leave}</GhostBtn>
         </div>
       }
     >
@@ -1354,13 +1379,13 @@ export default function GamePage() {
   const screen = (() => {
     switch (gs.phase) {
       case 'voting_question':
-        return <QuestionSelectionScreen gs={gs} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} playerCount={players.length} onVote={(i) => submitVote({ question_index: i }, 'question_selection')} />
+        return <QuestionSelectionScreen gs={gs} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} playerCount={players.length} onVote={(i) => submitVote({ question_index: i }, 'question_selection')} onForce={() => resolveVotes('question_selection')} />
       case 'round_a_vote':
-        return <DesignationVoteScreen gs={gs} players={players} myId={myId} hasVoted={hasVoted} voteCount={voteCount} accent={C.a} onVote={(id) => submitVote({ target_player_id: id }, 'designation')} />
+        return <DesignationVoteScreen gs={gs} players={players} myId={myId} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} accent={C.a} onVote={(id) => submitVote({ target_player_id: id }, 'designation')} onForce={() => resolveVotes('designation')} />
       case 'round_a_reveal':
         return <DesignationRevealScreen gs={gs} players={players} isHost={isHost} accent={C.a} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_b_vote':
-        return <ConfessionVoteScreen gs={gs} players={players} hasVoted={hasVoted} voteCount={voteCount} onVote={(a) => submitVote({ answer: a }, 'confession')} />
+        return <ConfessionVoteScreen gs={gs} players={players} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} onVote={(a) => submitVote({ answer: a }, 'confession')} onForce={() => resolveVotes('confession')} />
       case 'round_b1_reveal':
         return <B1RevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_b2_roulette':
@@ -1370,11 +1395,11 @@ export default function GamePage() {
       case 'round_c_volunteer_reveal':
         return <VolunteerRevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_c_vote':
-        return <DesignationVoteScreen gs={gs} players={players} myId={myId} hasVoted={hasVoted} voteCount={voteCount} accent={C.c} onVote={(id) => submitVote({ target_player_id: id }, 'designation')} />
+        return <DesignationVoteScreen gs={gs} players={players} myId={myId} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} accent={C.c} onVote={(id) => submitVote({ target_player_id: id }, 'designation')} onForce={() => resolveVotes('designation')} />
       case 'round_c_vote_reveal':
         return <DesignationRevealScreen gs={gs} players={players} isHost={isHost} accent={C.c} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'ended':
-        return <EndScreen gs={gs} players={players} isHost={isHost} theme={room.theme} onNewRound={onNewRound} />
+        return <EndScreen gs={gs} players={players} isHost={isHost} theme={room.theme} onNewRound={onNewRound} onLeave={() => router.push('/')} />
       default:
         return <LoadingScreen />
     }
