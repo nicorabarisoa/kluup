@@ -1094,7 +1094,7 @@ function momentStat(titleKey: string, stats: GameState['stats'], totalRounds: nu
   }
 }
 
-// Square share card (rendered to PNG via html2canvas).
+// Square share card (rendered to PNG via modern-screenshot).
 const ShareCard = forwardRef<HTMLDivElement, {
   theme: string
   titleName: string
@@ -1202,14 +1202,20 @@ function EndScreen({
     if (!cardRef.current) return
     setExporting(true)
     try {
-      const html2canvas = (await import('html2canvas')).default
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: C.bg,
-        scale: 2, // 540 * 2 = 1080px
-      })
+      // modern-screenshot renders text via the browser (SVG foreignObject), so
+      // glyph metrics are correct — unlike html2canvas, which mis-measured the
+      // custom fonts and overlapped the letters.
+      const { domToBlob } = await import('modern-screenshot')
+      if (typeof document !== 'undefined' && document.fonts) {
+        try { await document.fonts.ready } catch { /* ignore */ }
+      }
       const filename = `kluup-${title.name.toLowerCase().replace(/\s+/g, '-')}.png`
-      const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/png'))
-      if (!blob) throw new Error('toBlob returned null')
+      const blob = await domToBlob(cardRef.current, {
+        scale: 2, // 540 * 2 = 1080px
+        backgroundColor: C.bg,
+        type: 'image/png',
+      })
+      if (!blob) throw new Error('domToBlob returned null')
       const file = new File([blob], filename, { type: 'image/png' })
 
       // On mobile, the native share sheet lets the user save to Photos / send to
