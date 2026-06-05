@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { fr } from '@/lib/i18n'
 
-export default function JoinPage() {
+function JoinForm() {
   const searchParams = useSearchParams()
   const [code, setCode] = useState('')
   const [pseudo, setPseudo] = useState('')
@@ -83,5 +83,13 @@ export default function JoinPage() {
         </button>
       </div>
     </main>
+  )
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense>
+      <JoinForm />
+    </Suspense>
   )
 }
