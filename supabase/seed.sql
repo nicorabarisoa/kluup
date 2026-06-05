@@ -1,6 +1,15 @@
 -- Kluup — Questions seed
--- Run this in the Supabase SQL editor to populate the questions table.
+-- Run this in the Supabase SQL editor.
+-- Creates the questions table if it doesn't exist, then populates it.
 -- 4 themes × 3 types × 3 intensities × ~4 questions = ~144 rows
+
+CREATE TABLE IF NOT EXISTS questions (
+  id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  theme     text NOT NULL,
+  type      text NOT NULL CHECK (type IN ('A', 'B', 'C')),
+  intensity integer NOT NULL CHECK (intensity BETWEEN 1 AND 3),
+  question  jsonb NOT NULL
+);
 
 INSERT INTO questions (id, theme, type, intensity, question) VALUES
 
