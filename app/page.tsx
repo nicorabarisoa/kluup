@@ -19,6 +19,12 @@ export default function Home() {
     if (!pseudo.trim()) return
     setLoading(true)
 
+    // Opportunistic maintenance: sweep dead rooms (>3h idle). Fire-and-forget —
+    // never let it block or break room creation.
+    supabase.rpc('cleanup_dead_rooms').then(({ error }) => {
+      if (error) console.warn('[cleanup_dead_rooms]', error.message)
+    })
+
     const code = generateCode()
 
     const { data: room, error } = await supabase

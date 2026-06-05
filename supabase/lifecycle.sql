@@ -23,6 +23,7 @@ ALTER TABLE players
 -- Track activity so live games are never swept mid-session.
 -- Every game action writes game_state (an UPDATE on rooms) → bumped here.
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS last_activity timestamptz NOT NULL DEFAULT now();
+CREATE INDEX IF NOT EXISTS idx_rooms_last_activity ON rooms (last_activity);
 
 CREATE OR REPLACE FUNCTION rooms_bump_activity()
 RETURNS trigger LANGUAGE plpgsql AS $fn$
@@ -56,15 +57,14 @@ END
 $fn$;
 
 -- === Block 4 ================================================================
--- Schedule the sweep hourly with pg_cron.
--- If CREATE EXTENSION errors, enable pg_cron first via
--- Dashboard → Database → Extensions, then run just the SELECT below.
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- Expose the sweep so the app can trigger it. The app calls this RPC on room
+-- creation (opportunistic cleanup) — no pg_cron / extension required.
+GRANT EXECUTE ON FUNCTION cleanup_dead_rooms() TO anon, authenticated;
 
--- Re-running with the same job name updates the existing schedule.
-SELECT cron.schedule('cleanup-dead-rooms', '0 * * * *', 'SELECT cleanup_dead_rooms()');
+-- Run the sweep right now (optional sanity check; returns rooms removed):
+--   SELECT cleanup_dead_rooms();
 
--- Handy one-offs:
---   SELECT cleanup_dead_rooms();                 -- run the sweep now
---   SELECT * FROM cron.job;                       -- list scheduled jobs
---   SELECT cron.unschedule('cleanup-dead-rooms'); -- remove the schedule
+-- (Optional) Fully automatic cleanup instead of/with the app trigger.
+-- Run these TWO lines ONE AT A TIME (the editor can't analyze multiple at once):
+--   CREATE EXTENSION IF NOT EXISTS pg_cron;
+--   SELECT cron.schedule('cleanup-dead-rooms', '0 * * * *', 'SELECT cleanup_dead_rooms()');
