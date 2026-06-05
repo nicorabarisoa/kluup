@@ -1311,9 +1311,15 @@ function EndScreen({
           onClick={() => !exporting && setShowCard(false)}
         >
           <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-4">
-            {/* Scaled-down preview of the 540px card */}
-            <div style={{ transform: 'scale(0.62)', transformOrigin: 'center', borderRadius: 16, overflow: 'hidden' }}>
+            {/* Full-size card rendered off-screen — captured as-is (no transform → no crop). */}
+            <div style={{ position: 'fixed', top: 0, left: -10000, pointerEvents: 'none' }} aria-hidden>
               <ShareCard ref={cardRef} theme={theme} titleName={title.name} statText={statText} players={players} />
+            </div>
+            {/* Scaled-down visual preview (display only). */}
+            <div style={{ width: 313, height: 313, overflow: 'hidden', borderRadius: 16 }}>
+              <div style={{ transform: 'scale(0.58)', transformOrigin: 'top left', width: 540, height: 540 }}>
+                <ShareCard theme={theme} titleName={title.name} statText={statText} players={players} />
+              </div>
             </div>
             <div className="flex flex-col gap-2 w-full" style={{ maxWidth: 320 }}>
               <PrimaryBtn onClick={exportCard} accent={C.a} disabled={exporting}>
