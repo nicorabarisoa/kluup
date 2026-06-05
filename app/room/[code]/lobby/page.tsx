@@ -6,11 +6,12 @@ import { supabase } from '@/lib/supabase'
 import { makeInitialGameState, pickCandidates } from '@/lib/game'
 import { Player } from '@/lib/types'
 import { copyToClipboard } from '@/lib/utils'
-import { fr } from '@/lib/i18n'
+import { useT, LangSwitch } from '@/lib/locale'
 
 const THEME_IDS = ['hello-stranger', 'apero', 'no-filter', 'unmasked']
 
 export default function LobbyPage() {
+  const fr = useT()
   const params = useParams<{ code: string }>()
   const code = params?.code ?? ''
   const router = useRouter()
@@ -132,8 +133,11 @@ export default function LobbyPage() {
       className="flex min-h-screen flex-col pb-8"
       style={{ background: C.bg, color: '#fff' }}
     >
+      <div className="w-full flex justify-end px-5 pt-4">
+        <LangSwitch />
+      </div>
       {/* Header */}
-      <div className="flex flex-col items-center pt-12 pb-6 px-5">
+      <div className="flex flex-col items-center pt-6 pb-6 px-5">
         <h1
           className="text-4xl font-extrabold mb-4"
           style={{ fontFamily: 'var(--font-display)' }}

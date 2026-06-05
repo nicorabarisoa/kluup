@@ -4,13 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { genId } from '@/lib/utils'
-import { fr } from '@/lib/i18n'
+import { useT, LangSwitch } from '@/lib/locale'
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
 }
 
 export default function Home() {
+  const fr = useT()
   const [pseudo, setPseudo] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -60,6 +61,9 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-6 pb-10" style={{ background: '#0D0D0D' }}>
+      <div className="w-full flex justify-end">
+        <LangSwitch />
+      </div>
       <div className="flex-1 flex flex-col items-center justify-center gap-2">
         <h1 className="text-6xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
           Klu<span style={{ color: '#FF3C6F' }}>up</span>

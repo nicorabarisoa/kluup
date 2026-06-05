@@ -63,10 +63,8 @@ export const fr = {
     instruction: "Vote pour la personne qui correspond le mieux.",
     result_title: "Le groupe a désigné…",
     reveal_body: (name: string) => `${name} répond à voix haute`,
-    // Égalité totale — personne ne s'est démarqué.
     tie_all_title: "Décevant.",
     tie_all_body: "Personne n'a su se démarquer. Offrez-vous une personnalité 😈",
-    // Égalité en tête — plusieurs ex æquo.
     tie_some_title: (n: number) => `${n} se démarquent`,
     tie_some_body: "Égalité en tête — à elles et eux de répondre.",
   },
@@ -121,7 +119,6 @@ export const fr = {
     download: "Télécharger l'image",
     close: "Fermer",
     footer: "kluup.app",
-    // Stat marquante calculée selon le titre, à partir des stats de groupe.
     stat: {
       designations: (n: number) => `${n} désignation${n > 1 ? "s" : ""} prononcée${n > 1 ? "s" : ""} ce soir`,
       confessions_open: (n: number) => `${n} confession${n > 1 ? "s" : ""} révélée${n > 1 ? "s" : ""} au grand jour`,
@@ -133,45 +130,171 @@ export const fr = {
     },
   },
   titles: {
-    title_ruthless: {
-      name: "Sans pitié",
-      desc: "Vous avez désigné sans hésiter. Ce groupe ne fait pas de cadeaux.",
-    },
-    title_transparent: {
-      name: "À livre ouvert",
-      desc: "Vous avez dit oui sans vous cacher. Ce groupe assume.",
-    },
-    title_mysterious: {
-      name: "Insondables",
-      desc: "On sait qui a dit oui… mais pas qui. Ce groupe garde ses mystères.",
-    },
-    title_brave: {
-      name: "Les courageux",
-      desc: "Plusieurs ont levé la main sans qu'on le leur demande. Chapeau.",
-    },
-    title_cautious: {
-      name: "Les prudents",
-      desc: "Personne ne s'est porté volontaire. Ce groupe attend de voir.",
-    },
-    title_nofilter: {
-      name: "No Filter",
-      desc: "Aucune question n'a été trop loin. Ce groupe joue pour de vrai.",
-    },
-    title_accomplices: {
-      name: "Les complices",
-      desc: "Vous venez de passer une soirée à vous découvrir. Ce n'est que le début.",
-    },
-    title_daring: {
-      name: "Les téméraires",
-      desc: "Vous vous êtes révélés sans filtre. Ce groupe n'a peur de rien.",
-    },
-    title_unfathomable: {
-      name: "Le groupe mystère",
-      desc: "On ne sait toujours pas qui vous êtes vraiment. Et c'est très bien ainsi.",
-    },
-    title_unclassifiable: {
-      name: "Inclassables",
-      desc: "Ni tout blancs ni tout noirs. Ce groupe est unique — et c'est votre force.",
-    },
+    title_ruthless: { name: "Sans pitié", desc: "Vous avez désigné sans hésiter. Ce groupe ne fait pas de cadeaux." },
+    title_transparent: { name: "À livre ouvert", desc: "Vous avez dit oui sans vous cacher. Ce groupe assume." },
+    title_mysterious: { name: "Insondables", desc: "On sait qui a dit oui… mais pas qui. Ce groupe garde ses mystères." },
+    title_brave: { name: "Les courageux", desc: "Plusieurs ont levé la main sans qu'on le leur demande. Chapeau." },
+    title_cautious: { name: "Les prudents", desc: "Personne ne s'est porté volontaire. Ce groupe attend de voir." },
+    title_nofilter: { name: "No Filter", desc: "Aucune question n'a été trop loin. Ce groupe joue pour de vrai." },
+    title_accomplices: { name: "Les complices", desc: "Vous venez de passer une soirée à vous découvrir. Ce n'est que le début." },
+    title_daring: { name: "Les téméraires", desc: "Vous vous êtes révélés sans filtre. Ce groupe n'a peur de rien." },
+    title_unfathomable: { name: "Le groupe mystère", desc: "On ne sait toujours pas qui vous êtes vraiment. Et c'est très bien ainsi." },
+    title_unclassifiable: { name: "Inclassables", desc: "Ni tout blancs ni tout noirs. Ce groupe est unique — et c'est votre force." },
   },
 }
+
+export type Dict = typeof fr
+
+export const en: Dict = {
+  common: {
+    loading: "Loading…",
+    waiting: "Waiting…",
+    you: "you",
+    vote_anonymous: "Anonymous vote",
+    pseudo_placeholder: "Your name",
+  },
+  home: {
+    tagline: "The party game that reveals everything",
+    create_btn: "Create a room",
+    creating: "Creating…",
+    join_btn: "Join a room",
+    create_error: "Couldn't create the room. Try again in a moment.",
+  },
+  join: {
+    title: "Join",
+    subtitle: "Enter the room code",
+    code_placeholder: "Code (e.g. 7TKFQU)",
+    join_btn: "Join",
+    joining: "Connecting…",
+    room_not_found: "Room not found — check the code",
+    join_error: "Couldn't join the room. Try again in a moment.",
+  },
+  lobby: {
+    copy_link: "Copy link",
+    copied: "✓ Copied",
+    host_badge: "Host",
+    theme_label: "Theme",
+    waiting_theme: "Waiting for the host to pick a theme…",
+    waiting_host: "Waiting for the host…",
+    start_btn: "Start the game",
+    starting: "Starting…",
+    need_players: (n: number) => `${n} more player${n > 1 ? "s" : ""}…`,
+    themes: {
+      'hello-stranger': { name: "Hello Stranger", emoji: "👋", desc: "Getting to know each other — light, safe" },
+      'apero': { name: "Apéro", emoji: "🥂", desc: "Winding down — start of the night" },
+      'no-filter': { name: "No Filter", emoji: "🔥", desc: "Letting loose — no holding back" },
+      'unmasked': { name: "Unmasked", emoji: "🎭", desc: "Opening up — deep confessions" },
+    },
+  },
+  game: {
+    waiting_for_votes: (n: number, total: number) => `${n} / ${total} have voted`,
+    vote_sent: "Vote recorded!",
+    skip_wait: "Skip without waiting for the others",
+    next_round: "Next round",
+    see_results: "See the results",
+    end_game: "End the session",
+    new_round: "Play another round",
+    resume: "Resume",
+    paused_title: "Game paused",
+    paused_body: "The host will resume the game.",
+    stop_game: "Change theme",
+    quit: "Leave",
+    quit_confirm: "Leave the game? The others will continue without you.",
+  },
+  voting_question: {
+    title: "Choose your question",
+    instruction: "Vote for the question you want to play.",
+  },
+  designation: {
+    label: "Designation",
+    instruction: "Vote for the person who fits best.",
+    result_title: "The group chose…",
+    reveal_body: (name: string) => `${name} answers out loud`,
+    tie_all_title: "Disappointing.",
+    tie_all_body: "Nobody stood out. Go buy yourselves a personality 😈",
+    tie_some_title: (n: number) => `${n} stand out`,
+    tie_some_body: "It's a tie at the top — over to them.",
+  },
+  confession: {
+    label: "Confession",
+    instruction: "Does this apply to you?",
+    yes: "Yes",
+    yes_sub: "That's me",
+    no: "No",
+    no_sub: "Not me",
+    vote_sent: "Answer recorded!",
+    answer_private: "🔒 Your answer is only shown at the reveal",
+    waiting: "Waiting for the other players…",
+    b1_title: "The group's verdict",
+    b1_count: (yes: number, total: number) => `${yes} player${yes > 1 ? "s" : ""} out of ${total} owned up`,
+    b1_all: "The whole group owned up!",
+    b1_nobody: "Nobody owned up. We believe you.",
+    b2_before_title: "The wheel will pick…",
+    b2_spinning: "The wheel is spinning…",
+    b2_percent: (n: number) => `${n}% of the group said yes.`,
+    b2_reveal_title: "The wheel has spoken…",
+    b2_reveal: (name: string) => `${name} is exposed.`,
+    b2_others: (n: number) => `😉 ${n} ${n > 1 ? "people" : "person"} didn't get leaked.`,
+    b2_nobody: "Nobody said yes. The secret is safe.",
+    b2_btn_reveal: "Reveal",
+  },
+  question_ouverte: {
+    label: "Volunteering",
+    volunteer_title: "The game is paused.",
+    volunteer_body: "Anyone want to answer out loud?",
+    volunteer_btn: "I'll go!",
+    volunteer_host_skip: "Start the vote",
+    nobody_volunteered: "Nobody. Let's pick someone.",
+    volunteer_reveal: (name: string) => `${name} stepped up!`,
+    vote_instruction: "Vote for someone who should answer.",
+    result_title: "The group chose…",
+    result_body: (name: string) => `${name} answers out loud`,
+  },
+  end: {
+    title: "The night in numbers",
+    group_title_label: "Tonight you were…",
+    rounds_played: (n: number) => `${n} round${n > 1 ? "s" : ""} played`,
+    share_cta: "Share the night",
+    new_round: "Play again (pick a theme)",
+    end_cta: "Finish",
+    leave: "Leave",
+    thanks: "Thanks for playing. See you soon.",
+  },
+  card: {
+    moment: "The highlight",
+    generating: "Generating…",
+    download: "Download the image",
+    close: "Close",
+    footer: "kluup.app",
+    stat: {
+      designations: (n: number) => `${n} designation${n > 1 ? "s" : ""} called out tonight`,
+      confessions_open: (n: number) => `${n} confession${n > 1 ? "s" : ""} brought into the open`,
+      roulette: (n: number) => `the wheel decided ${n} time${n > 1 ? "s" : ""} tonight`,
+      volunteers: (n: number) => `${n} volunteer${n > 1 ? "s" : ""} without a moment's hesitation`,
+      open_questions: (n: number) => `${n} open question${n > 1 ? "s" : ""} played`,
+      rounds: (n: number) => `${n} round${n > 1 ? "s" : ""} played together`,
+      mix: (a: number, b: number, c: number) => `${a} designations · ${b} confessions · ${c} open questions`,
+    },
+  },
+  titles: {
+    title_ruthless: { name: "Ruthless", desc: "You named names without hesitation. This group pulls no punches." },
+    title_transparent: { name: "An open book", desc: "You said yes without hiding. This group owns it." },
+    title_mysterious: { name: "Unreadable", desc: "We know someone said yes… but not who. This group keeps its secrets." },
+    title_brave: { name: "The brave ones", desc: "Several stepped up without being asked. Respect." },
+    title_cautious: { name: "The cautious ones", desc: "Nobody volunteered. This group waits and sees." },
+    title_nofilter: { name: "No Filter", desc: "No question was too far. This group plays for real." },
+    title_accomplices: { name: "The accomplices", desc: "You just spent a night getting to know each other. This is only the beginning." },
+    title_daring: { name: "The daring ones", desc: "You opened up with no filter. This group fears nothing." },
+    title_unfathomable: { name: "The mystery group", desc: "We still don't know who you really are. And that's just fine." },
+    title_unclassifiable: { name: "Unclassifiable", desc: "Neither saints nor sinners. This group is one of a kind — and that's your strength." },
+  },
+}
+
+export const dictionaries = { fr, en } satisfies Record<string, Dict>
+
+export type Locale = keyof typeof dictionaries
+
+export const defaultLocale: Locale = 'fr'
+
+// Shown in the language switcher.
+export const localeNames: Record<Locale, string> = { fr: 'FR', en: 'EN' }

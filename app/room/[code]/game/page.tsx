@@ -14,7 +14,8 @@ import {
   tallyQuestionSelection,
   updateRoomGameState,
 } from '@/lib/game'
-import { fr } from '@/lib/i18n'
+import { useT, useLocale } from '@/lib/locale'
+import type { Dict } from '@/lib/i18n'
 import { GameState, Player, Room } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -215,6 +216,7 @@ function GhostBtn({ onClick, children }: { onClick?: () => void; children: React
 
 // Vote progress visible to everyone during a vote (voters and non-voters alike).
 function VoteProgress({ count, total, voted }: { count: number; total: number; voted: boolean }) {
+  const fr = useT()
   // A voter has cast at least their own vote, so never show less than 1 for them.
   const shown = voted ? Math.max(count, 1) : count
   return (
@@ -234,6 +236,7 @@ function VoteProgress({ count, total, voted }: { count: number; total: number; v
 // Host-only escape hatch on vote phases: resolve with the votes cast so far so
 // a disconnected/AFK player can't freeze the game waiting for a vote that never comes.
 function HostSkipBtn({ show, onForce }: { show: boolean; onForce: () => void }) {
+  const fr = useT()
   if (!show) return null
   return (
     <button
@@ -275,6 +278,7 @@ function PauseBtn({ onPause }: { onPause: () => void }) {
 
 // Lets a non-host player leave; the game continues for everyone else.
 function QuitBtn({ onQuit }: { onQuit: () => void }) {
+  const fr = useT()
   return (
     <button
       onClick={onQuit}
@@ -302,6 +306,7 @@ function LoadingScreen() {
 }
 
 function PausedScreen({ isHost, onResume, onStop }: { isHost: boolean; onResume: () => void; onStop: () => void }) {
+  const fr = useT()
   return (
     <GameScreen
       footer={isHost ? (
@@ -329,6 +334,8 @@ function QuestionSelectionScreen({
 }: {
   gs: GameState; isHost: boolean; hasVoted: boolean; voteCount: number; playerCount: number; onVote: (i: number) => void; onForce: () => void
 }) {
+  const fr = useT()
+  const { locale } = useLocale()
   // A round has a single type — read it once from the candidates.
   const roundType = gs.candidates[0]?.type
   const accent = accentForType(roundType)
@@ -357,7 +364,7 @@ function QuestionSelectionScreen({
               style={{ background: C.surface, border: `1px solid ${hasVoted ? C.border : accent + '44'}` }}
             >
               <p className="text-sm leading-snug" style={{ color: C.text, fontFamily: 'var(--font-body)' }}>
-                {q.question.fr}
+                {q.question[locale]}
               </p>
             </button>
           ))}
@@ -377,6 +384,8 @@ function DesignationVoteScreen({
 }: {
   gs: GameState; players: Player[]; myId: string | null; isHost: boolean; hasVoted: boolean; voteCount: number; accent: string; onVote: (id: string) => void; onForce: () => void
 }) {
+  const fr = useT()
+  const { locale } = useLocale()
   const q = gs.current_question!
   const isTypeC = q.type === 'C'
   const label = isTypeC ? fr.question_ouverte.label : fr.designation.label
@@ -395,7 +404,7 @@ function DesignationVoteScreen({
       }
     >
       <div className="w-full max-w-sm">
-        <QuestionCard text={q.question.fr} accent={accent} />
+        <QuestionCard text={q.question[locale]} accent={accent} />
 
         {hasVoted ? (
           <WaitingDots />
@@ -439,6 +448,8 @@ function DesignationRevealScreen({
 }: {
   gs: GameState; players: Player[]; isHost: boolean; accent: string; nextLabel: string; onNext: () => void; onEnd: () => void
 }) {
+  const fr = useT()
+  const { locale } = useLocale()
   const q = gs.current_question!
   const isTypeC = q.type === 'C'
   const label = isTypeC ? fr.question_ouverte.label : fr.designation.label
@@ -474,7 +485,7 @@ function DesignationRevealScreen({
     >
       <div className="w-full max-w-sm flex flex-col items-center">
         {/* Redisplay the question so everyone remembers the topic while answering. */}
-        <QuestionCard text={q.question.fr} accent={accent} />
+        <QuestionCard text={q.question[locale]} accent={accent} />
 
         {!shown ? (
           <div className="flex flex-col items-center pt-2">
@@ -553,6 +564,8 @@ function ConfessionVoteScreen({
 }: {
   gs: GameState; players: Player[]; isHost: boolean; hasVoted: boolean; voteCount: number; onVote: (a: boolean) => void; onForce: () => void
 }) {
+  const fr = useT()
+  const { locale } = useLocale()
   const q = gs.current_question!
 
   return (
@@ -582,7 +595,7 @@ function ConfessionVoteScreen({
       }
     >
       <div className="w-full max-w-sm">
-        <QuestionCard text={q.question.fr} accent={C.b} />
+        <QuestionCard text={q.question[locale]} accent={C.b} />
         {hasVoted ? (
           <WaitingDots />
         ) : (
@@ -604,6 +617,7 @@ function B1RevealScreen({
 }: {
   gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void
 }) {
+  const fr = useT()
   const yesCount = gs.revealed_player_ids.length
   const total = players.length
   const pct = gs.yes_percentage ?? 0
@@ -676,6 +690,7 @@ function B2RouletteScreen({
 }: {
   gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onReveal: () => void; onNext: () => void; onEnd: () => void
 }) {
+  const fr = useT()
   const designated = players.find((p) => p.id === gs.designated_player_id)
   const name = designated?.pseudo ?? '?'
   const idx = designated ? players.indexOf(designated) : 0
@@ -823,6 +838,8 @@ function VolunteerScreen({
 }: {
   gs: GameState; myId: string | null; isHost: boolean; onVolunteer: () => void; onSkip: () => void
 }) {
+  const fr = useT()
+  const { locale } = useLocale()
   const q = gs.current_question!
   const [volunteered, setVolunteered] = useState(false)
 
@@ -847,7 +864,7 @@ function VolunteerScreen({
       }
     >
       <div className="w-full max-w-sm">
-        <QuestionCard text={q.question.fr} accent={C.c} />
+        <QuestionCard text={q.question[locale]} accent={C.c} />
         <div className="text-center">
           <p className="font-bold mb-1" style={{ fontFamily: 'var(--font-display)', fontSize: 18 }}>
             {fr.question_ouverte.volunteer_title}
@@ -869,6 +886,8 @@ function VolunteerRevealScreen({
 }: {
   gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void
 }) {
+  const fr = useT()
+  const { locale } = useLocale()
   const q = gs.current_question!
   const volunteer = players.find((p) => p.id === gs.volunteer_player_id)
   const name = volunteer?.pseudo ?? '?'
@@ -897,7 +916,7 @@ function VolunteerRevealScreen({
     >
       <div className="w-full max-w-sm flex flex-col items-center">
         {/* Redisplay the question so everyone remembers the topic while answering. */}
-        <QuestionCard text={q.question.fr} accent={C.c} />
+        <QuestionCard text={q.question[locale]} accent={C.c} />
         {!shown ? (
           <p className="text-5xl pt-2" style={{ animation: 'b2pulse 0.7s ease-in-out infinite' }}>🙋</p>
         ) : (
@@ -922,26 +941,26 @@ function VolunteerRevealScreen({
 // ---- Share card ----
 
 // The "moment fort" stat shown on the card, tailored to the group title.
-function momentStat(titleKey: string, stats: GameState['stats'], totalRounds: number): string {
+function momentStat(titleKey: string, stats: GameState['stats'], totalRounds: number, t: Dict): string {
   const s = stats
   switch (titleKey) {
     case 'title_ruthless':
     case 'title_nofilter':
-      return fr.card.stat.designations(s.rounds_a)
+      return t.card.stat.designations(s.rounds_a)
     case 'title_transparent':
     case 'title_daring':
-      return fr.card.stat.confessions_open(s.rounds_b1)
+      return t.card.stat.confessions_open(s.rounds_b1)
     case 'title_mysterious':
     case 'title_unfathomable':
-      return fr.card.stat.roulette(s.rounds_b2)
+      return t.card.stat.roulette(s.rounds_b2)
     case 'title_brave':
-      return fr.card.stat.volunteers(s.volunteers)
+      return t.card.stat.volunteers(s.volunteers)
     case 'title_cautious':
-      return fr.card.stat.open_questions(s.rounds_c)
+      return t.card.stat.open_questions(s.rounds_c)
     case 'title_accomplices':
-      return fr.card.stat.rounds(totalRounds)
+      return t.card.stat.rounds(totalRounds)
     default:
-      return fr.card.stat.mix(s.rounds_a, s.rounds_b, s.rounds_c)
+      return t.card.stat.mix(s.rounds_a, s.rounds_b, s.rounds_c)
   }
 }
 
@@ -952,6 +971,7 @@ const ShareCard = forwardRef<HTMLDivElement, {
   statText: string
   players: Player[]
 }>(function ShareCard({ theme, titleName, statText, players }, ref) {
+  const fr = useT()
   const meta = THEME_META[theme] ?? { name: theme, color: C.a }
 
   return (
@@ -1032,12 +1052,13 @@ function EndScreen({
 }: {
   gs: GameState; players: Player[]; isHost: boolean; theme: string; onNewRound: () => void; onLeave: () => void
 }) {
+  const fr = useT()
   // Derive from the accumulated stats so the count and the title percentages
   // share the same denominator (every completed round lands in exactly one of these).
   const totalRounds = gs.stats.rounds_a + gs.stats.rounds_b + gs.stats.rounds_c
   const titleKey = computeGroupTitle(gs.stats, theme, totalRounds)
   const title = fr.titles[titleKey]
-  const statText = momentStat(titleKey, gs.stats, totalRounds)
+  const statText = momentStat(titleKey, gs.stats, totalRounds, fr)
 
   const [showCard, setShowCard] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -1164,6 +1185,7 @@ function voteTypeForPhase(phase: string | undefined): string | null {
 // ---------------------------------------------------------------------------
 
 export default function GamePage() {
+  const fr = useT()
   const params = useParams<{ code: string }>()
   const code = params?.code ?? ''
   const router = useRouter()

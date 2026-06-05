@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { fr } from '@/lib/i18n'
+import { useT, LangSwitch } from '@/lib/locale'
 
 function JoinForm() {
+  const fr = useT()
   const searchParams = useSearchParams()
   const [code, setCode] = useState('')
   const [pseudo, setPseudo] = useState('')
@@ -61,6 +62,9 @@ function JoinForm() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-6 pb-10" style={{ background: '#0D0D0D' }}>
+      <div className="w-full flex justify-end">
+        <LangSwitch />
+      </div>
       <div className="flex-1 flex flex-col items-center justify-center gap-1">
         <h1 className="text-4xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
           {fr.join.title}

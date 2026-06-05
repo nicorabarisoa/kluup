@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Syne, DM_Sans } from "next/font/google"
 import "./globals.css"
+import { LocaleProvider } from "@/lib/locale"
 
 const syne = Syne({
   variable: "--font-syne",
@@ -28,7 +29,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body className="min-h-full flex flex-col bg-kluup-bg text-white antialiased">
-        {children}
+        <LocaleProvider>{children}</LocaleProvider>
       </body>
     </html>
   )
