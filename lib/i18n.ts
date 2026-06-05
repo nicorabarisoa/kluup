@@ -40,6 +40,7 @@ export const fr = {
     b1_all: "Tout le groupe s'est reconnu !",
     b1_nobody: "Personne ne s'est reconnu. On vous croit.",
     b2_before_title: "La roulette va désigner…",
+    b2_spinning: "La roulette tourne…",
     b2_percent: (n: number) => `${n} % du groupe a répondu oui.`,
     b2_reveal_title: "La roulette a parlé…",
     b2_reveal: (name: string) => `${name} est démasqué·e.`,
@@ -67,6 +68,23 @@ export const fr = {
     new_round: "Rejouer une manche",
     end_cta: "Terminer",
     thanks: "Merci d'avoir joué. À bientôt.",
+  },
+  card: {
+    moment: "Le moment fort",
+    generating: "Génération…",
+    download: "Télécharger l'image",
+    close: "Fermer",
+    footer: "kluup.app",
+    // Stat marquante calculée selon le titre, à partir des stats de groupe.
+    stat: {
+      designations: (n: number) => `${n} désignation${n > 1 ? "s" : ""} prononcée${n > 1 ? "s" : ""} ce soir`,
+      confessions_open: (n: number) => `${n} confession${n > 1 ? "s" : ""} révélée${n > 1 ? "s" : ""} au grand jour`,
+      roulette: (n: number) => `${n} fois la roulette a tranché ce soir`,
+      volunteers: (n: number) => `${n} volontaire${n > 1 ? "s" : ""} sans la moindre hésitation`,
+      open_questions: (n: number) => `${n} question${n > 1 ? "s" : ""} ouverte${n > 1 ? "s" : ""} jouée${n > 1 ? "s" : ""}`,
+      rounds: (n: number) => `${n} round${n > 1 ? "s" : ""} joué${n > 1 ? "s" : ""} ensemble`,
+      mix: (a: number, b: number, c: number) => `${a} désignations · ${b} confessions · ${c} questions ouvertes`,
+    },
   },
   titles: {
     title_ruthless: {

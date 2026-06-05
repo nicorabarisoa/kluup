@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
@@ -35,6 +35,13 @@ const C = {
 }
 
 const MAX_ROUNDS = 7
+
+const THEME_META: Record<string, { name: string; color: string }> = {
+  'hello-stranger': { name: 'Hello Stranger', color: '#00C896' },
+  'apero': { name: 'Apéro', color: '#FFB800' },
+  'no-filter': { name: 'No Filter', color: '#FF3C6F' },
+  'unmasked': { name: 'Unmasked', color: '#7B2FFF' },
+}
 
 const AVATAR_COLORS = [C.a, C.b, C.c, '#00C896']
 
@@ -575,9 +582,9 @@ function B1RevealScreen({
 // ---- B2 roulette ----
 
 function B2RouletteScreen({
-  gs, players, isHost, onReveal, onNext, onEnd,
+  gs, players, isHost, nextLabel, onReveal, onNext, onEnd,
 }: {
-  gs: GameState; players: Player[]; isHost: boolean; onReveal: () => void; onNext: () => void; onEnd: () => void
+  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onReveal: () => void; onNext: () => void; onEnd: () => void
 }) {
   const designated = players.find((p) => p.id === gs.designated_player_id)
   const name = designated?.pseudo ?? '?'
@@ -592,23 +599,28 @@ function B2RouletteScreen({
   const [spinIndex, setSpinIndex] = useState(0)
   const [done, setDone] = useState(false)
 
+  const [tick, setTick] = useState(0) // drives the per-change pulse
+
   useEffect(() => {
     if (!gs.b2_revealed || nobody || players.length === 0) return
     const targetIdx = Math.max(0, players.findIndex((p) => p.id === gs.designated_player_id))
     let current = 0
     let ticks = 0
-    let delay = 70
+    let delay = 55 // fast start
     let cancelled = false
     let timer: ReturnType<typeof setTimeout>
 
-    const minTicks = players.length * 4 // at least 4 full loops
+    const minTicks = players.length * 6 // several full loops before slowing
     const step = () => {
       if (cancelled) return
       current = (current + 1) % players.length
       setSpinIndex(current)
+      setTick((t) => t + 1)
       ticks++
-      if (ticks > minTicks) delay += 28 // decelerate
-      if (ticks > minTicks && current === targetIdx && delay > 260) {
+      // Decelerate progressively once we've spun enough.
+      if (ticks > minTicks) delay += 30
+      // Stop only when slow AND landed on the target.
+      if (ticks > minTicks && current === targetIdx && delay > 300) {
         setDone(true)
         return
       }
@@ -627,10 +639,10 @@ function B2RouletteScreen({
       header={<RoundHeader round={gs.round} label={fr.confession.label} accent={C.b} />}
       footer={
         nobody && isHost ? (
-          <PrimaryBtn onClick={onNext} accent={C.b}>{fr.game.next_round}</PrimaryBtn>
+          <PrimaryBtn onClick={onNext} accent={C.b}>{nextLabel}</PrimaryBtn>
         ) : done && isHost ? (
           <div className="flex flex-col gap-2">
-            <PrimaryBtn onClick={onNext} accent={C.b}>{fr.game.next_round}</PrimaryBtn>
+            <PrimaryBtn onClick={onNext} accent={C.b}>{nextLabel}</PrimaryBtn>
             <GhostBtn onClick={onEnd}>{fr.game.end_game}</GhostBtn>
           </div>
         ) : !gs.b2_revealed && isHost && !nobody ? (
@@ -661,22 +673,33 @@ function B2RouletteScreen({
             ?
           </div>
         ) : spinning ? (
-          // Roulette spinning through all players' avatars.
-          <div
-            className="rounded-full flex items-center justify-center transition-transform"
-            style={{
-              width: 128, height: 128,
-              background: `${C.b}22`, border: `3px solid ${C.b}`,
-              boxShadow: `0 0 50px ${C.b}66`,
-              transform: 'scale(1.05)',
-            }}
-          >
-            <span
-              className="font-extrabold"
-              style={{ fontSize: 44, color: C.b, fontFamily: 'var(--font-display)' }}
+          // Roulette: cycle through players in a circle, with the pseudo below.
+          <div className="flex flex-col items-center">
+            <div
+              key={tick} /* re-mount each change to retrigger the pop */
+              className="rounded-full flex items-center justify-center font-extrabold"
+              style={{
+                width: 96, height: 96,
+                background: `${(spinPlayer ? avatarColor(spinIndex) : C.b)}33`,
+                border: `3px solid ${spinPlayer ? avatarColor(spinIndex) : C.b}`,
+                boxShadow: `0 0 45px ${C.b}55`,
+                color: spinPlayer ? avatarColor(spinIndex) : C.b,
+                fontSize: 38, fontFamily: 'var(--font-display)',
+                animation: 'b2flick 90ms ease-out',
+              }}
             >
               {spinPlayer ? playerInitial(spinPlayer.pseudo) : '?'}
-            </span>
+            </div>
+            <h2
+              key={`name-${tick}`}
+              className="text-3xl font-extrabold mt-4 mb-2 text-center"
+              style={{ fontFamily: 'var(--font-display)', color: '#fff', animation: 'b2flick 90ms ease-out' }}
+            >
+              {spinPlayer ? spinPlayer.pseudo : '?'}
+            </h2>
+            <p style={{ color: C.muted, fontFamily: 'var(--font-body)', fontSize: 14 }}>
+              {fr.confession.b2_spinning}
+            </p>
           </div>
         ) : (
           // Final reveal — the designated person, with a pop animation.
@@ -803,6 +826,112 @@ function VolunteerRevealScreen({
   )
 }
 
+// ---- Share card ----
+
+// The "moment fort" stat shown on the card, tailored to the group title.
+function momentStat(titleKey: string, stats: GameState['stats'], totalRounds: number): string {
+  const s = stats
+  switch (titleKey) {
+    case 'title_ruthless':
+    case 'title_nofilter':
+      return fr.card.stat.designations(s.rounds_a)
+    case 'title_transparent':
+    case 'title_daring':
+      return fr.card.stat.confessions_open(s.rounds_b1)
+    case 'title_mysterious':
+    case 'title_unfathomable':
+      return fr.card.stat.roulette(s.rounds_b2)
+    case 'title_brave':
+      return fr.card.stat.volunteers(s.volunteers)
+    case 'title_cautious':
+      return fr.card.stat.open_questions(s.rounds_c)
+    case 'title_accomplices':
+      return fr.card.stat.rounds(totalRounds)
+    default:
+      return fr.card.stat.mix(s.rounds_a, s.rounds_b, s.rounds_c)
+  }
+}
+
+// Square share card (rendered to PNG via html2canvas).
+const ShareCard = forwardRef<HTMLDivElement, {
+  theme: string
+  titleName: string
+  statText: string
+  players: Player[]
+}>(function ShareCard({ theme, titleName, statText, players }, ref) {
+  const meta = THEME_META[theme] ?? { name: theme, color: C.a }
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        width: 540, height: 540, background: C.bg, position: 'relative',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        fontFamily: 'var(--font-body)',
+      }}
+    >
+      {/* Top color bar */}
+      <div style={{ height: 6, background: meta.color, width: '100%' }} />
+
+      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        {/* Theme + logo */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: meta.color, fontSize: 16, fontWeight: 700 }}>{meta.name}</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: '#fff' }}>
+            Klu<span style={{ color: C.a }}>up</span>
+          </span>
+        </div>
+
+        {/* Group title */}
+        <div style={{ marginTop: 40 }}>
+          <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>Ce soir vous étiez…</p>
+          <h1 style={{
+            fontFamily: 'var(--font-display)', fontWeight: 800, color: '#fff',
+            fontSize: 52, lineHeight: 1.05, margin: '8px 0 0',
+          }}>
+            {titleName}
+          </h1>
+        </div>
+
+        {/* Moment fort */}
+        <div style={{
+          marginTop: 28, background: C.surface, borderRadius: 20, padding: '20px 22px',
+          borderLeft: `4px solid ${meta.color}`,
+        }}>
+          <p style={{ color: C.muted, fontSize: 12, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {fr.card.moment}
+          </p>
+          <p style={{ color: '#fff', fontSize: 18, fontWeight: 500, margin: '6px 0 0' }}>
+            {statText}
+          </p>
+        </div>
+
+        {/* Players pills */}
+        <div style={{ marginTop: 'auto', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {players.map((p, i) => {
+            const color = avatarColor(i)
+            return (
+              <span key={p.id} style={{
+                background: C.surface, border: `1px solid ${C.border}`,
+                color: '#fff', fontSize: 14, fontWeight: 500,
+                borderRadius: 999, padding: '6px 14px',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: 999, background: color, display: 'inline-block' }} />
+                {p.pseudo}
+              </span>
+            )
+          })}
+        </div>
+
+        <p style={{ color: C.faint, fontSize: 13, marginTop: 20, marginBottom: 0, textAlign: 'center' }}>
+          {fr.card.footer}
+        </p>
+      </div>
+    </div>
+  )
+})
+
 // ---- End screen ----
 
 function EndScreen({
@@ -813,15 +942,40 @@ function EndScreen({
   const totalRounds = Math.max(gs.round - 1, 0)
   const titleKey = computeGroupTitle(gs.stats, theme, totalRounds)
   const title = fr.titles[titleKey]
+  const statText = momentStat(titleKey, gs.stats, totalRounds)
+
+  const [showCard, setShowCard] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  async function exportCard() {
+    if (!cardRef.current) return
+    setExporting(true)
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: C.bg,
+        scale: 2, // 540 * 2 = 1080px
+      })
+      const dataUrl = canvas.toDataURL('image/png')
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = `kluup-${title.name.toLowerCase().replace(/\s+/g, '-')}.png`
+      link.click()
+    } catch (e) {
+      console.error('[card export]', e)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <GameScreen
       footer={
-        isHost ? (
-          <div className="flex flex-col gap-2">
-            <PrimaryBtn onClick={onNewRound} accent={C.a}>{fr.end.new_round}</PrimaryBtn>
-          </div>
-        ) : undefined
+        <div className="flex flex-col gap-2">
+          <PrimaryBtn onClick={() => setShowCard(true)} accent={C.a}>{fr.end.share_cta}</PrimaryBtn>
+          {isHost && <GhostBtn onClick={onNewRound}>{fr.end.new_round}</GhostBtn>}
+        </div>
       }
     >
       <div className="w-full max-w-sm pt-8 pb-4">
@@ -868,6 +1022,28 @@ function EndScreen({
           {fr.end.thanks}
         </p>
       </div>
+
+      {/* Share card modal */}
+      {showCard && (
+        <div
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center p-5"
+          style={{ background: 'rgba(0,0,0,0.85)' }}
+          onClick={() => !exporting && setShowCard(false)}
+        >
+          <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-4">
+            {/* Scaled-down preview of the 540px card */}
+            <div style={{ transform: 'scale(0.62)', transformOrigin: 'center', borderRadius: 16, overflow: 'hidden' }}>
+              <ShareCard ref={cardRef} theme={theme} titleName={title.name} statText={statText} players={players} />
+            </div>
+            <div className="flex flex-col gap-2 w-full" style={{ maxWidth: 320 }}>
+              <PrimaryBtn onClick={exportCard} accent={C.a} disabled={exporting}>
+                {exporting ? fr.card.generating : fr.card.download}
+              </PrimaryBtn>
+              <GhostBtn onClick={() => setShowCard(false)}>{fr.card.close}</GhostBtn>
+            </div>
+          </div>
+        </div>
+      )}
     </GameScreen>
   )
 }

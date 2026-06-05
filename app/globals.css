@@ -47,3 +47,8 @@ h1, h2, h3 {
   0%, 100% { transform: scale(1); opacity: 0.6; }
   50% { transform: scale(1.12); opacity: 1; }
 }
+
+@keyframes b2flick {
+  0% { transform: translateY(-60%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
