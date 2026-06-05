@@ -21,11 +21,18 @@ function JoinForm() {
     if (!code.trim() || !pseudo.trim()) return
     setLoading(true)
 
-    const { data: room } = await supabase
+    const { data: room, error: roomError } = await supabase
       .from('rooms')
       .select()
       .eq('code', code.trim().toUpperCase())
-      .single()
+      .maybeSingle()
+
+    if (roomError) {
+      console.error('[joinRoom] room lookup failed:', roomError)
+      alert(fr.join.join_error)
+      setLoading(false)
+      return
+    }
 
     if (!room) {
       alert(fr.join.room_not_found)
@@ -33,13 +40,20 @@ function JoinForm() {
       return
     }
 
-    const { data: player } = await supabase
+    const { data: player, error: playerError } = await supabase
       .from('players')
       .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: false })
       .select()
       .single()
 
-    if (player) sessionStorage.setItem('player_id', player.id)
+    if (playerError || !player) {
+      console.error('[joinRoom] player insert failed:', playerError)
+      alert(fr.join.join_error)
+      setLoading(false)
+      return
+    }
+
+    sessionStorage.setItem('player_id', player.id)
 
     const dest = room.status === 'playing' ? `/room/${room.code}/game` : `/room/${room.code}/lobby`
     router.push(dest)

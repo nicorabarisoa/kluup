@@ -28,18 +28,26 @@ export default function Home() {
       .single()
 
     if (error || !room) {
-      console.error(error)
+      console.error('[createRoom] room insert failed:', error)
+      alert(fr.home.create_error)
       setLoading(false)
       return
     }
 
-    const { data: player } = await supabase
+    const { data: player, error: playerError } = await supabase
       .from('players')
       .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: true })
       .select()
       .single()
 
-    if (player) sessionStorage.setItem('player_id', player.id)
+    if (playerError || !player) {
+      console.error('[createRoom] player insert failed:', playerError)
+      alert(fr.home.create_error)
+      setLoading(false)
+      return
+    }
+
+    sessionStorage.setItem('player_id', player.id)
 
     router.push(`/room/${code}/lobby`)
   }

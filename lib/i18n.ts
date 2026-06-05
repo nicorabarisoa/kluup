@@ -11,6 +11,7 @@ export const fr = {
     create_btn: "Créer une room",
     creating: "Création…",
     join_btn: "Rejoindre une room",
+    create_error: "Impossible de créer la room. Réessaie dans un instant.",
   },
   join: {
     title: "Rejoindre",
@@ -19,6 +20,7 @@ export const fr = {
     join_btn: "Rejoindre",
     joining: "Connexion…",
     room_not_found: "Room introuvable — vérifie le code",
+    join_error: "Impossible de rejoindre la room. Réessaie dans un instant.",
   },
   lobby: {
     copy_link: "Copier le lien",
