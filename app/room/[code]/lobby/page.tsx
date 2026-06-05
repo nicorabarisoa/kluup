@@ -152,6 +152,7 @@ export default function LobbyPage() {
             {code}
           </span>
           <button
+            type="button"
             onClick={copyLink}
             className="text-xs font-medium px-3 py-1.5 rounded-xl"
             style={{ background: C.surface, border: `1px solid ${C.border}`, color: '#fff', fontFamily: 'var(--font-body)' }}
@@ -210,6 +211,7 @@ export default function LobbyPage() {
                 return (
                   <button
                     key={id}
+                    type="button"
                     onClick={() => setSelectedTheme(id)}
                     className="rounded-2xl px-4 py-3 text-left flex items-center gap-3 transition-all"
                     style={{
@@ -250,6 +252,7 @@ export default function LobbyPage() {
       <div className="px-5 mt-6">
         {isHost ? (
           <button
+            type="button"
             onClick={startGame}
             disabled={players.length < 2 || starting}
             className="w-full font-bold py-4 rounded-2xl text-base disabled:opacity-40"

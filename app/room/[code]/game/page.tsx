@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import {
   accumulateStats,
   computeGroupTitle,
+  countChoiceVotes,
   countVotes,
   fetchVotes,
   pickBSubtype,
@@ -387,9 +388,8 @@ function DesignationVoteScreen({
   const fr = useT()
   const { locale } = useLocale()
   const q = gs.current_question!
-  const isTypeC = q.type === 'C'
-  const label = isTypeC ? fr.question_ouverte.label : fr.designation.label
-  const instruction = isTypeC ? fr.question_ouverte.vote_instruction : fr.designation.instruction
+  const label = fr.designation.label
+  const instruction = fr.designation.instruction
   // Everyone is votable — including yourself (you can own a "le plus susceptible de…").
   // This also lets a 2-player group break out of the forced full-tie.
 
@@ -534,6 +534,9 @@ function DesignationRevealScreen({
             <p className="mt-4 text-center" style={{ color: C.muted, fontFamily: 'var(--font-body)', fontSize: 14 }}>
               {fr.designation.tie_some_body}
             </p>
+            <p className="mt-2 text-sm font-semibold text-center" style={{ color: accent, fontFamily: 'var(--font-body)' }}>
+              {fr.designation.prompt_many}
+            </p>
           </div>
         ) : top.length === 1 ? (
           // Single clear winner.
@@ -544,6 +547,9 @@ function DesignationRevealScreen({
             </h2>
             <p style={{ color: C.muted, fontFamily: 'var(--font-body)', fontSize: 14 }}>
               {fr.designation.reveal_body(top[0].pseudo)}
+            </p>
+            <p className="mt-3 text-sm font-semibold text-center" style={{ color: accent, fontFamily: 'var(--font-body)' }}>
+              {fr.designation.prompt_one}
             </p>
           </div>
         ) : (
@@ -831,57 +837,77 @@ function B2RouletteScreen({
   )
 }
 
-// ---- Volunteer screen (Type C) ----
+// ---- Type C choice (volunteer OR send someone) ----
 
-function VolunteerScreen({
-  gs, myId, isHost, onVolunteer, onSkip,
+function ChoiceScreen({
+  gs, players, myId, isHost, hasVoted, voteCount, onVolunteer, onDesignate, onForce,
 }: {
-  gs: GameState; myId: string | null; isHost: boolean; onVolunteer: () => void; onSkip: () => void
+  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void
 }) {
   const fr = useT()
   const { locale } = useLocale()
   const q = gs.current_question!
-  const [volunteered, setVolunteered] = useState(false)
+  const [picking, setPicking] = useState(false)
+  const others = players.filter((p) => p.id !== myId)
 
   return (
     <GameScreen
       header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
       footer={
-        volunteered ? undefined : (
-          <div className="flex flex-col gap-2">
-            <PrimaryBtn
-              onClick={() => { setVolunteered(true); onVolunteer() }}
-              accent={C.c}
-              textDark
-            >
-              {fr.question_ouverte.volunteer_btn}
-            </PrimaryBtn>
-            {isHost && (
-              <GhostBtn onClick={onSkip}>{fr.question_ouverte.volunteer_host_skip}</GhostBtn>
-            )}
-          </div>
-        )
+        <>
+          <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
+          <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
+        </>
       }
     >
       <div className="w-full max-w-sm">
         <QuestionCard text={q.question[locale]} accent={C.c} />
-        <div className="text-center">
-          <p className="font-bold mb-1" style={{ fontFamily: 'var(--font-display)', fontSize: 18 }}>
-            {fr.question_ouverte.volunteer_title}
-          </p>
-          <p style={{ color: C.muted, fontSize: 14, fontFamily: 'var(--font-body)' }}>
-            {fr.question_ouverte.volunteer_body}
-          </p>
-          {volunteered && <WaitingDots />}
-        </div>
+
+        {hasVoted ? (
+          <WaitingDots />
+        ) : picking ? (
+          <>
+            <p className="text-sm text-center mb-4" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
+              {fr.question_ouverte.designate_instruction}
+            </p>
+            <div className="flex flex-col gap-3">
+              {others.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onDesignate(p.id)}
+                  className="flex items-center gap-3 rounded-2xl p-4"
+                  style={{ background: C.surface, border: `1px solid ${C.border}` }}
+                >
+                  <PlayerAvatar pseudo={p.pseudo} index={players.indexOf(p)} size={40} />
+                  <span className="font-medium" style={{ fontFamily: 'var(--font-body)', color: C.text }}>{p.pseudo}</span>
+                </button>
+              ))}
+            </div>
+            <GhostBtn onClick={() => setPicking(false)}>← {fr.common.back}</GhostBtn>
+            <p className="text-center text-xs" style={{ color: C.faint, fontFamily: 'var(--font-body)' }}>
+              {fr.common.vote_anonymous}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-center font-bold mb-4" style={{ fontFamily: 'var(--font-display)', fontSize: 18 }}>
+              {fr.question_ouverte.choice_instruction}
+            </p>
+            <div className="flex flex-col gap-2">
+              <PrimaryBtn onClick={onVolunteer} accent={C.c} textDark>{fr.question_ouverte.volunteer_btn}</PrimaryBtn>
+              <SecondaryBtn onClick={() => setPicking(true)}>{fr.question_ouverte.designate_btn}</SecondaryBtn>
+            </div>
+          </>
+        )}
       </div>
     </GameScreen>
   )
 }
 
-// ---- Volunteer revealed ----
+// ---- Type C — volunteers reveal (they all answer) ----
 
-function VolunteerRevealScreen({
+function VolunteersRevealScreen({
   gs, players, isHost, nextLabel, onNext, onEnd,
 }: {
   gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void
@@ -889,14 +915,13 @@ function VolunteerRevealScreen({
   const fr = useT()
   const { locale } = useLocale()
   const q = gs.current_question!
-  const volunteer = players.find((p) => p.id === gs.volunteer_player_id)
-  const name = volunteer?.pseudo ?? '?'
-  const idx = volunteer ? players.indexOf(volunteer) : 0
+  const vols = gs.volunteer_player_ids
+    .map((id) => players.find((p) => p.id === id))
+    .filter((p): p is Player => !!p)
 
-  // Short build-up before the volunteer pops in.
   const [shown, setShown] = useState(false)
   useEffect(() => {
-    const t = setTimeout(() => setShown(true), 1200)
+    const t = setTimeout(() => setShown(true), 1000)
     return () => clearTimeout(t)
   }, [])
 
@@ -915,21 +940,126 @@ function VolunteerRevealScreen({
       }
     >
       <div className="w-full max-w-sm flex flex-col items-center">
-        {/* Redisplay the question so everyone remembers the topic while answering. */}
         <QuestionCard text={q.question[locale]} accent={C.c} />
         {!shown ? (
           <p className="text-5xl pt-2" style={{ animation: 'b2pulse 0.7s ease-in-out infinite' }}>🙋</p>
         ) : (
           <div className="flex flex-col items-center" style={{ animation: 'b2pop 0.4s ease-out' }}>
-            <PlayerAvatar pseudo={name} index={idx} size={80} />
-            <h2
-              className="text-3xl font-extrabold mt-4 mb-1 text-center"
-              style={{ fontFamily: 'var(--font-display)' }}
+            <h2 className="text-2xl font-extrabold mb-1 text-center" style={{ fontFamily: 'var(--font-display)', color: C.c }}>
+              {fr.question_ouverte.volunteers_title}
+            </h2>
+            <div className="flex flex-wrap justify-center gap-4 mt-3">
+              {vols.map((p) => (
+                <div key={p.id} className="flex flex-col items-center gap-1">
+                  <PlayerAvatar pseudo={p.pseudo} index={players.indexOf(p)} size={64} />
+                  <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-body)' }}>{p.pseudo}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-center" style={{ color: C.muted, fontFamily: 'var(--font-body)', fontSize: 14 }}>
+              {vols.length === 1 ? fr.question_ouverte.volunteers_reveal_one(vols[0].pseudo) : fr.question_ouverte.volunteers_reveal_many}
+            </p>
+          </div>
+        )}
+      </div>
+    </GameScreen>
+  )
+}
+
+// ---- Type C — designation roulette (no volunteers) ----
+
+function CRouletteScreen({
+  gs, players, isHost, nextLabel, onNext, onEnd,
+}: {
+  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void
+}) {
+  const fr = useT()
+  const { locale } = useLocale()
+  const q = gs.current_question!
+  // Spin through the tied pool (fallback: everyone) and land on the chosen one.
+  const pool = gs.designated_player_ids.length > 0 ? gs.designated_player_ids : players.map((p) => p.id)
+  const winner = players.find((p) => p.id === gs.designated_player_id)
+  const name = winner?.pseudo ?? '?'
+  const idx = winner ? players.indexOf(winner) : 0
+
+  const [spinPos, setSpinPos] = useState(0)
+  const [done, setDone] = useState(false)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (pool.length === 0) { setDone(true); return }
+    const targetPos = Math.max(0, pool.findIndex((id) => id === gs.designated_player_id))
+    let pos = 0
+    let ticks = 0
+    let delay = 60
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+    const minTicks = pool.length * 5
+    const step = () => {
+      if (cancelled) return
+      pos = (pos + 1) % pool.length
+      setSpinPos(pos)
+      setTick((t) => t + 1)
+      ticks++
+      if (ticks > minTicks) delay += 32
+      if (ticks > minTicks && pos === targetPos && delay > 300) { setDone(true); return }
+      timer = setTimeout(step, delay)
+    }
+    timer = setTimeout(step, delay)
+    return () => { cancelled = true; clearTimeout(timer) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const spinPlayer = players.find((p) => p.id === pool[spinPos])
+
+  return (
+    <GameScreen
+      header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
+      footer={
+        done && isHost ? (
+          <div className="flex flex-col gap-2">
+            <PrimaryBtn onClick={onNext} accent={C.c} textDark>{nextLabel}</PrimaryBtn>
+            <GhostBtn onClick={onEnd}>{fr.game.end_game}</GhostBtn>
+          </div>
+        ) : (
+          <WaitingDots />
+        )
+      }
+    >
+      <div className="w-full max-w-sm flex flex-col items-center">
+        <QuestionCard text={q.question[locale]} accent={C.c} />
+        <p className="text-center mb-3 text-sm" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
+          {fr.question_ouverte.roulette_title}
+        </p>
+        {!done ? (
+          <div className="flex flex-col items-center">
+            <div
+              key={tick}
+              className="rounded-full flex items-center justify-center font-extrabold"
+              style={{
+                width: 96, height: 96,
+                background: `${(spinPlayer ? avatarColor(players.indexOf(spinPlayer)) : C.c)}33`,
+                border: `3px solid ${spinPlayer ? avatarColor(players.indexOf(spinPlayer)) : C.c}`,
+                boxShadow: `0 0 45px ${C.c}55`,
+                color: spinPlayer ? avatarColor(players.indexOf(spinPlayer)) : C.c,
+                fontSize: 38, fontFamily: 'var(--font-display)',
+                animation: 'b2flick 90ms ease-out',
+              }}
             >
+              {spinPlayer ? playerInitial(spinPlayer.pseudo) : '?'}
+            </div>
+            <h2 key={`n-${tick}`} className="text-3xl font-extrabold mt-4 text-center" style={{ fontFamily: 'var(--font-display)', animation: 'b2flick 90ms ease-out' }}>
+              {spinPlayer ? spinPlayer.pseudo : '?'}
+            </h2>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center" style={{ animation: 'b2pop 0.4s ease-out' }}>
+            <PlayerAvatar pseudo={name} index={idx} size={96} />
+            <h2 className="text-3xl font-extrabold mt-4 mb-2 text-center" style={{ fontFamily: 'var(--font-display)' }}>
               {name}
             </h2>
             <p style={{ color: C.c, fontFamily: 'var(--font-body)', fontSize: 14 }}>
-              {fr.question_ouverte.volunteer_reveal(name)}
+              {fr.question_ouverte.designated_reveal(name)}
             </p>
           </div>
         )}
@@ -986,9 +1116,10 @@ const ShareCard = forwardRef<HTMLDivElement, {
       {/* Top color bar */}
       <div style={{ height: 6, background: meta.color, width: '100%' }} />
 
-      <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+      {/* gap-based column (no marginTop:auto) so nothing overlaps when rendered to canvas */}
+      <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', flex: 1, gap: 18, minHeight: 0 }}>
         {/* Theme + logo */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <span style={{ color: meta.color, fontSize: 16, fontWeight: 700 }}>{meta.name}</span>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: '#fff' }}>
             Klu<span style={{ color: C.a }}>up</span>
@@ -996,11 +1127,11 @@ const ShareCard = forwardRef<HTMLDivElement, {
         </div>
 
         {/* Group title */}
-        <div style={{ marginTop: 40 }}>
-          <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>Ce soir vous étiez…</p>
+        <div style={{ flexShrink: 0 }}>
+          <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{fr.end.group_title_label}</p>
           <h1 style={{
             fontFamily: 'var(--font-display)', fontWeight: 800, color: '#fff',
-            fontSize: 52, lineHeight: 1.05, margin: '8px 0 0',
+            fontSize: 42, lineHeight: 1.1, margin: '6px 0 0',
           }}>
             {titleName}
           </h1>
@@ -1008,19 +1139,22 @@ const ShareCard = forwardRef<HTMLDivElement, {
 
         {/* Moment fort */}
         <div style={{
-          marginTop: 28, background: C.surface, borderRadius: 20, padding: '20px 22px',
-          borderLeft: `4px solid ${meta.color}`,
+          background: C.surface, borderRadius: 18, padding: '16px 18px',
+          borderLeft: `4px solid ${meta.color}`, flexShrink: 0,
         }}>
           <p style={{ color: C.muted, fontSize: 12, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {fr.card.moment}
           </p>
-          <p style={{ color: '#fff', fontSize: 18, fontWeight: 500, margin: '6px 0 0' }}>
+          <p style={{ color: '#fff', fontSize: 17, fontWeight: 500, margin: '6px 0 0', lineHeight: 1.35 }}>
             {statText}
           </p>
         </div>
 
+        {/* Spacer pushes players + footer to the bottom */}
+        <div style={{ flex: 1, minHeight: 0 }} />
+
         {/* Players pills */}
-        <div style={{ marginTop: 'auto', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0 }}>
           {players.map((p, i) => {
             const color = avatarColor(i)
             return (
@@ -1037,7 +1171,7 @@ const ShareCard = forwardRef<HTMLDivElement, {
           })}
         </div>
 
-        <p style={{ color: C.faint, fontSize: 13, marginTop: 20, marginBottom: 0, textAlign: 'center' }}>
+        <p style={{ color: C.faint, fontSize: 13, margin: 0, textAlign: 'center', flexShrink: 0 }}>
           {fr.card.footer}
         </p>
       </div>
@@ -1073,11 +1207,30 @@ function EndScreen({
         backgroundColor: C.bg,
         scale: 2, // 540 * 2 = 1080px
       })
-      const dataUrl = canvas.toDataURL('image/png')
+      const filename = `kluup-${title.name.toLowerCase().replace(/\s+/g, '-')}.png`
+      const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/png'))
+      if (!blob) throw new Error('toBlob returned null')
+      const file = new File([blob], filename, { type: 'image/png' })
+
+      // On mobile, the native share sheet lets the user save to Photos / send to
+      // an app — a plain download lands in Files, not the gallery.
+      const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean }
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        try {
+          await nav.share({ files: [file], title: 'Kluup' })
+          return
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') return // user dismissed the sheet
+          // otherwise fall through to download
+        }
+      }
+
+      const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = dataUrl
-      link.download = `kluup-${title.name.toLowerCase().replace(/\s+/g, '-')}.png`
+      link.href = url
+      link.download = filename
       link.click()
+      URL.revokeObjectURL(url)
     } catch (e) {
       console.error('[card export]', e)
     } finally {
@@ -1174,8 +1327,7 @@ function voteTypeForPhase(phase: string | undefined): string | null {
     case 'voting_question': return 'question_selection'
     case 'round_a_vote': return 'designation'
     case 'round_b_vote': return 'confession'
-    case 'round_c_volunteer': return 'volunteer'
-    case 'round_c_vote': return 'designation'
+    // round_c_choice mixes volunteer + designation — handled separately in init().
     default: return null
   }
 }
@@ -1231,6 +1383,15 @@ export default function GamePage() {
           .eq('round', gs.round)
           .eq('player_id', id)
           .eq('vote_type', voteType)
+        if ((count ?? 0) > 0) setHasVoted(true)
+      } else if (id && gs && gs.phase === 'round_c_choice') {
+        const { count } = await supabase
+          .from('votes')
+          .select('*', { count: 'exact', head: true })
+          .eq('room_id', roomData.id)
+          .eq('round', gs.round)
+          .eq('player_id', id)
+          .in('vote_type', ['volunteer', 'designation'])
         if ((count ?? 0) > 0) setHasVoted(true)
       }
     }
@@ -1384,7 +1545,7 @@ export default function GamePage() {
     if (voteType === 'question_selection') {
       const winnerIndex = tallyQuestionSelection(votes)
       const chosen = gs.candidates[winnerIndex] ?? gs.candidates[0]
-      const nextPhase = chosen.type === 'A' ? 'round_a_vote' : chosen.type === 'B' ? 'round_b_vote' : 'round_c_volunteer'
+      const nextPhase = chosen.type === 'A' ? 'round_a_vote' : chosen.type === 'B' ? 'round_b_vote' : 'round_c_choice'
       await advance({
         ...gs, phase: nextPhase as GameState['phase'],
         current_question: chosen, played_question_ids: [...gs.played_question_ids, chosen.id],
@@ -1394,9 +1555,10 @@ export default function GamePage() {
 
     if (voteType === 'designation') {
       const { topIds, tieAll } = tallyDesignation(votes, players.length)
+      // 'designation' votes are Type A only now (Type C uses the choice phase).
       await advance({
         ...gs,
-        phase: gs.current_question?.type === 'A' ? 'round_a_reveal' : 'round_c_vote_reveal',
+        phase: 'round_a_reveal',
         designated_player_ids: topIds,
         designation_tie_all: tieAll,
       })
@@ -1425,23 +1587,49 @@ export default function GamePage() {
     }
   }
 
-  async function onVolunteer() {
-    if (!room || !gs) return
-    await supabase.from('votes').insert({
-      room_id: room.id, round: gs.round, player_id: myId, vote_type: 'volunteer',
-    }).then(async () => {
-      const votes = await fetchVotes(room.id, gs.round, 'volunteer')
-      if (votes.length === 1) {
-        await advance({
-          ...gs, phase: 'round_c_volunteer_reveal', volunteer_player_id: votes[0].player_id as string,
-        })
-      }
+  // Type C — a player either volunteers or designates someone. Both count toward
+  // the same "everyone acted" threshold; resolution prefers volunteers.
+  async function submitChoice(voteData: Record<string, unknown>, voteType: 'volunteer' | 'designation') {
+    if (!room || !gs || hasVoted) return
+    setHasVoted(true)
+
+    const { error } = await supabase.from('votes').insert({
+      room_id: room.id, round: gs.round, player_id: myId, vote_type: voteType, ...voteData,
     })
+    if (error) {
+      console.error('[choice vote]', error)
+      setHasVoted(false)
+      return
+    }
+
+    const count = await countChoiceVotes(room.id, gs.round)
+    setVoteCount(count)
+    await voteChannelRef.current?.send({
+      type: 'broadcast', event: 'vote_count', payload: { count, round: gs.round },
+    })
+
+    if (count >= players.length) await resolveTypeCChoice()
   }
 
-  async function onVolunteerSkip() {
-    if (!room || !gs || !isHost) return
-    await advance({ ...gs, phase: 'round_c_vote' })
+  async function resolveTypeCChoice() {
+    if (!room || !gs) return
+    const vols = await fetchVotes(room.id, gs.round, 'volunteer')
+    if (vols.length > 0) {
+      // Volunteers prime — they all answer.
+      await advance({
+        ...gs, phase: 'round_c_volunteers_reveal',
+        volunteer_player_ids: vols.map((v) => v.player_id as string),
+      })
+      return
+    }
+    // No volunteer → the most-designated answers; roulette picks one on a tie.
+    const desigs = await fetchVotes(room.id, gs.round, 'designation')
+    const { topIds } = tallyDesignation(desigs, players.length)
+    const winner = topIds.length > 0 ? topIds[Math.floor(Math.random() * topIds.length)] : null
+    await advance({
+      ...gs, phase: 'round_c_roulette',
+      designated_player_ids: topIds, designated_player_id: winner,
+    })
   }
 
   async function onPause() {
@@ -1476,7 +1664,7 @@ export default function GamePage() {
       ...gs, phase: 'voting_question', round: nextRound, candidates,
       current_question: null, b_subtype: null, designated_player_id: null,
       designated_player_ids: [], designation_tie_all: false,
-      revealed_player_ids: [], yes_percentage: null, volunteer_player_id: null,
+      revealed_player_ids: [], yes_percentage: null, volunteer_player_ids: [],
       b2_revealed: false, stats,
     })
   }
@@ -1541,14 +1729,12 @@ export default function GamePage() {
         return <B1RevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_b2_roulette':
         return <B2RouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onReveal={onRevealB2} onNext={onNextRound} onEnd={onEndGame} />
-      case 'round_c_volunteer':
-        return <VolunteerScreen gs={gs} myId={myId} isHost={isHost} onVolunteer={onVolunteer} onSkip={onVolunteerSkip} />
-      case 'round_c_volunteer_reveal':
-        return <VolunteerRevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
-      case 'round_c_vote':
-        return <DesignationVoteScreen gs={gs} players={players} myId={myId} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} accent={C.c} onVote={(id) => submitVote({ target_player_id: id }, 'designation')} onForce={() => resolveVotes('designation')} />
-      case 'round_c_vote_reveal':
-        return <DesignationRevealScreen gs={gs} players={players} isHost={isHost} accent={C.c} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
+      case 'round_c_choice':
+        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} />
+      case 'round_c_volunteers_reveal':
+        return <VolunteersRevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
+      case 'round_c_roulette':
+        return <CRouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'ended':
         return <EndScreen gs={gs} players={players} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={onQuit} />
       default:

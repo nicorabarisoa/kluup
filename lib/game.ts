@@ -97,7 +97,7 @@ export function makeInitialGameState(candidates: Question[]): GameState {
     designation_tie_all: false,
     revealed_player_ids: [],
     yes_percentage: null,
-    volunteer_player_id: null,
+    volunteer_player_ids: [],
     played_question_ids: [],
     paused: false,
     stats: emptyStats(),
@@ -118,7 +118,8 @@ export function accumulateStats(gs: GameState): SessionStats {
     else if (gs.b_subtype === 'B2') s.rounds_b2++
   } else if (q.type === 'C') {
     s.rounds_c++
-    if (gs.phase === 'round_c_volunteer_reveal') s.volunteers++
+    // A round with volunteers ends on the volunteers-reveal phase.
+    if (gs.phase === 'round_c_volunteers_reveal') s.volunteers++
   }
 
   return s
@@ -160,6 +161,19 @@ export async function countVotes(
     .eq('room_id', roomId)
     .eq('round', round)
     .eq('vote_type', voteType)
+
+  return count ?? 0
+}
+
+// Type C runs one phase where players cast EITHER a volunteer or a designation
+// vote, so the "everyone acted" threshold counts both types together.
+export async function countChoiceVotes(roomId: string, round: number): Promise<number> {
+  const { count } = await supabase
+    .from('votes')
+    .select('*', { count: 'exact', head: true })
+    .eq('room_id', roomId)
+    .eq('round', round)
+    .in('vote_type', ['volunteer', 'designation'])
 
   return count ?? 0
 }

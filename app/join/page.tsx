@@ -61,44 +61,57 @@ function JoinForm() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-6 pb-10" style={{ background: '#0D0D0D' }}>
-      <div className="w-full flex justify-end">
+    <main className="flex min-h-screen flex-col p-6" style={{ background: '#0D0D0D' }}>
+      <div className="w-full flex justify-between items-center">
+        <button
+          type="button"
+          onClick={() => router.push('/')}
+          className="text-sm font-medium px-2 py-1"
+          style={{ color: '#888', fontFamily: 'var(--font-body)' }}
+        >
+          {fr.join.back_home}
+        </button>
         <LangSwitch />
       </div>
-      <div className="flex-1 flex flex-col items-center justify-center gap-1">
-        <h1 className="text-4xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
-          {fr.join.title}
-        </h1>
-        <p style={{ color: '#888' }} className="text-sm">{fr.join.subtitle}</p>
-      </div>
 
-      <div className="flex flex-col gap-3 w-full max-w-xs">
-        <input
-          type="text"
-          placeholder={fr.join.code_placeholder}
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          maxLength={6}
-          className="rounded-2xl px-4 py-4 text-white text-xl font-bold outline-none text-center tracking-widest"
-          style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
-        />
-        <input
-          type="text"
-          placeholder={fr.common.pseudo_placeholder}
-          value={pseudo}
-          onChange={(e) => setPseudo(e.target.value)}
-          maxLength={20}
-          className="rounded-2xl px-4 py-4 text-white text-base outline-none"
-          style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
-        />
-        <button
-          onClick={joinRoom}
-          disabled={loading || !code.trim() || !pseudo.trim()}
-          className="font-bold py-4 rounded-2xl text-base disabled:opacity-40"
-          style={{ background: '#FF3C6F', color: '#fff', fontFamily: 'var(--font-body)' }}
-        >
-          {loading ? fr.join.joining : fr.join.join_btn}
-        </button>
+      {/* Title + form grouped and vertically centered. */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full">
+        <div className="flex flex-col items-center gap-1">
+          <h1 className="text-4xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
+            {fr.join.title}
+          </h1>
+          <p style={{ color: '#888' }} className="text-sm">{fr.join.subtitle}</p>
+        </div>
+
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <input
+            type="text"
+            placeholder={fr.join.code_placeholder}
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            maxLength={6}
+            className="rounded-2xl px-4 py-4 text-white text-xl font-bold outline-none text-center tracking-widest"
+            style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
+          />
+          <input
+            type="text"
+            placeholder={fr.common.pseudo_placeholder}
+            value={pseudo}
+            onChange={(e) => setPseudo(e.target.value)}
+            maxLength={20}
+            className="rounded-2xl px-4 py-4 text-white text-base outline-none"
+            style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
+          />
+          <button
+            type="button"
+            onClick={joinRoom}
+            disabled={loading || !code.trim() || !pseudo.trim()}
+            className="font-bold py-4 rounded-2xl text-base disabled:opacity-40"
+            style={{ background: '#FF3C6F', color: '#fff', fontFamily: 'var(--font-body)' }}
+          >
+            {loading ? fr.join.joining : fr.join.join_btn}
+          </button>
+        </div>
       </div>
     </main>
   )

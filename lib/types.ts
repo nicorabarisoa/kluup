@@ -22,10 +22,10 @@ export type GamePhase =
   | 'round_b_vote'
   | 'round_b1_reveal'
   | 'round_b2_roulette'
-  | 'round_c_volunteer'
-  | 'round_c_volunteer_reveal'
-  | 'round_c_vote'
-  | 'round_c_vote_reveal'
+  // Type C — single phase: each player either volunteers or sends someone.
+  | 'round_c_choice'
+  | 'round_c_volunteers_reveal' // ≥1 volunteer → they all answer
+  | 'round_c_roulette'          // no volunteer → most-designated (roulette on tie) answers
   | 'ended'
 
 export type BSubtype = 'B1' | 'B2'
@@ -66,7 +66,8 @@ export type GameState = {
   designation_tie_all: boolean
   revealed_player_ids: string[]
   yes_percentage: number | null
-  volunteer_player_id: string | null
+  // Type C — everyone who volunteered (they all answer).
+  volunteer_player_ids: string[]
   played_question_ids: string[]
   paused: boolean
   stats: SessionStats
