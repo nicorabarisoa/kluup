@@ -26,9 +26,14 @@ const TYPE_WEIGHTS: Record<string, Record<QType, number>> = {
   'unmasked': { A: 4, B: 2, C: 1 },       // A pur
 }
 
-function pickType(theme: string): QType {
-  const w = TYPE_WEIGHTS[theme] ?? { A: 1, B: 1, C: 1 }
-  const total = w.A + w.B + w.C
+function pickType(theme: string, exclude?: QType): QType {
+  const base = TYPE_WEIGHTS[theme] ?? { A: 1, B: 1, C: 1 }
+  const w: Record<QType, number> = { A: base.A, B: base.B, C: base.C }
+  // Avoid repeating the previous round's type — chaining the same type isn't fun.
+  if (exclude) w[exclude] = 0
+  let total = w.A + w.B + w.C
+  // Safety: if excluding zeroed everything, fall back to the full weights.
+  if (total === 0) { w.A = base.A; w.B = base.B; w.C = base.C; total = w.A + w.B + w.C }
   let r = Math.random() * total
   if ((r -= w.A) < 0) return 'A'
   if ((r -= w.B) < 0) return 'B'
@@ -42,11 +47,14 @@ function pickType(theme: string): QType {
 export async function pickCandidates(
   theme: string,
   round: number,
-  playedIds: string[]
+  playedIds: string[],
+  lastType?: 'A' | 'B' | 'C'
 ): Promise<Question[]> {
   const intensity = round <= 3 ? 1 : round <= 6 ? 2 : 3
 
-  const preferred = pickType(theme)
+  // Prefer a type different from the previous round; the tail still includes it
+  // as a fallback if no other type has unplayed questions left.
+  const preferred = pickType(theme, lastType)
   const typeOrder: QType[] = [preferred, ...(['A', 'B', 'C'] as QType[]).filter((t) => t !== preferred)]
 
   for (const type of typeOrder) {
@@ -85,6 +93,8 @@ export function makeInitialGameState(candidates: Question[]): GameState {
     current_question: null,
     b_subtype: null,
     designated_player_id: null,
+    designated_player_ids: [],
+    designation_tie_all: false,
     revealed_player_ids: [],
     yes_percentage: null,
     volunteer_player_id: null,
@@ -169,20 +179,34 @@ export async function fetchVotes(
   return data ?? []
 }
 
-// Returns the player id that received the most votes (ties broken randomly)
-export function tallyDesignation(votes: { target_player_id: string | null }[]): string | null {
+export type DesignationResult = {
+  // The most-voted player(s). 1 = clear winner, >1 = tie among leaders (all shown).
+  topIds: string[]
+  // True when the leading group is literally everyone — nobody stood out.
+  tieAll: boolean
+}
+
+// Tally a designation vote WITHOUT random tie-breaking: ties are surfaced as-is
+// so the UI can show every leader (or call out a full tie).
+export function tallyDesignation(
+  votes: { target_player_id: string | null }[],
+  playerCount: number
+): DesignationResult {
   const counts: Record<string, number> = {}
   for (const v of votes) {
     if (v.target_player_id) {
       counts[v.target_player_id] = (counts[v.target_player_id] ?? 0) + 1
     }
   }
-  if (Object.keys(counts).length === 0) return null
+  const ids = Object.keys(counts)
+  // No usable votes → treat as "nobody stood out".
+  if (ids.length === 0) return { topIds: [], tieAll: true }
+
   const max = Math.max(...Object.values(counts))
-  const winners = Object.entries(counts)
-    .filter(([, n]) => n === max)
-    .map(([id]) => id)
-  return winners[Math.floor(Math.random() * winners.length)]
+  const topIds = ids.filter((id) => counts[id] === max)
+  // Everyone is tied only when the leading group covers the whole group.
+  const tieAll = playerCount > 1 && topIds.length >= playerCount
+  return { topIds, tieAll }
 }
 
 // Returns the question index that received the most votes (ties broken randomly)

@@ -50,6 +50,9 @@ export const fr = {
     resume: "Reprendre",
     paused_title: "Partie en pause",
     paused_body: "L'hôte va reprendre la partie.",
+    stop_game: "Changer de thème",
+    quit: "Quitter",
+    quit_confirm: "Quitter la partie ? Les autres continueront sans toi.",
   },
   voting_question: {
     title: "Choisissez votre question",
@@ -60,6 +63,12 @@ export const fr = {
     instruction: "Vote pour la personne qui correspond le mieux.",
     result_title: "Le groupe a désigné…",
     reveal_body: (name: string) => `${name} répond à voix haute`,
+    // Égalité totale — personne ne s'est démarqué.
+    tie_all_title: "Décevant.",
+    tie_all_body: "Personne n'a su se démarquer. Offrez-vous une personnalité 😈",
+    // Égalité en tête — plusieurs ex æquo.
+    tie_some_title: (n: number) => `${n} se démarquent`,
+    tie_some_body: "Égalité en tête — à elles et eux de répondre.",
   },
   confession: {
     label: "Confession",
@@ -101,7 +110,7 @@ export const fr = {
     group_title_label: "Ce soir vous étiez…",
     rounds_played: (n: number) => `${n} round${n > 1 ? "s" : ""} joué${n > 1 ? "s" : ""}`,
     share_cta: "Partager la soirée",
-    new_round: "Rejouer une manche",
+    new_round: "Rejouer (choisir le thème)",
     end_cta: "Terminer",
     leave: "Quitter",
     thanks: "Merci d'avoir joué. À bientôt.",

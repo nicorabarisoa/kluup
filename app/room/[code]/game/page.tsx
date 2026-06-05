@@ -8,7 +8,6 @@ import {
   computeGroupTitle,
   countVotes,
   fetchVotes,
-  makeInitialGameState,
   pickBSubtype,
   pickCandidates,
   tallyDesignation,
@@ -274,6 +273,20 @@ function PauseBtn({ onPause }: { onPause: () => void }) {
   )
 }
 
+// Lets a non-host player leave; the game continues for everyone else.
+function QuitBtn({ onQuit }: { onQuit: () => void }) {
+  return (
+    <button
+      onClick={onQuit}
+      className="fixed top-4 left-4 z-50 px-3 h-10 rounded-full flex items-center justify-center text-xs font-medium"
+      style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: 'var(--font-body)' }}
+      aria-label={fr.game.quit}
+    >
+      {fr.game.quit}
+    </button>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Screens
 // ---------------------------------------------------------------------------
@@ -288,11 +301,14 @@ function LoadingScreen() {
   )
 }
 
-function PausedScreen({ isHost, onResume }: { isHost: boolean; onResume: () => void }) {
+function PausedScreen({ isHost, onResume, onStop }: { isHost: boolean; onResume: () => void; onStop: () => void }) {
   return (
     <GameScreen
       footer={isHost ? (
-        <PrimaryBtn onClick={onResume} accent={C.a}>{fr.game.resume}</PrimaryBtn>
+        <div className="flex flex-col gap-2">
+          <PrimaryBtn onClick={onResume} accent={C.a}>{fr.game.resume}</PrimaryBtn>
+          <GhostBtn onClick={onStop}>{fr.game.stop_game}</GhostBtn>
+        </div>
       ) : undefined}
     >
       <div className="flex-1 flex flex-col items-center justify-center text-center gap-3">
@@ -425,11 +441,14 @@ function DesignationRevealScreen({
   const q = gs.current_question!
   const isTypeC = q.type === 'C'
   const label = isTypeC ? fr.question_ouverte.label : fr.designation.label
-  const designated = players.find((p) => p.id === gs.designated_player_id)
-  const name = designated?.pseudo ?? '?'
-  const idx = designated ? players.indexOf(designated) : 0
 
-  // Short suspense before the designated person appears.
+  const top = gs.designated_player_ids
+    .map((id) => players.find((p) => p.id === id))
+    .filter((p): p is Player => !!p)
+  const tieAll = gs.designation_tie_all
+  const multiple = top.length > 1
+
+  // Short suspense before the result appears.
   const [shown, setShown] = useState(false)
   useEffect(() => {
     const t = setTimeout(() => setShown(true), 1800)
@@ -452,16 +471,18 @@ function DesignationRevealScreen({
         )
       }
     >
-      <div className="w-full max-w-sm flex flex-col items-center pt-12">
+      <div className="w-full max-w-sm flex flex-col items-center">
+        {/* Redisplay the question so everyone remembers the topic while answering. */}
+        <QuestionCard text={q.question.fr} accent={accent} />
+
         {!shown ? (
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center pt-2">
             <p
               className="text-2xl font-extrabold text-center"
               style={{ fontFamily: 'var(--font-display)', color: accent }}
             >
               {fr.designation.result_title}
             </p>
-            {/* Suspense: pulsing mystery circle */}
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-extrabold mt-6"
               style={{
@@ -473,19 +494,51 @@ function DesignationRevealScreen({
               ?
             </div>
           </div>
-        ) : (
-          <div className="flex flex-col items-center" style={{ animation: 'b2pop 0.4s ease-out' }}>
-            <PlayerAvatar pseudo={name} index={idx} size={80} />
-            <h2
-              className="text-3xl font-extrabold mt-4 mb-2 text-center"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {name}
+        ) : tieAll ? (
+          // Full tie — nobody stood out.
+          <div className="flex flex-col items-center pt-2 text-center" style={{ animation: 'b2pop 0.4s ease-out' }}>
+            <p className="text-5xl mb-3">😈</p>
+            <h2 className="text-3xl font-extrabold mb-2" style={{ fontFamily: 'var(--font-display)', color: accent }}>
+              {fr.designation.tie_all_title}
             </h2>
             <p style={{ color: C.muted, fontFamily: 'var(--font-body)', fontSize: 14 }}>
-              {fr.designation.reveal_body(name)}
+              {fr.designation.tie_all_body}
             </p>
           </div>
+        ) : multiple ? (
+          // Tie among the leaders — show them all.
+          <div className="flex flex-col items-center pt-2" style={{ animation: 'b2pop 0.4s ease-out' }}>
+            <h2 className="text-2xl font-extrabold mb-4 text-center" style={{ fontFamily: 'var(--font-display)', color: accent }}>
+              {fr.designation.tie_some_title(top.length)}
+            </h2>
+            <div className="flex flex-wrap justify-center gap-4">
+              {top.map((p) => (
+                <div key={p.id} className="flex flex-col items-center gap-1">
+                  <PlayerAvatar pseudo={p.pseudo} index={players.indexOf(p)} size={64} />
+                  <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-body)' }}>{p.pseudo}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-center" style={{ color: C.muted, fontFamily: 'var(--font-body)', fontSize: 14 }}>
+              {fr.designation.tie_some_body}
+            </p>
+          </div>
+        ) : top.length === 1 ? (
+          // Single clear winner.
+          <div className="flex flex-col items-center pt-2" style={{ animation: 'b2pop 0.4s ease-out' }}>
+            <PlayerAvatar pseudo={top[0].pseudo} index={players.indexOf(top[0])} size={80} />
+            <h2 className="text-3xl font-extrabold mt-4 mb-2 text-center" style={{ fontFamily: 'var(--font-display)' }}>
+              {top[0].pseudo}
+            </h2>
+            <p style={{ color: C.muted, fontFamily: 'var(--font-body)', fontSize: 14 }}>
+              {fr.designation.reveal_body(top[0].pseudo)}
+            </p>
+          </div>
+        ) : (
+          // Designated player(s) are no longer in the room (left mid-game).
+          <p className="pt-2 text-center" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
+            {fr.designation.result_title}
+          </p>
         )}
       </div>
     </GameScreen>
@@ -815,6 +868,7 @@ function VolunteerRevealScreen({
 }: {
   gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void
 }) {
+  const q = gs.current_question!
   const volunteer = players.find((p) => p.id === gs.volunteer_player_id)
   const name = volunteer?.pseudo ?? '?'
   const idx = volunteer ? players.indexOf(volunteer) : 0
@@ -840,9 +894,11 @@ function VolunteerRevealScreen({
         )
       }
     >
-      <div className="w-full max-w-sm flex flex-col items-center pt-12">
+      <div className="w-full max-w-sm flex flex-col items-center">
+        {/* Redisplay the question so everyone remembers the topic while answering. */}
+        <QuestionCard text={q.question.fr} accent={C.c} />
         {!shown ? (
-          <p className="text-5xl" style={{ animation: 'b2pulse 0.7s ease-in-out infinite' }}>🙋</p>
+          <p className="text-5xl pt-2" style={{ animation: 'b2pulse 0.7s ease-in-out infinite' }}>🙋</p>
         ) : (
           <div className="flex flex-col items-center" style={{ animation: 'b2pop 0.4s ease-out' }}>
             <PlayerAvatar pseudo={name} index={idx} size={80} />
@@ -1205,6 +1261,27 @@ export default function GamePage() {
       }, (payload) => {
         applyRoom(payload.new as Room)
       })
+      // Keep the player list live so the vote threshold tracks joins/leaves.
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'players',
+      }, (payload) => {
+        if (payload.new.room_id !== roomRef.current?.id) return
+        setPlayers((prev) => {
+          if (prev.find((p) => p.id === payload.new.id)) return prev
+          const next = [...prev, payload.new as Player]
+          playersRef.current = next
+          return next
+        })
+      })
+      .on('postgres_changes', {
+        event: 'DELETE', schema: 'public', table: 'players',
+      }, (payload) => {
+        setPlayers((prev) => {
+          const next = prev.filter((p) => p.id !== payload.old.id)
+          playersRef.current = next
+          return next
+        })
+      })
       .subscribe()
 
     setup()
@@ -1215,6 +1292,14 @@ export default function GamePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code])
+
+  // Host stopped the session → everyone returns to the lobby to pick a theme.
+  useEffect(() => {
+    if (room && room.status === 'waiting') {
+      router.replace(`/room/${code}/lobby`)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.status])
 
   if (!room || !myId) return <LoadingScreen />
   const gs = room.game_state
@@ -1274,11 +1359,12 @@ export default function GamePage() {
     }
 
     if (voteType === 'designation') {
-      const targetId = tallyDesignation(votes)
+      const { topIds, tieAll } = tallyDesignation(votes, players.length)
       await advance({
         ...gs,
         phase: gs.current_question?.type === 'A' ? 'round_a_reveal' : 'round_c_vote_reveal',
-        designated_player_id: targetId,
+        designated_player_ids: topIds,
+        designation_tie_all: tieAll,
       })
       return
     }
@@ -1350,10 +1436,12 @@ export default function GamePage() {
     }
 
     const nextRound = gs.round + 1
-    const candidates = await pickCandidates(room.theme, nextRound, gs.played_question_ids)
+    // Pass the current type so the next round avoids chaining the same one.
+    const candidates = await pickCandidates(room.theme, nextRound, gs.played_question_ids, gs.current_question?.type)
     await advance({
       ...gs, phase: 'voting_question', round: nextRound, candidates,
       current_question: null, b_subtype: null, designated_player_id: null,
+      designated_player_ids: [], designation_tie_all: false,
       revealed_player_ids: [], yes_percentage: null, volunteer_player_id: null,
       b2_revealed: false, stats,
     })
@@ -1365,15 +1453,27 @@ export default function GamePage() {
     await advance({ ...gs, phase: 'ended', stats })
   }
 
-  async function onNewRound() {
-    if (!room || !gs || !isHost) return
-    const candidates = await pickCandidates(room.theme, 1, [])
-    await advance(makeInitialGameState(candidates))
+  // Host stops the session and sends everyone back to the lobby, where the theme
+  // can be changed and a new game started — without recreating the room.
+  async function returnToLobby() {
+    if (!room || !isHost) return
+    await supabase.from('rooms').update({ status: 'waiting', game_state: null }).eq('id', room.id)
+    await voteChannelRef.current?.send({ type: 'broadcast', event: 'phase_changed', payload: {} })
   }
 
-  if (gs.paused) return <PausedScreen isHost={isHost} onResume={onResume} />
+  // A non-host player leaves; the game continues for everyone else. Their row is
+  // removed so the vote threshold on the other clients adjusts down.
+  async function onQuit() {
+    if (myId) await supabase.from('players').delete().eq('id', myId)
+    router.push('/')
+  }
+
+  if (gs.paused) return <PausedScreen isHost={isHost} onResume={onResume} onStop={returnToLobby} />
 
   const pauseBtn = isHost && gs.phase !== 'ended' && <PauseBtn onPause={onPause} />
+  const quitBtn = !isHost && gs.phase !== 'ended' && (
+    <QuitBtn onQuit={() => { if (typeof window === 'undefined' || window.confirm(fr.game.quit_confirm)) onQuit() }} />
+  )
   const nextLabel = gs.round >= MAX_ROUNDS ? fr.game.see_results : fr.game.next_round
 
   const screen = (() => {
@@ -1399,11 +1499,11 @@ export default function GamePage() {
       case 'round_c_vote_reveal':
         return <DesignationRevealScreen gs={gs} players={players} isHost={isHost} accent={C.c} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'ended':
-        return <EndScreen gs={gs} players={players} isHost={isHost} theme={room.theme} onNewRound={onNewRound} onLeave={() => router.push('/')} />
+        return <EndScreen gs={gs} players={players} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={() => router.push('/')} />
       default:
         return <LoadingScreen />
     }
   })()
 
-  return <>{pauseBtn}{screen}</>
+  return <>{pauseBtn}{quitBtn}{screen}</>
 }

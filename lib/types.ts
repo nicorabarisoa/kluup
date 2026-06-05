@@ -56,7 +56,13 @@ export type GameState = {
   candidates: Question[]
   current_question: Question | null
   b_subtype: BSubtype | null
+  // Single random pick — used by the B2 roulette only.
   designated_player_id: string | null
+  // Designation result (Type A + Type C vote): the most-voted player(s).
+  // length 1 = clear winner, >1 = tie among the leaders (all shown).
+  designated_player_ids: string[]
+  // True when every player is tied (nobody stood out) → "décevant" screen.
+  designation_tie_all: boolean
   revealed_player_ids: string[]
   yes_percentage: number | null
   volunteer_player_id: string | null
