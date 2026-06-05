@@ -1211,6 +1211,10 @@ function EndScreen({
       }
       const filename = `kluup-${title.name.toLowerCase().replace(/\s+/g, '-')}.png`
       const blob = await domToBlob(cardRef.current, {
+        // Force the real card size — the modal shows it inside transform:scale,
+        // and the capture would otherwise measure the scaled-down box and crop.
+        width: 540,
+        height: 540,
         scale: 2, // 540 * 2 = 1080px
         backgroundColor: C.bg,
         type: 'image/png',
