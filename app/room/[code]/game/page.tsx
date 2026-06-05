@@ -381,7 +381,8 @@ function DesignationVoteScreen({
   const isTypeC = q.type === 'C'
   const label = isTypeC ? fr.question_ouverte.label : fr.designation.label
   const instruction = isTypeC ? fr.question_ouverte.vote_instruction : fr.designation.instruction
-  const others = players.filter((p) => p.id !== myId)
+  // Everyone is votable — including yourself (you can own a "le plus susceptible de…").
+  // This also lets a 2-player group break out of the forced full-tie.
 
   return (
     <GameScreen
@@ -404,22 +405,22 @@ function DesignationVoteScreen({
               {instruction}
             </p>
             <div className="flex flex-col gap-3">
-              {others.map((p, i) => {
-                const color = avatarColor(players.indexOf(p))
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => onVote(p.id)}
-                    className="flex items-center gap-3 rounded-2xl p-4"
-                    style={{ background: C.surface, border: `1px solid ${C.border}` }}
-                  >
-                    <PlayerAvatar pseudo={p.pseudo} index={players.indexOf(p)} size={40} />
-                    <span className="font-medium" style={{ fontFamily: 'var(--font-body)', color: C.text }}>
-                      {p.pseudo}
-                    </span>
-                  </button>
-                )
-              })}
+              {players.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onVote(p.id)}
+                  className="flex items-center gap-3 rounded-2xl p-4"
+                  style={{ background: C.surface, border: `1px solid ${C.border}` }}
+                >
+                  <PlayerAvatar pseudo={p.pseudo} index={players.indexOf(p)} size={40} />
+                  <span className="font-medium" style={{ fontFamily: 'var(--font-body)', color: C.text }}>
+                    {p.pseudo}
+                    {p.id === myId && (
+                      <span className="ml-2 text-xs" style={{ color: C.faint }}>({fr.common.you})</span>
+                    )}
+                  </span>
+                </button>
+              ))}
             </div>
             <p className="text-center text-xs mt-4" style={{ color: C.faint, fontFamily: 'var(--font-body)' }}>
               {fr.common.vote_anonymous}

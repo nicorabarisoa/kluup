@@ -66,8 +66,8 @@ Round suivant
 
 ### Type A — Désignation ("le plus susceptible de…")
 1. Question affichée sur tous les écrans
-2. Chaque joueur vote anonymement pour désigner **quelqu'un d'autre** du groupe
-3. Révélation : la personne la plus désignée
+2. Chaque joueur vote anonymement pour désigner **quelqu'un** du groupe — **soi-même inclus** (on peut s'assumer ; permet aussi de sortir de l'égalité forcée à 2 joueurs)
+3. Révélation : la/les personne(s) la plus désignée(s). **Pas de tie-break aléatoire** — égalité en tête → tous les premiers affichés ; égalité totale (personne ne se démarque) → écran "Décevant"
 4. Elle répond à voix haute (refus libre, pas de conséquence imposée)
 
 > Usage progressif : rare en Hello Stranger, dominant en No Filter / Unmasked.
