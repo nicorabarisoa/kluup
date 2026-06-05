@@ -1283,6 +1283,17 @@ export default function GamePage() {
           return next
         })
       })
+      // Reflect role changes (e.g. host transfer when the host quits).
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'players',
+      }, (payload) => {
+        if (payload.new.room_id !== roomRef.current?.id) return
+        setPlayers((prev) => {
+          const next = prev.map((p) => (p.id === payload.new.id ? (payload.new as Player) : p))
+          playersRef.current = next
+          return next
+        })
+      })
       .subscribe()
 
     setup()
@@ -1462,17 +1473,34 @@ export default function GamePage() {
     await voteChannelRef.current?.send({ type: 'broadcast', event: 'phase_changed', payload: {} })
   }
 
-  // A non-host player leaves; the game continues for everyone else. Their row is
-  // removed so the vote threshold on the other clients adjusts down.
+  // A player leaves; the game continues for everyone else.
+  // - Their row is removed so the vote threshold on other clients adjusts down.
+  // - If they were the host, the role passes to the earliest remaining joiner.
+  // - If they were the last one, the room is deleted (votes cascade away with it).
   async function onQuit() {
-    if (myId) await supabase.from('players').delete().eq('id', myId)
+    if (!room || !myId) { router.push('/'); return }
+    const wasHost = isHost
+
+    await supabase.from('players').delete().eq('id', myId)
+
+    const { data: rest } = await supabase.from('players').select().eq('room_id', room.id)
+    const remaining = (rest ?? []) as Player[]
+
+    if (remaining.length === 0) {
+      await supabase.from('rooms').delete().eq('id', room.id)
+    } else if (wasHost) {
+      // Promote the earliest joiner among those left (the one who joined right after).
+      const next = [...remaining].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))[0]
+      await supabase.from('players').update({ is_host: true }).eq('id', next.id)
+    }
+
     router.push('/')
   }
 
   if (gs.paused) return <PausedScreen isHost={isHost} onResume={onResume} onStop={returnToLobby} />
 
   const pauseBtn = isHost && gs.phase !== 'ended' && <PauseBtn onPause={onPause} />
-  const quitBtn = !isHost && gs.phase !== 'ended' && (
+  const quitBtn = gs.phase !== 'ended' && (
     <QuitBtn onQuit={() => { if (typeof window === 'undefined' || window.confirm(fr.game.quit_confirm)) onQuit() }} />
   )
   const nextLabel = gs.round >= MAX_ROUNDS ? fr.game.see_results : fr.game.next_round
@@ -1500,7 +1528,7 @@ export default function GamePage() {
       case 'round_c_vote_reveal':
         return <DesignationRevealScreen gs={gs} players={players} isHost={isHost} accent={C.c} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'ended':
-        return <EndScreen gs={gs} players={players} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={() => router.push('/')} />
+        return <EndScreen gs={gs} players={players} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={onQuit} />
       default:
         return <LoadingScreen />
     }

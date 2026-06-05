@@ -4,6 +4,7 @@ export type Player = {
   is_host: boolean
   room_id: string
   is_online?: boolean
+  created_at?: string
 }
 
 export type Question = {
