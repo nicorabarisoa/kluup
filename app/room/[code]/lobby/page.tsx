@@ -6,33 +6,9 @@ import { supabase } from '@/lib/supabase'
 import { makeInitialGameState, pickCandidates } from '@/lib/game'
 import { Player } from '@/lib/types'
 import { copyToClipboard } from '@/lib/utils'
+import { fr } from '@/lib/i18n'
 
-const THEMES = [
-  {
-    id: 'hello-stranger',
-    name: 'Hello Stranger',
-    emoji: '👋',
-    desc: 'On se découvre — léger, safe',
-  },
-  {
-    id: 'apero',
-    name: 'Apéro',
-    emoji: '🥂',
-    desc: 'On se détend — début de soirée',
-  },
-  {
-    id: 'no-filter',
-    name: 'No Filter',
-    emoji: '🔥',
-    desc: 'On se lâche — sans retenue',
-  },
-  {
-    id: 'unmasked',
-    name: 'Unmasked',
-    emoji: '🎭',
-    desc: 'On se révèle — confessions profondes',
-  },
-]
+const THEME_IDS = ['hello-stranger', 'apero', 'no-filter', 'unmasked']
 
 export default function LobbyPage() {
   const params = useParams<{ code: string }>()
@@ -162,7 +138,7 @@ export default function LobbyPage() {
             className="text-xs font-medium px-3 py-1.5 rounded-xl"
             style={{ background: C.surface, border: `1px solid ${C.border}`, color: '#fff', fontFamily: 'var(--font-body)' }}
           >
-            {copied ? '✓ Copié' : 'Copier le lien'}
+            {copied ? fr.lobby.copied : fr.lobby.copy_link}
           </button>
         </div>
       </div>
@@ -187,7 +163,7 @@ export default function LobbyPage() {
                 <span className="font-medium text-sm flex-1" style={{ fontFamily: 'var(--font-body)' }}>
                   {player.pseudo}
                   {player.id === myId && (
-                    <span className="ml-2 text-xs" style={{ color: '#555' }}>toi</span>
+                    <span className="ml-2 text-xs" style={{ color: '#555' }}>{fr.common.you}</span>
                   )}
                 </span>
                 {player.is_host && (
@@ -195,7 +171,7 @@ export default function LobbyPage() {
                     className="text-xs font-medium px-2 py-0.5 rounded-full"
                     style={{ background: `${C.a}22`, color: C.a, fontFamily: 'var(--font-body)' }}
                   >
-                    Hôte
+                    {fr.lobby.host_badge}
                   </span>
                 )}
               </div>
@@ -207,15 +183,16 @@ export default function LobbyPage() {
         {isHost && (
           <div>
             <p className="text-xs mb-2 font-medium" style={{ color: '#888', fontFamily: 'var(--font-body)' }}>
-              Thème
+              {fr.lobby.theme_label}
             </p>
             <div className="flex flex-col gap-2">
-              {THEMES.map((theme) => {
-                const isSelected = selectedTheme === theme.id
+              {THEME_IDS.map((id) => {
+                const theme = fr.lobby.themes[id]
+                const isSelected = selectedTheme === id
                 return (
                   <button
-                    key={theme.id}
-                    onClick={() => setSelectedTheme(theme.id)}
+                    key={id}
+                    onClick={() => setSelectedTheme(id)}
                     className="rounded-2xl px-4 py-3 text-left flex items-center gap-3 transition-all"
                     style={{
                       background: isSelected ? '#fff' : C.surface,
@@ -246,7 +223,7 @@ export default function LobbyPage() {
 
         {!isHost && (
           <p className="text-sm text-center" style={{ color: '#555', fontFamily: 'var(--font-body)' }}>
-            En attente du choix de thème de l'hôte…
+            {fr.lobby.waiting_theme}
           </p>
         )}
       </div>
@@ -261,14 +238,14 @@ export default function LobbyPage() {
             style={{ background: C.a, color: '#fff', fontFamily: 'var(--font-body)' }}
           >
             {starting
-              ? 'Démarrage…'
+              ? fr.lobby.starting
               : players.length < 2
-              ? `Encore ${2 - players.length} joueur(s)…`
-              : 'Lancer la partie'}
+              ? fr.lobby.need_players(2 - players.length)
+              : fr.lobby.start_btn}
           </button>
         ) : (
           <p className="text-sm text-center" style={{ color: '#555', fontFamily: 'var(--font-body)' }}>
-            En attente de l'hôte…
+            {fr.lobby.waiting_host}
           </p>
         )}
       </div>

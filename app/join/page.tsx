@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { fr } from '@/lib/i18n'
 
 export default function JoinPage() {
   const searchParams = useSearchParams()
@@ -27,7 +28,7 @@ export default function JoinPage() {
       .single()
 
     if (!room) {
-      alert('Room introuvable — vérifie le code')
+      alert(fr.join.room_not_found)
       setLoading(false)
       return
     }
@@ -48,15 +49,15 @@ export default function JoinPage() {
     <main className="flex min-h-screen flex-col items-center justify-between p-6 pb-10" style={{ background: '#0D0D0D' }}>
       <div className="flex-1 flex flex-col items-center justify-center gap-1">
         <h1 className="text-4xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
-          Rejoindre
+          {fr.join.title}
         </h1>
-        <p style={{ color: '#888' }} className="text-sm">Entre le code de la room</p>
+        <p style={{ color: '#888' }} className="text-sm">{fr.join.subtitle}</p>
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
         <input
           type="text"
-          placeholder="Code (ex: 7TKFQU)"
+          placeholder={fr.join.code_placeholder}
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           maxLength={6}
@@ -65,7 +66,7 @@ export default function JoinPage() {
         />
         <input
           type="text"
-          placeholder="Ton prénom"
+          placeholder={fr.common.pseudo_placeholder}
           value={pseudo}
           onChange={(e) => setPseudo(e.target.value)}
           maxLength={20}
@@ -78,7 +79,7 @@ export default function JoinPage() {
           className="font-bold py-4 rounded-2xl text-base disabled:opacity-40"
           style={{ background: '#FF3C6F', color: '#fff', fontFamily: 'var(--font-body)' }}
         >
-          {loading ? 'Connexion…' : 'Rejoindre'}
+          {loading ? fr.join.joining : fr.join.join_btn}
         </button>
       </div>
     </main>

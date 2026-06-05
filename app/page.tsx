@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { genId } from '@/lib/utils'
+import { fr } from '@/lib/i18n'
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
@@ -50,14 +51,14 @@ export default function Home() {
           Klu<span style={{ color: '#FF3C6F' }}>up</span>
         </h1>
         <p style={{ color: '#888' }} className="text-sm text-center">
-          Le party game qui révèle tout
+          {fr.home.tagline}
         </p>
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
         <input
           type="text"
-          placeholder="Ton prénom"
+          placeholder={fr.common.pseudo_placeholder}
           value={pseudo}
           onChange={(e) => setPseudo(e.target.value)}
           maxLength={20}
@@ -70,14 +71,14 @@ export default function Home() {
           className="font-bold py-4 rounded-2xl text-base disabled:opacity-40"
           style={{ background: '#FF3C6F', color: '#fff', fontFamily: 'var(--font-body)' }}
         >
-          {loading ? 'Création…' : 'Créer une room'}
+          {loading ? fr.home.creating : fr.home.create_btn}
         </button>
         <button
           onClick={() => router.push('/join')}
           className="font-medium py-4 rounded-2xl text-base text-white"
           style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
         >
-          Rejoindre une room
+          {fr.home.join_btn}
         </button>
       </div>
     </main>

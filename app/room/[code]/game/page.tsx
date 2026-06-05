@@ -512,7 +512,7 @@ function ConfessionVoteScreen({
           <WaitingDots />
         ) : (
           <p className="text-center text-xs" style={{ color: C.faint, fontFamily: 'var(--font-body)' }}>
-            🔒 Ta réponse est visible uniquement lors de la révélation
+            {fr.confession.answer_private}
           </p>
         )}
         <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
@@ -562,16 +562,30 @@ function B1RevealScreen({
           </p>
         ) : (
           <>
-            {/* Anonymous stat — no names revealed */}
             <p
               className="font-extrabold"
               style={{ color: C.b, fontSize: 72, lineHeight: 1, fontFamily: 'var(--font-display)' }}
             >
               {pct}%
             </p>
-            <p className="mt-4 text-center" style={{ color: C.text, fontFamily: 'var(--font-body)' }}>
+            <p className="mt-2 text-center" style={{ color: C.text, fontFamily: 'var(--font-body)' }}>
               {all ? fr.confession.b1_all : fr.confession.b1_count(yesCount, total)}
             </p>
+            {/* B1 = révélation totale — tous les "oui" affichés */}
+            <div className="mt-6 flex flex-wrap justify-center gap-4">
+              {gs.revealed_player_ids.map((id) => {
+                const p = players.find((pl) => pl.id === id)
+                if (!p) return null
+                return (
+                  <div key={id} className="flex flex-col items-center gap-1">
+                    <PlayerAvatar pseudo={p.pseudo} index={players.indexOf(p)} size={48} />
+                    <span className="text-xs" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
+                      {p.pseudo}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </>
         )}
       </div>
