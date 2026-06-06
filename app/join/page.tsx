@@ -22,11 +22,15 @@ function JoinForm() {
     if (!code.trim() || !pseudo.trim()) return
     setLoading(true)
 
+    const normalizedCode = code.trim().toUpperCase()
     const { data: room, error: roomError } = await supabase
       .from('rooms')
       .select()
-      .eq('code', code.trim().toUpperCase())
+      .eq('code', normalizedCode)
       .maybeSingle()
+
+    // Log to help diagnose RLS / env issues: check browser console if join fails.
+    console.log('[join] lookup:', { code: normalizedCode, found: !!room, error: roomError?.message })
 
     if (roomError) {
       console.error('[joinRoom] room lookup failed:', roomError)

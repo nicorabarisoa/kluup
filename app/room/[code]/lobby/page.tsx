@@ -36,11 +36,13 @@ export default function LobbyPage() {
         .eq('code', code)
         .maybeSingle()
 
-      if (!room) return
+      if (!room) { router.replace('/'); return }
       setRoomId(room.id)
       roomIdRef.current = room.id
 
       if (room.status === 'playing' || room.status === 'ended') {
+        // Visitor not registered: send them to join before entering the game.
+        if (!id) { router.replace(`/join?code=${code}`); return }
         navigate()
         return
       }
@@ -50,7 +52,15 @@ export default function LobbyPage() {
         .select()
         .eq('room_id', room.id)
 
-      if (data) setPlayers(data as Player[])
+      if (data) {
+        setPlayers(data as Player[])
+        // Visitor arrived via the lobby URL without going through /join.
+        // Redirect them so they can enter their pseudo.
+        if (!id || !data.find((p) => p.id === id)) {
+          router.replace(`/join?code=${code}`)
+          return
+        }
+      }
     }
 
     loadRoom()
