@@ -721,6 +721,8 @@ function B2RouletteScreen({
   gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onReveal: () => void; onNext: () => void; onEnd: () => void
 }) {
   const fr = useT()
+  const { locale } = useLocale()
+  const q = gs.current_question!
   const designated = players.find((p) => p.id === gs.designated_player_id)
   const name = designated?.pseudo ?? '?'
   const idx = designated ? players.indexOf(designated) : 0
@@ -785,7 +787,9 @@ function B2RouletteScreen({
         )
       }
     >
-      <div className="w-full max-w-md flex flex-col items-center pt-8">
+      <div className="w-full max-w-md flex flex-col items-center">
+        {/* Keep the question visible while the wheel reveals who confessed. */}
+        <QuestionCard text={q.question[locale]} accent={C.b} />
         <p className="text-center mb-6 text-sm" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
           {fr.confession.b2_percent(pct)}
         </p>
