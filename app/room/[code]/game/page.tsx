@@ -785,7 +785,8 @@ function B2RouletteScreen({
   const idx = designated ? players.indexOf(designated) : 0
   const pct = gs.yes_percentage ?? 0
   const yesCount = gs.revealed_player_ids?.length ?? 0
-  const nobody = !gs.designated_player_id || yesCount === 0
+  const nobody = yesCount === 0
+  const allYes = pct === 100 && yesCount > 0
   // Everyone who said yes except the one the roulette picked stays anonymous.
   const othersCount = Math.max(0, yesCount - 1)
 
@@ -796,7 +797,7 @@ function B2RouletteScreen({
   const [tick, setTick] = useState(0) // drives the per-change pulse
 
   useEffect(() => {
-    if (!gs.b2_revealed || nobody || players.length === 0) return
+    if (!gs.b2_revealed || nobody || allYes || players.length === 0) return
     const targetIdx = Math.max(0, players.findIndex((p) => p.id === gs.designated_player_id))
     let current = 0
     let ticks = 0
@@ -825,14 +826,14 @@ function B2RouletteScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gs.b2_revealed])
 
-  const spinning = gs.b2_revealed && !done && !nobody
+  const spinning = gs.b2_revealed && !done && !nobody && !allYes
   const spinPlayer = players[spinIndex]
 
   return (
     <GameScreen
       header={<RoundHeader round={gs.round} label={fr.confession.label} accent={C.b} />}
       footer={
-        nobody ? (
+        nobody || allYes ? (
           <RoundEndFooter ready isHost={isHost} nextLabel={nextLabel} accent={C.b} onNext={onNext} onEnd={onEnd} />
         ) : !gs.b2_revealed ? (
           <PrimaryBtn onClick={onReveal} accent={C.b}>{fr.confession.b2_btn_reveal}</PrimaryBtn>
@@ -852,6 +853,16 @@ function B2RouletteScreen({
           <p className="text-center mt-4" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
             {fr.confession.b2_nobody}
           </p>
+        ) : allYes ? (
+          <div className="flex flex-col items-center text-center pt-2" style={{ animation: 'b2pop 0.4s ease-out' }}>
+            <p className="text-6xl mb-4">🐑</p>
+            <h2 className="text-2xl font-extrabold mb-2" style={{ fontFamily: 'var(--font-display)', color: C.b }}>
+              {fr.confession.b2_all_yes_title}
+            </h2>
+            <p style={{ color: C.muted, fontFamily: 'var(--font-body)', fontSize: 14 }}>
+              {fr.confession.b2_all_yes_body}
+            </p>
+          </div>
         ) : !gs.b2_revealed ? (
           // Idle mystery circle, waiting for the host to reveal.
           <div
@@ -1745,10 +1756,13 @@ export default function GamePage() {
         })
       } else {
         const yesIds = yesVotes.map((v) => v.player_id as string)
-        const winner = yesIds.length > 0 ? yesIds[Math.floor(Math.random() * yesIds.length)] : null
+        // If everyone said yes (100%), no one gets singled out — show the sheep message.
+        // Otherwise pick a random winner from those who said yes.
+        const winner = yesIds.length > 0 && pct < 100
+          ? yesIds[Math.floor(Math.random() * yesIds.length)]
+          : null
         await advance({
           ...gs, phase: 'round_b2_roulette', b_subtype: 'B2',
-          // Store the yes-ids (not displayed) so we know how many stay anonymous.
           revealed_player_ids: yesIds,
           designated_player_id: winner, yes_percentage: pct,
         })

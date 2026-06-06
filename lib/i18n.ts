@@ -96,6 +96,8 @@ export const fr = {
     b2_others: (n: number) => `😉 ${n} personne${n > 1 ? "s" : ""} n'ont pas été leak.`,
     b2_nobody: "Personne n'a répondu oui. Le secret est gardé.",
     b2_btn_reveal: "Révéler",
+    b2_all_yes_title: "Que des moutons ! 🐑",
+    b2_all_yes_body: "Tout le monde a dit oui. On ne désigne personne.",
   },
   question_ouverte: {
     label: "Volontariat",
@@ -254,6 +256,8 @@ export const en: Dict = {
     b2_others: (n: number) => `😉 ${n} ${n > 1 ? "people" : "person"} didn't get leaked.`,
     b2_nobody: "Nobody said yes. The secret is safe.",
     b2_btn_reveal: "Reveal",
+    b2_all_yes_title: "A flock of sheep! 🐑",
+    b2_all_yes_body: "Everyone said yes. No one gets singled out.",
   },
   question_ouverte: {
     label: "Volunteering",
@@ -410,6 +414,8 @@ export const es: Dict = {
     b2_others: (n: number) => `😉 ${n} persona${n > 1 ? "s" : ""} no fueron filtradas.`,
     b2_nobody: "Nadie dijo sí. El secreto está a salvo.",
     b2_btn_reveal: "Revelar",
+    b2_all_yes_title: "¡Un rebaño de ovejas! 🐑",
+    b2_all_yes_body: "Todo el mundo dijo sí. Nadie queda señalado.",
   },
   question_ouverte: {
     label: "Voluntariado",
@@ -566,6 +572,8 @@ export const de: Dict = {
     b2_others: (n: number) => `😉 ${n} Person${n > 1 ? "en" : ""} wurde${n > 1 ? "n" : ""} nicht geleakt.`,
     b2_nobody: "Niemand hat Ja gesagt. Das Geheimnis ist sicher.",
     b2_btn_reveal: "Enthüllen",
+    b2_all_yes_title: "Eine Herde Schafe! 🐑",
+    b2_all_yes_body: "Alle haben Ja gesagt. Niemand wird hervorgehoben.",
   },
   question_ouverte: {
     label: "Freiwillig",
