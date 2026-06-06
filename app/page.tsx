@@ -1,13 +1,35 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useT, LangSwitch } from '@/lib/locale'
 
+// ---------------------------------------------------------------------------
+// Design tokens (match the app)
+// ---------------------------------------------------------------------------
+const C = {
+  bg: '#0D0D0D',
+  surface: '#1A1A1A',
+  border: '#252525',
+  text: '#FFFFFF',
+  muted: '#888888',
+  faint: '#555555',
+  a: '#FF3C6F',
+  b: '#7B2FFF',
+  c: '#FFD600',
+}
+
+const THEME_IDS = ['hello-stranger', 'apero', 'no-filter', 'unmasked'] as const
+const THEME_COLORS: Record<string, string> = {
+  'hello-stranger': '#00C896',
+  'apero': '#FFB800',
+  'no-filter': '#FF3C6F',
+  'unmasked': '#7B2FFF',
+}
+
 // Unambiguous alphabet (no 0/O, 1/I) so codes read off a screen don't get
-// mistyped. Always exactly 6 chars — the old Math.random().substring could
-// occasionally yield fewer.
+// mistyped. Always exactly 6 chars.
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function generateCode() {
   let out = ''
@@ -21,14 +43,14 @@ export default function Home() {
   const fr = useT()
   const [pseudo, setPseudo] = useState('')
   const [loading, setLoading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   async function createRoom() {
-    if (!pseudo.trim()) return
+    if (!pseudo.trim()) { inputRef.current?.focus(); return }
     setLoading(true)
 
-    // Opportunistic maintenance: sweep dead rooms (>3h idle). Fire-and-forget —
-    // never let it block or break room creation.
+    // Opportunistic maintenance: sweep dead rooms. Fire-and-forget.
     supabase.rpc('cleanup_dead_rooms').then(({ error }) => {
       if (error) console.warn('[cleanup_dead_rooms]', error.message)
     })
@@ -45,7 +67,6 @@ export default function Home() {
         .single()
       if (data) { room = data; break }
       lastError = error
-      // 23505 = unique_violation → retry with a fresh code; otherwise bail.
       if (error?.code !== '23505') break
     }
 
@@ -70,55 +91,189 @@ export default function Home() {
     }
 
     sessionStorage.setItem('player_id', player.id)
-
     router.push(`/room/${room.code}/lobby`)
   }
 
-  return (
-    <main className="flex min-h-screen flex-col p-6" style={{ background: '#0D0D0D' }}>
-      <div className="w-full flex justify-end">
-        <LangSwitch />
-      </div>
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setTimeout(() => inputRef.current?.focus(), 400)
+  }
 
-      {/* Logo + form grouped and vertically centered (sits higher than pinned-to-bottom). */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full">
-        <div className="flex flex-col items-center gap-2">
-          <h1 className="text-6xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
-            Klu<span style={{ color: '#FF3C6F' }}>up</span>
+  return (
+    <main style={{ background: C.bg, color: C.text, minHeight: '100svh' }}>
+      <div className="mx-auto w-full" style={{ maxWidth: 480 }}>
+
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-6 pt-5">
+          <span className="text-xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
+            Klu<span style={{ color: C.a }}>up</span>
+          </span>
+          <LangSwitch />
+        </div>
+
+        {/* ===== Hero ===== */}
+        <section
+          className="flex flex-col items-center px-6 text-center"
+          style={{ minHeight: 'calc(100svh - 64px)', justifyContent: 'center', paddingBottom: 24 }}
+        >
+          <h1
+            className="font-extrabold tracking-tight"
+            style={{ fontFamily: 'var(--font-display)', fontSize: 56, lineHeight: 1 }}
+          >
+            Klu<span style={{ color: C.a }}>up</span>
           </h1>
-          <p style={{ color: '#888' }} className="text-sm text-center">
+          <p className="mt-3 font-bold" style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}>
             {fr.home.tagline}
           </p>
-        </div>
+          <p className="mt-3 text-sm leading-relaxed" style={{ color: C.muted, maxWidth: 340 }}>
+            {fr.landing.pitch}
+          </p>
 
-        <div className="flex flex-col gap-3 w-full max-w-xs">
-          <input
-            type="text"
-            placeholder={fr.common.pseudo_placeholder}
-            value={pseudo}
-            onChange={(e) => setPseudo(e.target.value)}
-            maxLength={20}
-            className="rounded-2xl px-4 py-4 text-white text-base outline-none"
-            style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
-          />
+          {/* Create / join form */}
+          <div className="flex flex-col gap-3 w-full mt-8" style={{ maxWidth: 320 }}>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder={fr.common.pseudo_placeholder}
+              value={pseudo}
+              onChange={(e) => setPseudo(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && createRoom()}
+              maxLength={20}
+              className="rounded-2xl px-4 py-4 text-base outline-none text-center"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontFamily: 'var(--font-body)' }}
+            />
+            <button
+              type="button"
+              onClick={createRoom}
+              disabled={loading}
+              className="font-bold py-4 rounded-2xl text-base disabled:opacity-50"
+              style={{ background: C.a, color: '#fff', fontFamily: 'var(--font-body)' }}
+            >
+              {loading ? fr.home.creating : fr.home.create_btn}
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push('/join')}
+              className="font-medium py-4 rounded-2xl text-base"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontFamily: 'var(--font-body)' }}
+            >
+              {fr.home.join_btn}
+            </button>
+          </div>
+
+          {/* Trust badges */}
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-5 text-xs" style={{ color: C.faint }}>
+            <span>✓ {fr.landing.badge_free}</span>
+            <span>✓ {fr.landing.badge_nosignup}</span>
+            <span>✓ {fr.landing.badge_browser}</span>
+          </div>
+          <p className="mt-2 text-xs" style={{ color: C.faint }}>{fr.landing.players_hint}</p>
+
+          <div className="mt-10 animate-bounce" style={{ color: C.faint, fontSize: 20 }}>↓</div>
+        </section>
+
+        {/* ===== How it works ===== */}
+        <section className="px-6 py-12">
+          <h2 className="text-2xl font-extrabold text-center mb-8" style={{ fontFamily: 'var(--font-display)' }}>
+            {fr.landing.how_title}
+          </h2>
+          <div className="flex flex-col gap-4">
+            {[
+              { n: 1, t: fr.landing.how_1_title, b: fr.landing.how_1_body, color: C.a },
+              { n: 2, t: fr.landing.how_2_title, b: fr.landing.how_2_body, color: C.b },
+              { n: 3, t: fr.landing.how_3_title, b: fr.landing.how_3_body, color: C.c },
+            ].map((s) => (
+              <div key={s.n} className="flex items-start gap-4 rounded-2xl p-4" style={{ background: C.surface }}>
+                <div
+                  className="flex items-center justify-center font-extrabold flex-shrink-0"
+                  style={{
+                    width: 40, height: 40, borderRadius: 12,
+                    background: `${s.color}22`, color: s.color,
+                    fontFamily: 'var(--font-display)', fontSize: 18,
+                  }}
+                >
+                  {s.n}
+                </div>
+                <div>
+                  <p className="font-bold text-base" style={{ fontFamily: 'var(--font-body)' }}>{s.t}</p>
+                  <p className="text-sm mt-0.5 leading-snug" style={{ color: C.muted }}>{s.b}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ===== Themes ===== */}
+        <section className="px-6 py-12">
+          <h2 className="text-2xl font-extrabold text-center" style={{ fontFamily: 'var(--font-display)' }}>
+            {fr.landing.themes_title}
+          </h2>
+          <p className="text-sm text-center mt-2 mb-8" style={{ color: C.muted, maxWidth: 320, marginInline: 'auto' }}>
+            {fr.landing.themes_sub}
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {THEME_IDS.map((id) => {
+              const theme = fr.lobby.themes[id]
+              const color = THEME_COLORS[id]
+              return (
+                <div key={id} className="rounded-2xl p-4" style={{ background: C.surface, border: `1px solid ${color}33` }}>
+                  <div className="text-3xl mb-2">{theme.emoji}</div>
+                  <p className="font-bold text-sm" style={{ color, fontFamily: 'var(--font-body)' }}>{theme.name}</p>
+                  <p className="text-xs mt-1 leading-snug" style={{ color: C.muted }}>{theme.desc}</p>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* ===== Ways to play ===== */}
+        <section className="px-6 py-12">
+          <h2 className="text-2xl font-extrabold text-center mb-8" style={{ fontFamily: 'var(--font-display)' }}>
+            {fr.landing.types_title}
+          </h2>
+          <div className="flex flex-col gap-3">
+            {[
+              { label: fr.designation.label, body: fr.landing.type_a_body, color: C.a },
+              { label: fr.confession.label, body: fr.landing.type_b_body, color: C.b },
+              { label: fr.question_ouverte.label, body: fr.landing.type_c_body, color: C.c },
+            ].map((t) => (
+              <div key={t.label} className="rounded-2xl p-4" style={{ background: C.surface }}>
+                <div className="h-1 w-10 rounded-full mb-3" style={{ background: t.color }} />
+                <p className="font-extrabold uppercase text-sm" style={{ color: t.color, letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}>
+                  {t.label}
+                </p>
+                <p className="text-sm mt-1 leading-snug" style={{ color: C.muted }}>{t.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ===== Closing CTA ===== */}
+        <section className="px-6 py-16 text-center">
+          <h2 className="text-3xl font-extrabold leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+            {fr.landing.closing_title}
+          </h2>
+          <p className="text-3xl font-extrabold leading-tight" style={{ fontFamily: 'var(--font-display)', color: C.a }}>
+            {fr.landing.closing_body}
+          </p>
           <button
             type="button"
-            onClick={createRoom}
-            disabled={loading || !pseudo.trim()}
-            className="font-bold py-4 rounded-2xl text-base disabled:opacity-40"
-            style={{ background: '#FF3C6F', color: '#fff', fontFamily: 'var(--font-body)' }}
+            onClick={scrollToTop}
+            className="font-bold py-4 px-8 rounded-2xl text-base mt-8"
+            style={{ background: C.a, color: '#fff', fontFamily: 'var(--font-body)' }}
           >
-            {loading ? fr.home.creating : fr.home.create_btn}
+            {fr.landing.start_cta}
           </button>
-          <button
-            type="button"
-            onClick={() => router.push('/join')}
-            className="font-medium py-4 rounded-2xl text-base text-white"
-            style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
-          >
-            {fr.home.join_btn}
-          </button>
-        </div>
+        </section>
+
+        {/* ===== Footer ===== */}
+        <footer className="px-6 py-8 text-center" style={{ borderTop: `1px solid ${C.border}` }}>
+          <span className="text-lg font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
+            Klu<span style={{ color: C.a }}>up</span>
+          </span>
+          <p className="text-xs mt-1" style={{ color: C.faint }}>kluup.app</p>
+        </footer>
+
       </div>
     </main>
   )

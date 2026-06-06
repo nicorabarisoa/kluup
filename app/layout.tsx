@@ -18,8 +18,23 @@ const body = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "Kluup",
-  description: "Le party game qui révèle tout",
+  title: "Kluup — le party game qui révèle votre groupe",
+  description:
+    "Le party game qui brise la glace et révèle votre groupe. Sur vos téléphones, sans installation. Gratuit, sans inscription.",
+  applicationName: "Kluup",
+  openGraph: {
+    title: "Kluup — le party game qui révèle votre groupe",
+    description:
+      "Brisez la glace et révélez votre groupe. Sur vos téléphones, sans installation. Gratuit, sans inscription.",
+    siteName: "Kluup",
+    type: "website",
+    locale: "fr_FR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kluup — le party game qui révèle votre groupe",
+    description: "Brisez la glace et révélez votre groupe. Sur vos téléphones, sans installation.",
+  },
 }
 
 export default function RootLayout({
