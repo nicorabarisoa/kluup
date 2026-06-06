@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { createContext, forwardRef, useContext, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
@@ -63,6 +63,14 @@ function playerInitial(pseudo: string) {
 }
 
 // ---------------------------------------------------------------------------
+// In-round controls context — exposes quit/pause handlers to RoundHeader
+// so every screen gets the buttons without prop drilling.
+// ---------------------------------------------------------------------------
+
+type GameControls = { onQuit: () => void; onPause: () => void }
+const GameControlsCtx = createContext<GameControls | null>(null)
+
+// ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
 
@@ -107,26 +115,42 @@ function TypeBadge({ label, accent }: { label: string; accent: string }) {
 
 function RoundHeader({ round, label, accent }: { round: number; label: string; accent: string }) {
   const fr = useT()
+  const controls = useContext(GameControlsCtx)
   return (
     <div className="mb-4">
-      {/* Colored bar signals the round type */}
-      <div className="h-1 w-full rounded-full mb-3" style={{ background: accent }} />
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            className="w-2.5 h-2.5 rounded-full"
-            style={{ background: accent }}
-          />
-          <span
-            className="font-extrabold uppercase"
-            style={{ color: accent, fontSize: 16, letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}
+      {/* Accent bar — full width, signals the round type */}
+      <div className="h-1 w-full rounded-full mb-2" style={{ background: accent }} />
+      {/* Action row: quit · type indicator · round counter · pause — all inline */}
+      <div className="flex items-center gap-2">
+        {controls && (
+          <button
+            onClick={controls.onQuit}
+            className="px-3 h-8 rounded-xl text-xs font-medium flex-shrink-0"
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: 'var(--font-body)' }}
           >
-            {label}
-          </span>
-        </div>
-        <span style={{ color: C.muted, fontSize: 12, fontFamily: 'var(--font-body)' }}>
+            {fr.game.quit}
+          </button>
+        )}
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: accent }} />
+        <span
+          className="font-extrabold uppercase flex-1 truncate"
+          style={{ color: accent, fontSize: 14, letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}
+        >
+          {label}
+        </span>
+        <span className="flex-shrink-0" style={{ color: C.muted, fontSize: 12, fontFamily: 'var(--font-body)' }}>
           {fr.game.round_of(round, MAX_ROUNDS)}
         </span>
+        {controls && (
+          <button
+            onClick={controls.onPause}
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: C.surface, border: `1px solid ${C.border}` }}
+            aria-label="Pause"
+          >
+            ⏸
+          </button>
+        )}
       </div>
     </div>
   )
@@ -348,33 +372,6 @@ function RoundEndFooter({
   )
 }
 
-function PauseBtn({ onPause }: { onPause: () => void }) {
-  return (
-    <button
-      onClick={onPause}
-      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full flex items-center justify-center"
-      style={{ background: C.surface, border: `1px solid ${C.border}` }}
-      aria-label="Pause"
-    >
-      ⏸
-    </button>
-  )
-}
-
-// Lets a non-host player leave; the game continues for everyone else.
-function QuitBtn({ onQuit }: { onQuit: () => void }) {
-  const fr = useT()
-  return (
-    <button
-      onClick={onQuit}
-      className="fixed top-4 left-4 z-50 px-3 h-10 rounded-full flex items-center justify-center text-xs font-medium"
-      style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: 'var(--font-body)' }}
-      aria-label={fr.game.quit}
-    >
-      {fr.game.quit}
-    </button>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Screens
@@ -1829,12 +1826,13 @@ export default function GamePage() {
     })()
   }
 
+  // Quit handler with confirm — passed into RoundHeader via context.
+  const handleQuit = () => {
+    if (typeof window === 'undefined' || window.confirm(fr.game.quit_confirm)) onQuit()
+  }
+
   if (gs.paused) return <PausedScreen isHost={isHost} onResume={onResume} onStop={returnToLobby} />
 
-  const pauseBtn = gs.phase !== 'ended' && <PauseBtn onPause={onPause} />
-  const quitBtn = gs.phase !== 'ended' && (
-    <QuitBtn onQuit={() => { if (typeof window === 'undefined' || window.confirm(fr.game.quit_confirm)) onQuit() }} />
-  )
   const nextLabel = gs.round >= MAX_ROUNDS ? fr.game.see_results : fr.game.next_round
 
   const screen = (() => {
@@ -1864,5 +1862,12 @@ export default function GamePage() {
     }
   })()
 
-  return <>{pauseBtn}{quitBtn}{screen}</>
+  // Only provide controls for phases that show a RoundHeader (not 'ended').
+  // EndScreen has its own footer actions; 'ended' screens don't show quit/pause.
+  const controls = gs.phase !== 'ended' ? { onQuit: handleQuit, onPause } : null
+  return (
+    <GameControlsCtx.Provider value={controls}>
+      {screen}
+    </GameControlsCtx.Provider>
+  )
 }
