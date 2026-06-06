@@ -26,14 +26,86 @@ Kluup (kluup.app) est une **web app de party game** conçue pour briser la glace
 ### Architecture
 Modulaire — core engine (room manager, websocket, vote system) séparé des game modes pour permettre l'ajout de futurs modes sans rework.
 
-### État du build
-- ✅ Projet Next.js + Supabase configuré
-- ✅ Création de room avec pseudo hôte
-- ✅ Rejoindre une room via code
-- ✅ Lobby temps réel multi-joueurs
-- ✅ Identification hôte / joueur avec persistance
-- ✅ Bouton "Lancer la partie" hôte only
-- 🔜 Page de jeu `/room/[code]/game`
+### État du build — MVP Classic COMPLET & déployé (prod Railway)
+Flow entier jouable : accueil → création/join → lobby (choix thème) → rounds A/B/C → écran de fin + carte de partage. i18n FR/EN avec détection. Cycle de vie des rooms géré (presence + cleanup). Les retours de **2 phases de playtest** sont intégrés.
+
+---
+
+## 🔧 Architecture réelle & décisions — SOURCE DE VÉRITÉ TECHNIQUE
+> Section maintenue à jour pour donner le contexte sans relire l'historique. Màj 2026-06.
+
+### Stack effective
+- Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind v4.
+- Supabase : Postgres + Realtime (`postgres_changes`, `broadcast`, `presence`). Projet ref `dmxjspnrrgcixzcthgwf`.
+- Hébergement **Railway** (build = `next build`).
+- Carte de partage : **`modern-screenshot`** (surtout PAS `html2canvas` — il déformait les polices custom).
+
+### Carte des fichiers
+- `app/page.tsx` — accueil (créer room + pseudo, bouton join, LangSwitch).
+- `app/join/page.tsx` — rejoindre via code (wrap `Suspense` pour `useSearchParams`, lien retour accueil).
+- `app/room/[code]/lobby/page.tsx` — lobby temps réel, sélecteur de thème (hôte), bouton "Lancer".
+- `app/room/[code]/game/page.tsx` — **TOUTE la page de jeu** : tous les écrans + state machine + handlers (gros fichier).
+- `app/layout.tsx` — fonts Syne/DM_Sans (next/font) + `<LocaleProvider>`.
+- `lib/types.ts` — `Player`, `Question`, `GameState`, `GamePhase`, `Room`, etc.
+- `lib/game.ts` — moteur pur : `pickCandidates`, `pickType`, `tallyDesignation`, `tallyQuestionSelection`, `pickBSubtype`, `accumulateStats`, `computeGroupTitle`, `countVotes`, `countChoiceVotes`, `fetchVotes`, `makeInitialGameState`, `updateRoomGameState`.
+- `lib/i18n.ts` — dictionnaires `fr` + `en` (mêmes clés, typés `Dict`), `dictionaries`, `Locale`, `defaultLocale`, `localeNames`.
+- `lib/locale.tsx` — `LocaleProvider`, hooks `useT()` / `useLocale()`, composant `LangSwitch`.
+- `lib/usePresence.ts` — `useRoomPresence(roomId, myId)` : présence + prune fantômes + heartbeat.
+- `lib/supabase.ts` — client (warn console si env manquantes).
+- `lib/utils.ts` — `genId` / `copyToClipboard` (fallbacks contexte non-sécurisé / HTTP LAN).
+- `supabase/migration.sql` — schéma rooms/questions/votes + RLS + realtime.
+- `supabase/seed.sql` + `seed_themes.sql` — questions.
+- `supabase/lifecycle.sql` — cleanup rooms (cascade players, `last_activity` + trigger, `cleanup_dead_rooms()` TTL 30 min, pg_cron optionnel). **Déjà exécuté.**
+- `.env.example` — vars Supabase.
+
+### Modèle de données (Supabase)
+- `rooms` : id, code, **status** `'waiting'|'playing'|'ended'` (défaut DB `'waiting'`), theme, **game_state** (jsonb), host_id, created_at, last_activity.
+- `players` : id, room_id (→rooms **ON DELETE CASCADE**), pseudo, is_host, is_online, created_at.
+- `votes` : id, room_id (CASCADE), round, player_id (→players CASCADE), **vote_type** `'question_selection'|'designation'|'confession'|'volunteer'`, target_player_id, answer, question_index. UNIQUE(room_id, round, player_id, vote_type).
+- `questions` : id, theme, type (A/B/C), intensity (1-3), question jsonb `{fr,en,es,de}`.
+- RLS ouvert (MVP) : anon peut select/insert/update/delete sur rooms & players, select/insert sur votes.
+
+### GameState (jsonb)
+`phase, round, candidates[], current_question, b_subtype, designated_player_id` (B2 + roulette Type C), `designated_player_ids[]` + `designation_tie_all` (Type A), `revealed_player_ids[], yes_percentage, volunteer_player_ids[], played_question_ids[], paused, stats, b2_revealed`.
+GamePhase : `voting_question, round_a_vote, round_a_reveal, round_b_vote, round_b1_reveal, round_b2_roulette, round_c_choice, round_c_volunteers_reveal, round_c_roulette, ended`. **MAX_ROUNDS = 7.**
+
+### Temps réel
+- Lobby : `lobby-${code}` (players INSERT filtré room_id + DELETE ; rooms UPDATE → navigate si `playing`).
+- Jeu : `game-${code}` (rooms UPDATE → `applyRoom` ; players INSERT/DELETE/UPDATE → roster live) + broadcast `votes-broadcast-${id}` (events `vote_count`, `phase_changed` → refetch).
+- Présence : `presence-${roomId}` (cf `lib/usePresence.ts`).
+- **Convergence** : après chaque write d'état, broadcast `phase_changed` → tous refetch (fiable, indépendant de postgres_changes).
+
+### Résolution des votes
+- Chaque vote = une row `votes`. Le client qui atteint le seuil `count >= players.length` appelle `resolveVotes`/`resolveTypeCChoice`.
+- Filet : bouton hôte **"passer sans attendre les absents"** sur les phases de vote.
+- Roster qui rétrécit pendant un vote (fantôme pruné) → l'hôte revérifie le compte réel et avance auto.
+
+### Cycle de vie des rooms
+- **Quit explicite** (bouton "Quitter", tous) : si hôte → transfert au plus ancien restant ; si dernier → suppression room (cascade players+votes).
+- **Présence** (lobby+jeu) : déconnexion → après **60 s de grâce** (anti phone-lock), un client élu (plus petit id présent) supprime la row fantôme ; **heartbeat 2 min** rafraîchit `last_activity`.
+- **Balayage** `cleanup_dead_rooms()` (RPC opportuniste appelé à la création de room) : supprime les rooms **sans aucun client connecté depuis 30 min**. pg_cron = option pour le 100 % auto (2 lignes en commentaire dans lifecycle.sql).
+
+### i18n
+- `useT()` → dictionnaire actif. Convention : **`const fr = useT()`** dans chaque composant (les usages `fr.xxx` restent inchangés). Helpers non-composants reçoivent le dico en param (`momentStat(..., t)`).
+- Questions rendues via `q.question[locale]`.
+- Détection : localStorage > navigator.language > `fr`. `LangSwitch` sur accueil/join/lobby.
+- **ES/DE** : questions déjà traduites en base ; reste à ajouter les dicos UI `es`/`de` dans `lib/i18n.ts` (ils apparaîtront auto dans le sélecteur).
+
+### ⚠️ Gotchas / ops
+- **`NEXT_PUBLIC_*` inlinées au BUILD** : définir dans Railway → Variables PUIS **redéployer** (un restart ne suffit pas), sinon création de room cassée en prod.
+- Scripts SQL à exécuter dans Supabase : `migration.sql`, `seed.sql`/`seed_themes.sql`, `lifecycle.sql` (tous exécutés). Re-run le bloc concerné si on change le TTL.
+- Carte : NE PAS revenir à html2canvas. modern-screenshot capture une **copie hors-écran à taille réelle** (540×540) — l'aperçu en `transform:scale` faussait les mesures (rognage).
+
+### Décisions playtest — NE PAS régresser
+- **Type A** : pas de tie-break aléatoire (tous les ex-aequo affichés ; égalité totale = écran "Décevant" — **Type A UNIQUEMENT**). Self-vote autorisé. Texte "Assume… ou plaide ta cause" à la révélation.
+- **Type C** repensé (cf section dédiée) : phase unique, volontaires priment, roulette si égalité, **jamais d'écran "Décevant"**.
+- **B2 roulette** garde son tirage aléatoire (voulu).
+- Pas deux fois le même type d'affilée (`pickType` exclut le type précédent).
+- Réafficher la question sur les écrans de réponse à voix haute.
+- Export carte via Web Share API mobile (→ Photos), fallback download.
+
+### Reste à faire / idées
+ES/DE (dicos UI) · écran "hôte joue ou pas" (spécifié plus bas, **pas encore implémenté**) · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu.
 
 ---
 
@@ -97,13 +169,16 @@ Tous ceux qui ont répondu "oui" sont révélés simultanément → moment de gr
 
 ---
 
-### Type C — Question ouverte
-1. Question affichée sur tous les écrans
-2. **Fenêtre de volontariat** — quelques secondes pour se désigner soi-même
-3. **Si quelqu'un se manifeste** → il répond, fin du round
-4. **Si personne** → vote anonyme du groupe pour désigner quelqu'un → cette personne répond
+### Type C — Question ouverte *(refonte playtest #2)*
+1. Question affichée. **Une seule phase** : chaque joueur (hôte inclus) choisit une action :
+   - **"Se porter volontaire"** → je réponds
+   - **"Envoyer quelqu'un au bûcher"** → désigner quelqu'un d'autre (vote anonyme)
+2. Quand tout le monde a agi (seuil = nb joueurs ; filet hôte "passer") :
+   - **≥1 volontaire** → ils répondent **tous** (moment de partage)
+   - **0 volontaire** → le plus désigné répond ; **roulette de hasard** si égalité
+3. **Jamais d'écran "Décevant"** sur le Type C.
 
-> La tension vient du dilemme : "Est-ce que je lève la main ou j'attends que quelqu'un d'autre le fasse ?"
+> Ancien design (fenêtre de volontariat puis vote séparé lancé par l'hôte) **abandonné** suite aux tests : un seul volontaire bloquait les autres, et l'égalité affichait à tort "Décevant".
 
 ---
 
@@ -161,10 +236,12 @@ Les gages sont retirés du core game. L'app ne sanctionne pas les refus — la d
 
 ## 🖥️ Écrans de la page de jeu
 
-### Paramètre hôte (avant création du lobby)
-L'hôte choisit s'il joue ou non.
+### Paramètre hôte (avant création du lobby) — ⚠️ SPÉCIFIÉ, PAS ENCORE IMPLÉMENTÉ
+L'hôte choisit s'il joue ou non. **Actuellement l'hôte est toujours joueur** (compté dans `players.length`).
 
-**Si l'hôte joue** : il voit l'écran joueur normal + un bouton discret pour accéder aux contrôles hôte (Option B — écran joueur d'abord).
+**Si l'hôte joue** (futur) : écran joueur normal + bouton discret pour les contrôles hôte (Option B — écran joueur d'abord).
+
+> En jeu, l'hôte a déjà : bouton **pause** (haut-droite), et tout le monde a **"Quitter"** (haut-gauche).
 
 ---
 
@@ -211,34 +288,25 @@ L'hôte choisit s'il joue ou non.
 
 ---
 
-### Écrans Type C
+### Écrans Type C *(refonte — cf concept ci-dessus)*
 
-**Écran 1C — Affichage question + fenêtre volontariat**
+**Écran 1C — Choix** (`round_c_choice`)
+| | Tous les joueurs (hôte inclus) |
+|---|---|
+| Affichage | Question + 2 boutons : "Se porter volontaire" / "Envoyer quelqu'un au bûcher" |
+| Action | Choisir une action (puis liste des joueurs si bûcher) |
+| Transition | Auto quand tous ont agi (filet hôte "passer") → 2C si ≥1 volontaire, sinon 3C |
+
+**Écran 2C — Volontaires révélés** (`round_c_volunteers_reveal`) *(≥1 volontaire)*
 | | Hôte | Joueurs |
 |---|---|---|
-| Affichage | Question + timer volontariat | Question + bouton "Je réponds" + timer |
-| Action | Attendre ou lancer le vote si timer expiré | Se manifester ou attendre |
-| Transition | Si volontaire → Écran 3C / Sinon → Écran 4C | — |
-
-**Écran 2C — Volontaire désigné**
-| | Hôte | Joueurs |
-|---|---|---|
-| Affichage | Qui s'est manifesté + bouton "Round suivant" | Qui s'est manifesté |
-| Action | Bouton "Round suivant" | Discussion hors app |
+| Affichage | Question + **tous** les volontaires + "Round suivant" | Idem (ils répondent tous) |
 | Transition | L'hôte décide | — |
 
-**Écran 3C — Vote de désignation** *(si personne)*
+**Écran 3C — Roulette de désignation** (`round_c_roulette`) *(0 volontaire)*
 | | Hôte | Joueurs |
 |---|---|---|
-| Affichage | Question + compteur de votes | Question + liste des joueurs |
-| Action | Attendre (ou voter si hôte joueur) | Voter pour quelqu'un |
-| Transition | Automatique quand tous ont voté | — |
-
-**Écran 4C — Révélation désigné** *(si vote)*
-| | Hôte | Joueurs |
-|---|---|---|
-| Affichage | Qui a été désigné + bouton "Round suivant" | Qui a été désigné |
-| Action | Bouton "Round suivant" | Attendre |
+| Affichage | Question + roulette → 1 désigné (hasard si égalité) + "Round suivant" | Idem |
 | Transition | L'hôte décide | — |
 
 ---
@@ -248,10 +316,11 @@ L'hôte choisit s'il joue ou non.
 **Stats + Titre + Carte de partage**
 | | Hôte | Joueurs |
 |---|---|---|
-| Affichage | Titre du groupe + texte + stat marquante + boutons "Nouvelle manche" / "Terminer" | Titre du groupe + stats personnelles + carte de partage |
-| Action | Choisir de continuer ou terminer | Attendre |
+| Affichage | Titre du groupe + texte + stat marquante | Idem + carte de partage |
+| Actions | "Partager la soirée" (carte) · "Rejouer (choisir le thème)" → **retour lobby** · "Quitter" | "Partager" · "Quitter" |
 
-> Total : **12 écrans distincts** pour la page de jeu.
+> "Rejouer" remet la room en `waiting` (game_state null) → tout le monde revient au lobby choisir un nouveau thème, **sans recréer de salon**.
+> Stats perso détaillées par joueur : prévues, non encore affichées.
 
 ---
 
