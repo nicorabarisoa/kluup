@@ -150,9 +150,11 @@ export default function LobbyPage() {
 
   return (
     <main
-      className="flex min-h-screen flex-col pb-8"
+      className="flex min-h-screen flex-col"
       style={{ background: C.bg, color: '#fff' }}
     >
+     {/* Centered column so the lobby doesn't stretch edge-to-edge on desktop. */}
+     <div className="w-full max-w-md mx-auto flex flex-col flex-1 pb-8">
       <div className="w-full flex justify-end px-5 pt-4">
         <LangSwitch />
       </div>
@@ -290,6 +292,7 @@ export default function LobbyPage() {
           </p>
         )}
       </div>
+     </div>
     </main>
   )
 }

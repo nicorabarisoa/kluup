@@ -85,14 +85,20 @@ function GameScreen({
 }) {
   return (
     <div style={{ minHeight: '100svh', background: C.bg, display: 'flex', flexDirection: 'column', color: C.text }}>
+      {/* header/body/footer share one centered max-width column so nothing
+          stretches edge-to-edge on desktop (footer buttons, round header). */}
       {header && (
-        <div style={{ padding: '16px 20px 0', flexShrink: 0 }}>{header}</div>
+        <div style={{ padding: '16px 20px 0', flexShrink: 0 }}>
+          <div className="mx-auto w-full" style={{ maxWidth: 448 }}>{header}</div>
+        </div>
       )}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {children}
       </div>
       {footer && (
-        <div style={{ padding: '12px 20px 32px', flexShrink: 0 }}>{footer}</div>
+        <div style={{ padding: '12px 20px 32px', flexShrink: 0 }}>
+          <div className="mx-auto w-full" style={{ maxWidth: 448 }}>{footer}</div>
+        </div>
       )}
     </div>
   )
@@ -432,7 +438,7 @@ function QuestionSelectionScreen({
 
   return (
     <GameScreen header={<RoundHeader round={gs.round} label={typeLabel} accent={accent} />}>
-      <div className="w-full max-w-sm pt-4">
+      <div className="w-full max-w-md pt-4">
         <p style={{ color: C.muted, fontSize: 13, fontFamily: 'var(--font-body)', textAlign: 'center' }}>
           {fr.voting_question.instruction}
         </p>
@@ -505,7 +511,7 @@ function DesignationVoteScreen({
         </>
       }
     >
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-md">
         <QuestionCard text={q.question[locale]} accent={accent} />
 
         {hasVoted ? (
@@ -574,7 +580,7 @@ function DesignationRevealScreen({
       header={<RoundHeader round={gs.round} label={label} accent={accent} />}
       footer={<RoundEndFooter ready={shown} isHost={isHost} nextLabel={nextLabel} accent={accent} onNext={onNext} onEnd={onEnd} />}
     >
-      <div className="w-full max-w-sm flex flex-col items-center">
+      <div className="w-full max-w-md flex flex-col items-center">
         {/* Redisplay the question so everyone remembers the topic while answering. */}
         <QuestionCard text={q.question[locale]} accent={accent} />
 
@@ -691,7 +697,7 @@ function ConfessionVoteScreen({
         )
       }
     >
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-md">
         <QuestionCard text={q.question[locale]} accent={C.b} />
         {hasVoted ? (
           <WaitingDots />
@@ -727,7 +733,7 @@ function B1RevealScreen({
       header={<RoundHeader round={gs.round} label={fr.confession.label} accent={C.b} />}
       footer={<RoundEndFooter ready isHost={isHost} nextLabel={nextLabel} accent={C.b} onNext={onNext} onEnd={onEnd} />}
     >
-      <div className="w-full max-w-sm flex flex-col items-center pt-10">
+      <div className="w-full max-w-md flex flex-col items-center pt-10">
         <h2
           className="text-sm font-bold mb-6"
           style={{ color: C.muted, fontFamily: 'var(--font-body)' }}
@@ -844,7 +850,7 @@ function B2RouletteScreen({
         )
       }
     >
-      <div className="w-full max-w-sm flex flex-col items-center pt-8">
+      <div className="w-full max-w-md flex flex-col items-center pt-8">
         <p className="text-center mb-6 text-sm" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
           {fr.confession.b2_percent(pct)}
         </p>
@@ -952,7 +958,7 @@ function ChoiceScreen({
         </>
       }
     >
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-md">
         <QuestionCard text={q.question[locale]} accent={C.c} />
 
         {hasVoted ? (
@@ -1022,7 +1028,7 @@ function VolunteersRevealScreen({
       header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
       footer={<RoundEndFooter ready={shown} isHost={isHost} nextLabel={nextLabel} accent={C.c} textDark onNext={onNext} onEnd={onEnd} />}
     >
-      <div className="w-full max-w-sm flex flex-col items-center">
+      <div className="w-full max-w-md flex flex-col items-center">
         <QuestionCard text={q.question[locale]} accent={C.c} />
         {!shown ? (
           <p className="text-5xl pt-2" style={{ animation: 'b2pulse 0.7s ease-in-out infinite' }}>🙋</p>
@@ -1100,7 +1106,7 @@ function CRouletteScreen({
       header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
       footer={<RoundEndFooter ready={done} isHost={isHost} nextLabel={nextLabel} accent={C.c} textDark onNext={onNext} onEnd={onEnd} />}
     >
-      <div className="w-full max-w-sm flex flex-col items-center">
+      <div className="w-full max-w-md flex flex-col items-center">
         <QuestionCard text={q.question[locale]} accent={C.c} />
         <p className="text-center mb-3 text-sm" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
           {fr.question_ouverte.roulette_title}
@@ -1372,7 +1378,7 @@ function EndScreen({
         </div>
       }
     >
-      <div className="w-full max-w-sm pt-8 pb-4">
+      <div className="w-full max-w-md pt-8 pb-4">
         <p className="text-center text-sm mb-6" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
           {fr.end.rounds_played(totalRounds)}
         </p>

@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { genId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 
 // ---------------------------------------------------------------------------
@@ -62,7 +63,8 @@ export default function Home() {
       const code = generateCode()
       const { data, error } = await supabase
         .from('rooms')
-        .insert({ code })
+        // host_id is NOT NULL in the DB — always provide it (vestigial but required).
+        .insert({ code, host_id: genId() })
         .select()
         .single()
       if (data) { room = data; break }
@@ -101,180 +103,178 @@ export default function Home() {
 
   return (
     <main style={{ background: C.bg, color: C.text, minHeight: '100svh' }}>
-      <div className="mx-auto w-full" style={{ maxWidth: 480 }}>
 
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-6 pt-5">
-          <span className="text-xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
-            Klu<span style={{ color: C.a }}>up</span>
-          </span>
-          <LangSwitch />
-        </div>
+      {/* Top bar */}
+      <div className="w-full max-w-5xl mx-auto flex items-center justify-between px-6 pt-5">
+        <span className="text-xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
+          Klu<span style={{ color: C.a }}>up</span>
+        </span>
+        <LangSwitch />
+      </div>
 
-        {/* ===== Hero ===== */}
-        <section
-          className="flex flex-col items-center px-6 text-center"
-          style={{ minHeight: 'calc(100svh - 64px)', justifyContent: 'center', paddingBottom: 24 }}
+      {/* ===== Hero ===== */}
+      <section
+        className="flex flex-col items-center text-center px-6"
+        style={{ minHeight: 'calc(100svh - 64px)', justifyContent: 'center', paddingBottom: 24 }}
+      >
+        <h1
+          className="font-extrabold tracking-tight leading-none text-7xl sm:text-8xl"
+          style={{ fontFamily: 'var(--font-display)' }}
         >
-          <h1
-            className="font-extrabold tracking-tight"
-            style={{ fontFamily: 'var(--font-display)', fontSize: 56, lineHeight: 1 }}
-          >
-            Klu<span style={{ color: C.a }}>up</span>
-          </h1>
-          <p className="mt-3 font-bold" style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}>
-            {fr.home.tagline}
-          </p>
-          <p className="mt-3 text-sm leading-relaxed" style={{ color: C.muted, maxWidth: 340 }}>
-            {fr.landing.pitch}
-          </p>
+          Klu<span style={{ color: C.a }}>up</span>
+        </h1>
+        <p className="mt-4 font-bold text-xl sm:text-2xl" style={{ fontFamily: 'var(--font-display)' }}>
+          {fr.home.tagline}
+        </p>
+        <p className="mt-4 text-sm sm:text-base leading-relaxed mx-auto" style={{ color: C.muted, maxWidth: 460 }}>
+          {fr.landing.pitch}
+        </p>
 
-          {/* Create / join form */}
-          <div className="flex flex-col gap-3 w-full mt-8" style={{ maxWidth: 320 }}>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder={fr.common.pseudo_placeholder}
-              value={pseudo}
-              onChange={(e) => setPseudo(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && createRoom()}
-              maxLength={20}
-              className="rounded-2xl px-4 py-4 text-base outline-none text-center"
-              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontFamily: 'var(--font-body)' }}
-            />
-            <button
-              type="button"
-              onClick={createRoom}
-              disabled={loading}
-              className="font-bold py-4 rounded-2xl text-base disabled:opacity-50"
-              style={{ background: C.a, color: '#fff', fontFamily: 'var(--font-body)' }}
-            >
-              {loading ? fr.home.creating : fr.home.create_btn}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push('/join')}
-              className="font-medium py-4 rounded-2xl text-base"
-              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontFamily: 'var(--font-body)' }}
-            >
-              {fr.home.join_btn}
-            </button>
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-5 text-xs" style={{ color: C.faint }}>
-            <span>✓ {fr.landing.badge_free}</span>
-            <span>✓ {fr.landing.badge_nosignup}</span>
-            <span>✓ {fr.landing.badge_browser}</span>
-          </div>
-          <p className="mt-2 text-xs" style={{ color: C.faint }}>{fr.landing.players_hint}</p>
-
-          <div className="mt-10 animate-bounce" style={{ color: C.faint, fontSize: 20 }}>↓</div>
-        </section>
-
-        {/* ===== How it works ===== */}
-        <section className="px-6 py-12">
-          <h2 className="text-2xl font-extrabold text-center mb-8" style={{ fontFamily: 'var(--font-display)' }}>
-            {fr.landing.how_title}
-          </h2>
-          <div className="flex flex-col gap-4">
-            {[
-              { n: 1, t: fr.landing.how_1_title, b: fr.landing.how_1_body, color: C.a },
-              { n: 2, t: fr.landing.how_2_title, b: fr.landing.how_2_body, color: C.b },
-              { n: 3, t: fr.landing.how_3_title, b: fr.landing.how_3_body, color: C.c },
-            ].map((s) => (
-              <div key={s.n} className="flex items-start gap-4 rounded-2xl p-4" style={{ background: C.surface }}>
-                <div
-                  className="flex items-center justify-center font-extrabold flex-shrink-0"
-                  style={{
-                    width: 40, height: 40, borderRadius: 12,
-                    background: `${s.color}22`, color: s.color,
-                    fontFamily: 'var(--font-display)', fontSize: 18,
-                  }}
-                >
-                  {s.n}
-                </div>
-                <div>
-                  <p className="font-bold text-base" style={{ fontFamily: 'var(--font-body)' }}>{s.t}</p>
-                  <p className="text-sm mt-0.5 leading-snug" style={{ color: C.muted }}>{s.b}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ===== Themes ===== */}
-        <section className="px-6 py-12">
-          <h2 className="text-2xl font-extrabold text-center" style={{ fontFamily: 'var(--font-display)' }}>
-            {fr.landing.themes_title}
-          </h2>
-          <p className="text-sm text-center mt-2 mb-8" style={{ color: C.muted, maxWidth: 320, marginInline: 'auto' }}>
-            {fr.landing.themes_sub}
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {THEME_IDS.map((id) => {
-              const theme = fr.lobby.themes[id]
-              const color = THEME_COLORS[id]
-              return (
-                <div key={id} className="rounded-2xl p-4" style={{ background: C.surface, border: `1px solid ${color}33` }}>
-                  <div className="text-3xl mb-2">{theme.emoji}</div>
-                  <p className="font-bold text-sm" style={{ color, fontFamily: 'var(--font-body)' }}>{theme.name}</p>
-                  <p className="text-xs mt-1 leading-snug" style={{ color: C.muted }}>{theme.desc}</p>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-
-        {/* ===== Ways to play ===== */}
-        <section className="px-6 py-12">
-          <h2 className="text-2xl font-extrabold text-center mb-8" style={{ fontFamily: 'var(--font-display)' }}>
-            {fr.landing.types_title}
-          </h2>
-          <div className="flex flex-col gap-3">
-            {[
-              { label: fr.designation.label, body: fr.landing.type_a_body, color: C.a },
-              { label: fr.confession.label, body: fr.landing.type_b_body, color: C.b },
-              { label: fr.question_ouverte.label, body: fr.landing.type_c_body, color: C.c },
-            ].map((t) => (
-              <div key={t.label} className="rounded-2xl p-4" style={{ background: C.surface }}>
-                <div className="h-1 w-10 rounded-full mb-3" style={{ background: t.color }} />
-                <p className="font-extrabold uppercase text-sm" style={{ color: t.color, letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}>
-                  {t.label}
-                </p>
-                <p className="text-sm mt-1 leading-snug" style={{ color: C.muted }}>{t.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ===== Closing CTA ===== */}
-        <section className="px-6 py-16 text-center">
-          <h2 className="text-3xl font-extrabold leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
-            {fr.landing.closing_title}
-          </h2>
-          <p className="text-3xl font-extrabold leading-tight" style={{ fontFamily: 'var(--font-display)', color: C.a }}>
-            {fr.landing.closing_body}
-          </p>
+        {/* Create / join form (kept narrow — forms shouldn't be wide) */}
+        <div className="flex flex-col gap-3 w-full mt-8" style={{ maxWidth: 340 }}>
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder={fr.common.pseudo_placeholder}
+            value={pseudo}
+            onChange={(e) => setPseudo(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && createRoom()}
+            maxLength={20}
+            className="rounded-2xl px-4 py-4 text-base outline-none text-center"
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontFamily: 'var(--font-body)' }}
+          />
           <button
             type="button"
-            onClick={scrollToTop}
-            className="font-bold py-4 px-8 rounded-2xl text-base mt-8"
+            onClick={createRoom}
+            disabled={loading}
+            className="font-bold py-4 rounded-2xl text-base disabled:opacity-50 transition-transform active:scale-95"
             style={{ background: C.a, color: '#fff', fontFamily: 'var(--font-body)' }}
           >
-            {fr.landing.start_cta}
+            {loading ? fr.home.creating : fr.home.create_btn}
           </button>
-        </section>
+          <button
+            type="button"
+            onClick={() => router.push('/join')}
+            className="font-medium py-4 rounded-2xl text-base"
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontFamily: 'var(--font-body)' }}
+          >
+            {fr.home.join_btn}
+          </button>
+        </div>
 
-        {/* ===== Footer ===== */}
-        <footer className="px-6 py-8 text-center" style={{ borderTop: `1px solid ${C.border}` }}>
-          <span className="text-lg font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
-            Klu<span style={{ color: C.a }}>up</span>
-          </span>
-          <p className="text-xs mt-1" style={{ color: C.faint }}>kluup.app</p>
-        </footer>
+        {/* Trust badges */}
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-5 text-xs" style={{ color: C.faint }}>
+          <span>✓ {fr.landing.badge_free}</span>
+          <span>✓ {fr.landing.badge_nosignup}</span>
+          <span>✓ {fr.landing.badge_browser}</span>
+        </div>
+        <p className="mt-2 text-xs" style={{ color: C.faint }}>{fr.landing.players_hint}</p>
 
-      </div>
+        <div className="mt-10 animate-bounce" style={{ color: C.faint, fontSize: 20 }}>↓</div>
+      </section>
+
+      {/* ===== How it works ===== */}
+      <section className="w-full max-w-4xl mx-auto px-6 py-14 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-center mb-8 sm:mb-12" style={{ fontFamily: 'var(--font-display)' }}>
+          {fr.landing.how_title}
+        </h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            { n: 1, t: fr.landing.how_1_title, b: fr.landing.how_1_body, color: C.a },
+            { n: 2, t: fr.landing.how_2_title, b: fr.landing.how_2_body, color: C.b },
+            { n: 3, t: fr.landing.how_3_title, b: fr.landing.how_3_body, color: C.c },
+          ].map((s) => (
+            <div key={s.n} className="flex items-start gap-4 md:flex-col rounded-2xl p-5" style={{ background: C.surface }}>
+              <div
+                className="flex items-center justify-center font-extrabold flex-shrink-0"
+                style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: `${s.color}22`, color: s.color,
+                  fontFamily: 'var(--font-display)', fontSize: 20,
+                }}
+              >
+                {s.n}
+              </div>
+              <div>
+                <p className="font-bold text-base" style={{ fontFamily: 'var(--font-body)' }}>{s.t}</p>
+                <p className="text-sm mt-1 leading-snug" style={{ color: C.muted }}>{s.b}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== Themes ===== */}
+      <section className="w-full max-w-4xl mx-auto px-6 py-14 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-center" style={{ fontFamily: 'var(--font-display)' }}>
+          {fr.landing.themes_title}
+        </h2>
+        <p className="text-sm sm:text-base text-center mt-2 mb-8 sm:mb-12 mx-auto" style={{ color: C.muted, maxWidth: 420 }}>
+          {fr.landing.themes_sub}
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          {THEME_IDS.map((id) => {
+            const theme = fr.lobby.themes[id]
+            const color = THEME_COLORS[id]
+            return (
+              <div key={id} className="rounded-2xl p-4 sm:p-5" style={{ background: C.surface, border: `1px solid ${color}33` }}>
+                <div className="text-3xl sm:text-4xl mb-2">{theme.emoji}</div>
+                <p className="font-bold text-sm sm:text-base" style={{ color, fontFamily: 'var(--font-body)' }}>{theme.name}</p>
+                <p className="text-xs sm:text-sm mt-1 leading-snug" style={{ color: C.muted }}>{theme.desc}</p>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* ===== Ways to play ===== */}
+      <section className="w-full max-w-4xl mx-auto px-6 py-14 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-center mb-8 sm:mb-12" style={{ fontFamily: 'var(--font-display)' }}>
+          {fr.landing.types_title}
+        </h2>
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
+          {[
+            { label: fr.designation.label, body: fr.landing.type_a_body, color: C.a },
+            { label: fr.confession.label, body: fr.landing.type_b_body, color: C.b },
+            { label: fr.question_ouverte.label, body: fr.landing.type_c_body, color: C.c },
+          ].map((t) => (
+            <div key={t.label} className="rounded-2xl p-5" style={{ background: C.surface }}>
+              <div className="h-1 w-10 rounded-full mb-3" style={{ background: t.color }} />
+              <p className="font-extrabold uppercase text-sm" style={{ color: t.color, letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}>
+                {t.label}
+              </p>
+              <p className="text-sm mt-1 leading-snug" style={{ color: C.muted }}>{t.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== Closing CTA ===== */}
+      <section className="px-6 py-16 sm:py-24 text-center">
+        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+          {fr.landing.closing_title}
+        </h2>
+        <p className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'var(--font-display)', color: C.a }}>
+          {fr.landing.closing_body}
+        </p>
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="font-bold py-4 px-10 rounded-2xl text-base mt-8 transition-transform active:scale-95"
+          style={{ background: C.a, color: '#fff', fontFamily: 'var(--font-body)' }}
+        >
+          {fr.landing.start_cta}
+        </button>
+      </section>
+
+      {/* ===== Footer ===== */}
+      <footer className="px-6 py-10 text-center" style={{ borderTop: `1px solid ${C.border}` }}>
+        <span className="text-lg font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
+          Klu<span style={{ color: C.a }}>up</span>
+        </span>
+        <p className="text-xs mt-1" style={{ color: C.faint }}>kluup.app</p>
+      </footer>
+
     </main>
   )
 }

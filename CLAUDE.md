@@ -41,7 +41,7 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 - Carte de partage : **`modern-screenshot`** (surtout PAS `html2canvas` — il déformait les polices custom).
 
 ### Carte des fichiers
-- `app/page.tsx` — accueil (créer room + pseudo, bouton join, LangSwitch).
+- `app/page.tsx` — **landing page** sur `/` (hero avec form créer room + pseudo + join intégré, "comment ça marche", thèmes, types, CTA final, footer). Responsive : colonne centrée mobile → grilles multi-colonnes (thèmes ×4, types/étapes ×3) sur desktop via breakpoints `sm:`/`md:`. LangSwitch en haut.
 - `app/join/page.tsx` — rejoindre via code (wrap `Suspense` pour `useSearchParams`, lien retour accueil).
 - `app/room/[code]/lobby/page.tsx` — lobby temps réel, sélecteur de thème (hôte), bouton "Lancer".
 - `app/room/[code]/game/page.tsx` — **TOUTE la page de jeu** : tous les écrans + state machine + handlers (gros fichier).
@@ -61,7 +61,7 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 - `.env.example` — vars Supabase.
 
 ### Modèle de données (Supabase)
-- `rooms` : id, code (**UNIQUE**), **status** `'waiting'|'playing'|'ended'` (défaut DB `'waiting'` après `schema.sql` ; legacy `'lobby'` traité comme `'waiting'`), theme, **game_state** (jsonb), host_id (**text**, jamais lu — vestigial), created_at, last_activity.
+- `rooms` : id, code (**UNIQUE**), **status** `'waiting'|'playing'|'ended'` (défaut DB `'waiting'` après `schema.sql` ; legacy `'lobby'` traité comme `'waiting'`), theme, **game_state** (jsonb), **host_id** (jamais lu MAIS **`NOT NULL` en base réelle → TOUJOURS le fournir à l'insert via `genId()`**, sinon erreur 23502 et création de room cassée), created_at, last_activity.
 - `players` : id, room_id (→rooms **ON DELETE CASCADE**), pseudo, is_host, is_online (vestigial, non lu), created_at.
 - `votes` : id, room_id (CASCADE), round, player_id (→players CASCADE), **vote_type** `'question_selection'|'designation'|'confession'|'volunteer'`, target_player_id, answer, question_index. UNIQUE(room_id, round, player_id, vote_type).
 - `questions` : id, theme, type (A/B/C), intensity (1-3), question jsonb `{fr,en,es,de}`.
@@ -99,8 +99,8 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 ### i18n
 - `useT()` → dictionnaire actif. Convention : **`const fr = useT()`** dans chaque composant (les usages `fr.xxx` restent inchangés). Helpers non-composants reçoivent le dico en param (`momentStat(..., t)`).
 - Questions rendues via `q.question[locale]`.
-- Détection : localStorage > navigator.language > `fr`. `LangSwitch` sur accueil/join/lobby.
-- **ES/DE** : questions déjà traduites en base ; reste à ajouter les dicos UI `es`/`de` dans `lib/i18n.ts` (ils apparaîtront auto dans le sélecteur).
+- Détection : localStorage > navigator.language > `fr`. `LangSwitch` (menu déroulant) sur landing/join/lobby.
+- **4 langues UI complètes** : `fr`, `en`, `es`, `de` dans `lib/i18n.ts` (le type `Dict` force l'exhaustivité des clés). `LangSwitch` est un **menu déroulant** (noms complets + ✓), extensible à N langues. Pour ajouter une langue : nouveau dico typé `Dict` + entrée `localeNames`.
 
 ### ⚠️ Gotchas / ops
 - **`NEXT_PUBLIC_*` inlinées au BUILD** : définir dans Railway → Variables PUIS **redéployer** (un restart ne suffit pas), sinon création de room cassée en prod.
@@ -110,6 +110,8 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 - **`build` Next 16** : `next build` ne fait PAS échouer sur les erreurs ESLint (lint séparé). Quelques `react-hooks/set-state-in-effect` subsistent (patterns `setTimeout`→`setShown` idiomatiques) — non bloquants.
 - `onPause` / `onResume` utilisent `roomRef.current.game_state` (pas le state React) pour éviter les stale closures et la désynchronisation.
 - **Code de room** : 6 chars d'un alphabet sans ambiguïté (pas de 0/O/1/I), retry sur collision UNIQUE (`23505`). Ne pas revenir à `Math.random().substring` (pouvait produire < 6 chars).
+- **`host_id` `NOT NULL`** : la création de room **DOIT** envoyer `host_id` (`insert({ code, host_id: genId() })`). L'omettre = erreur `23502` → création cassée (régression déjà vécue : retrait de host_id en croyant le champ inutile). `schema.sql` le déclare nullable pour les bases neuves, mais la base prod existante l'a en `NOT NULL` (le `CREATE TABLE IF NOT EXISTS` ne modifie pas une table déjà créée).
+- **Responsive / desktop** : tout est en **colonne centrée à largeur max** (jamais pleine largeur). Jeu : `GameScreen` enveloppe header/body/footer dans `mx-auto maxWidth 448` (`max-w-md`) → boutons de footer ne s'étirent plus sur PC. Lobby : contenu dans `max-w-md mx-auto`. Landing : sections `max-w-4xl mx-auto` avec grilles `md:grid-cols-*`. ⚠️ Le screenshot du preview se met à l'échelle bizarrement en >mobile — **vérifier le centrage via `getBoundingClientRect()` (DOM), pas à l'œil sur la capture**.
 - Carte : NE PAS revenir à html2canvas. modern-screenshot capture une **copie hors-écran à taille réelle** (540×540) — l'aperçu en `transform:scale` faussait les mesures (rognage).
 
 ### Décisions playtest — NE PAS régresser
@@ -125,8 +127,11 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 - **"Passer sans attendre" hôte-only** — idem.
 - **`onPause`/`onResume`** : toujours lire `roomRef.current.game_state`, jamais le state React — évite les désync pause/reprise.
 
+### Fait récemment (session 4)
+Landing page responsive (`/`) · stats perso (écran de fin + carte de partage) · i18n ES/DE complet + LangSwitch déroulant · message "moutons 🐑" si confession B2 à 100 % · Quitter/Pause intégrés au `RoundHeader` (plus de boutons flottants) · adaptation desktop (colonnes centrées) · **fix régression `host_id` NOT NULL**.
+
 ### Reste à faire / idées
-ES/DE (dicos UI) · écran "hôte joue ou pas" (spécifié plus bas, **pas encore implémenté**) · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu · exécuter `rls.sql` en prod si le join reste cassé.
+Écran "hôte joue ou pas" (spécifié plus bas, **pas encore implémenté**) · stats perso détaillées (diversité des votes) · thèmes premium / paywall · plus de questions par thème · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu · **session de test réel à 3-4 joueurs** (priorité avant nouvelles features).
 
 ---
 
