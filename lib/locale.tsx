@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { dictionaries, defaultLocale, localeNames, type Dict, type Locale } from '@/lib/i18n'
 
 type Ctx = { locale: Locale; setLocale: (l: Locale) => void }
@@ -35,27 +35,71 @@ export function useT(): Dict {
   return dictionaries[useContext(LocaleContext).locale]
 }
 
-// Compact language switcher (FR / EN …).
+// Compact dropdown language switcher — works with any number of languages.
 export function LangSwitch({ className = '' }: { className?: string }) {
   const { locale, setLocale } = useLocale()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
   const locales = Object.keys(dictionaries) as Locale[]
+
+  // Close when clicking outside.
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
   return (
-    <div className={`flex gap-1 ${className}`}>
-      {locales.map((l) => (
-        <button
-          key={l}
-          onClick={() => setLocale(l)}
-          className="text-xs font-bold px-2 py-1 rounded-lg"
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }} className={className}>
+      {/* Trigger pill */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-xl"
+        style={{
+          background: '#1A1A1A',
+          border: '1px solid #252525',
+          color: '#fff',
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        {locale.toUpperCase()}
+        <span style={{ color: '#666', fontSize: 9, lineHeight: 1 }}>▾</span>
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div
           style={{
-            background: l === locale ? '#fff' : '#1A1A1A',
-            color: l === locale ? '#0D0D0D' : '#888',
-            border: '1px solid #252525',
-            fontFamily: 'var(--font-body)',
+            position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+            background: '#1A1A1A', border: '1px solid #252525',
+            borderRadius: 14, overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            zIndex: 200, minWidth: 130,
           }}
         >
-          {localeNames[l]}
-        </button>
-      ))}
+          {locales.map((l) => (
+            <button
+              key={l}
+              onClick={() => { setLocale(l); setOpen(false) }}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium"
+              style={{
+                color: l === locale ? '#fff' : '#888',
+                background: l === locale ? '#252525' : 'transparent',
+                fontFamily: 'var(--font-body)',
+                textAlign: 'left',
+              }}
+            >
+              {localeNames[l]}
+              {l === locale && (
+                <span style={{ color: '#FF3C6F', fontSize: 12 }}>✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
