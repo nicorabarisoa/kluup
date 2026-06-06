@@ -23,8 +23,8 @@
   --color-theme-unmasked: #7B2FFF;
 
   /* Typo */
-  --font-display: var(--font-syne), sans-serif;
-  --font-body: var(--font-dm-sans), sans-serif;
+  --font-display: var(--font-display-face), "Segoe UI", sans-serif;
+  --font-body: var(--font-body-face), "Segoe UI", sans-serif;
 }
 
 body {

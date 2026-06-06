@@ -45,7 +45,7 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 - `app/join/page.tsx` — rejoindre via code (wrap `Suspense` pour `useSearchParams`, lien retour accueil).
 - `app/room/[code]/lobby/page.tsx` — lobby temps réel, sélecteur de thème (hôte), bouton "Lancer".
 - `app/room/[code]/game/page.tsx` — **TOUTE la page de jeu** : tous les écrans + state machine + handlers (gros fichier).
-- `app/layout.tsx` — fonts Syne/DM_Sans (next/font) + `<LocaleProvider>`.
+- `app/layout.tsx` — fonts **Bricolage Grotesque** (display, var `--font-display-face`) + **DM Sans** (corps, var `--font-body-face`) via next/font + `<LocaleProvider>`. globals.css mappe `--font-display` / `--font-body` (noms agnostiques → swap facile).
 - `lib/types.ts` — `Player`, `Question`, `GameState`, `GamePhase`, `Room`, etc.
 - `lib/game.ts` — moteur pur : `pickCandidates`, `pickType`, `tallyDesignation`, `tallyQuestionSelection`, `pickBSubtype`, `accumulateStats`, `computeGroupTitle`, `countVotes`, `countChoiceVotes`, `fetchVotes`, `makeInitialGameState`, `updateRoomGameState`.
 - `lib/i18n.ts` — dictionnaires `fr` + `en` (mêmes clés, typés `Dict`), `dictionaries`, `Locale`, `defaultLocale`, `localeNames`.

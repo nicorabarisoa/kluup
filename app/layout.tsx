@@ -1,18 +1,20 @@
 import type { Metadata } from "next"
-import { Syne, DM_Sans } from "next/font/google"
+import { Bricolage_Grotesque, DM_Sans } from "next/font/google"
 import "./globals.css"
 import { LocaleProvider } from "@/lib/locale"
 
-const syne = Syne({
-  variable: "--font-syne",
+// Display : Bricolage Grotesque — caractériel/trendy mais bien plus lisible que Syne.
+const display = Bricolage_Grotesque({
+  variable: "--font-display-face",
   subsets: ["latin"],
-  weight: ["800"],
+  weight: ["700", "800"],
 })
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+// Corps : DM Sans (lisible) — 700 ajouté pour les boutons en gras (plus de synthèse).
+const body = DM_Sans({
+  variable: "--font-body-face",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "700"],
 })
 
 export const metadata: Metadata = {
@@ -24,7 +26,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fr" className={`${syne.variable} ${dmSans.variable} h-full`}>
+    <html lang="fr" className={`${display.variable} ${body.variable} h-full`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
