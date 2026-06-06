@@ -1245,9 +1245,9 @@ const ShareCard = forwardRef<HTMLDivElement, {
 // ---- End screen ----
 
 function EndScreen({
-  gs, players, isHost, theme, onNewRound, onLeave,
+  gs, players, myId, isHost, theme, onNewRound, onLeave,
 }: {
-  gs: GameState; players: Player[]; isHost: boolean; theme: string; onNewRound: () => void; onLeave: () => void
+  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; theme: string; onNewRound: () => void; onLeave: () => void
 }) {
   const fr = useT()
   // Derive from the accumulated stats so the count and the title percentages
@@ -1345,20 +1345,51 @@ function EndScreen({
           </p>
         </div>
 
-        {/* Players */}
+        {/* Players + personal stats */}
         <div className="flex flex-col gap-2">
-          {players.map((p, i) => (
-            <div
-              key={p.id}
-              className="flex items-center gap-3 rounded-2xl p-3"
-              style={{ background: C.surface }}
-            >
-              <PlayerAvatar pseudo={p.pseudo} index={i} size={36} />
-              <span className="font-medium text-sm" style={{ fontFamily: 'var(--font-body)' }}>
-                {p.pseudo}
-              </span>
-            </div>
-          ))}
+          {players.map((p, i) => {
+            const designated  = (gs.stats.designated  ?? {})[p.id] ?? 0
+            const confessed   = (gs.stats.confessed   ?? {})[p.id] ?? 0
+            const volunteered = (gs.stats.volunteered ?? {})[p.id] ?? 0
+            const hasStats = designated > 0 || confessed > 0 || volunteered > 0
+            return (
+              <div key={p.id} className="rounded-2xl p-3" style={{ background: C.surface }}>
+                <div className="flex items-center gap-3">
+                  <PlayerAvatar pseudo={p.pseudo} index={i} size={36} />
+                  <span className="font-medium text-sm flex-1" style={{ fontFamily: 'var(--font-body)' }}>
+                    {p.pseudo}
+                  </span>
+                  {p.id === myId && (
+                    <span className="text-xs" style={{ color: C.faint, fontFamily: 'var(--font-body)' }}>
+                      {fr.common.you}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2" style={{ paddingLeft: 48 }}>
+                  {designated > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${C.a}22`, color: C.a, fontFamily: 'var(--font-body)' }}>
+                      {fr.end.stat_designated(designated)}
+                    </span>
+                  )}
+                  {confessed > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${C.b}22`, color: C.b, fontFamily: 'var(--font-body)' }}>
+                      {fr.end.stat_confessed(confessed)}
+                    </span>
+                  )}
+                  {volunteered > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${C.c}22`, color: C.c, fontFamily: 'var(--font-body)' }}>
+                      {fr.end.stat_volunteered(volunteered)}
+                    </span>
+                  )}
+                  {!hasStats && (
+                    <span className="text-xs" style={{ color: C.faint, fontFamily: 'var(--font-body)' }}>
+                      {fr.end.stat_quiet}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <p className="text-center text-xs mt-6" style={{ color: C.faint, fontFamily: 'var(--font-body)' }}>
@@ -1856,7 +1887,7 @@ export default function GamePage() {
       case 'round_c_roulette':
         return <CRouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'ended':
-        return <EndScreen gs={gs} players={players} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={onQuit} />
+        return <EndScreen gs={gs} players={players} myId={myId} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={onQuit} />
       default:
         return <LoadingScreen />
     }

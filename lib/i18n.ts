@@ -118,6 +118,10 @@ export const fr = {
     end_cta: "Terminer",
     leave: "Quitter",
     thanks: "Merci d'avoir joué. À bientôt.",
+    stat_designated: (n: number) => `désigné·e ${n}×`,
+    stat_confessed: (n: number) => `confession ${n}×`,
+    stat_volunteered: (n: number) => `volontaire ${n}×`,
+    stat_quiet: "discret·e ce soir",
   },
   card: {
     moment: "Le moment fort",
@@ -271,6 +275,10 @@ export const en: Dict = {
     end_cta: "Finish",
     leave: "Leave",
     thanks: "Thanks for playing. See you soon.",
+    stat_designated: (n: number) => `named ${n}×`,
+    stat_confessed: (n: number) => `confession ${n}×`,
+    stat_volunteered: (n: number) => `volunteer ${n}×`,
+    stat_quiet: "quiet one tonight",
   },
   card: {
     moment: "The highlight",

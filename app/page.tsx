@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { genId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 
 // Unambiguous alphabet (no 0/O, 1/I) so codes read off a screen don't get
@@ -41,7 +40,7 @@ export default function Home() {
       const code = generateCode()
       const { data, error } = await supabase
         .from('rooms')
-        .insert({ code, host_id: genId() })
+        .insert({ code })
         .select()
         .single()
       if (data) { room = data; break }

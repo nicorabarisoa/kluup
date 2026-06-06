@@ -3,7 +3,6 @@ export type Player = {
   pseudo: string
   is_host: boolean
   room_id: string
-  is_online?: boolean
   created_at?: string
 }
 
@@ -31,12 +30,18 @@ export type GamePhase =
 export type BSubtype = 'B1' | 'B2'
 
 export type SessionStats = {
+  // Group counters
   rounds_a: number
   rounds_b: number
   rounds_b1: number
   rounds_b2: number
   rounds_c: number
   volunteers: number
+  // Per-player public events (only what was revealed on screen — no anonymity breach).
+  // Maps player_id → count. Optional for backward compat with pre-update games.
+  designated?: Record<string, number>   // A: top designee(s) + C roulette winner
+  confessed?: Record<string, number>    // B1: all "oui", B2: roulette winner only
+  volunteered?: Record<string, number>  // C: players who raised their hand
 }
 
 export type GroupTitleKey =

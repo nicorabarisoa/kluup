@@ -83,6 +83,7 @@ export async function pickCandidates(
 
 const emptyStats = (): SessionStats => ({
   rounds_a: 0, rounds_b: 0, rounds_b1: 0, rounds_b2: 0, rounds_c: 0, volunteers: 0,
+  designated: {}, confessed: {}, volunteered: {},
 })
 
 export function makeInitialGameState(candidates: Question[]): GameState {
@@ -106,20 +107,49 @@ export function makeInitialGameState(candidates: Question[]): GameState {
 }
 
 export function accumulateStats(gs: GameState): SessionStats {
-  const s = { ...gs.stats }
+  const s: SessionStats = {
+    ...gs.stats,
+    // Shallow-clone the per-player maps so we don't mutate the previous object.
+    // Default to {} for games started before this field existed.
+    designated: { ...(gs.stats.designated ?? {}) },
+    confessed:  { ...(gs.stats.confessed  ?? {}) },
+    volunteered: { ...(gs.stats.volunteered ?? {}) },
+  }
   const q = gs.current_question
   if (!q) return s
 
+  // Helper: increment a per-player counter (only for non-null ids).
+  const inc = (map: Record<string, number>, id: string | null | undefined) => {
+    if (id) map[id] = (map[id] ?? 0) + 1
+  }
+
   if (q.type === 'A') {
     s.rounds_a++
+    // Track top designees — only when someone actually stood out (not tie-all).
+    if (!gs.designation_tie_all) {
+      gs.designated_player_ids.forEach((id) => inc(s.designated!, id))
+    }
   } else if (q.type === 'B') {
     s.rounds_b++
-    if (gs.b_subtype === 'B1') s.rounds_b1++
-    else if (gs.b_subtype === 'B2') s.rounds_b2++
+    if (gs.b_subtype === 'B1') {
+      s.rounds_b1++
+      // B1: every "oui" was shown on screen → safe to track.
+      gs.revealed_player_ids.forEach((id) => inc(s.confessed!, id))
+    } else if (gs.b_subtype === 'B2') {
+      s.rounds_b2++
+      // B2: only the roulette winner was revealed. The others stay anonymous.
+      inc(s.confessed!, gs.designated_player_id)
+    }
   } else if (q.type === 'C') {
     s.rounds_c++
-    // A round with volunteers ends on the volunteers-reveal phase.
-    if (gs.phase === 'round_c_volunteers_reveal') s.volunteers++
+    if (gs.phase === 'round_c_volunteers_reveal') {
+      s.volunteers++
+      // Volunteers raised their hand publicly.
+      gs.volunteer_player_ids.forEach((id) => inc(s.volunteered!, id))
+    } else if (gs.phase === 'round_c_roulette') {
+      // Roulette winner was revealed on screen → same as Type A designation.
+      inc(s.designated!, gs.designated_player_id)
+    }
   }
 
   return s
