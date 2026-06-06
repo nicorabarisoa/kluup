@@ -75,9 +75,15 @@ GamePhase : `voting_question, round_a_vote, round_a_reveal, round_b_vote, round_
 - Présence : `presence-${roomId}` (cf `lib/usePresence.ts`).
 - **Convergence** : après chaque write d'état, broadcast `phase_changed` → tous refetch (fiable, indépendant de postgres_changes).
 
+### Rôle de l'hôte (réduit) — fait foi sur les tableaux d'écrans plus bas
+L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. En jeu, il n'orchestre PAS :
+- **Avancement de manche** : à la fin de chaque manche (écrans de révélation), **compteur 15 s qui avance automatiquement** + bouton **"Manche suivante" pour TOUS**. L'auto-avance est tirée par un **advancer élu** (plus petit `player.id` présent) pour éviter les races ; le bouton, lui, est cliquable par n'importe qui.
+- **Ouverts à tous** : pause / reprise, "passer sans attendre les absents" (phases de vote), "Révéler" (roulette B2).
+- **Restent hôte-only** : "Terminer la session" (`onEndGame`) et "Changer de thème / Rejouer" (`returnToLobby`) — actions destructives.
+
 ### Résolution des votes
 - Chaque vote = une row `votes`. Le client qui atteint le seuil `count >= players.length` appelle `resolveVotes`/`resolveTypeCChoice`.
-- Filet : bouton hôte **"passer sans attendre les absents"** sur les phases de vote.
+- Filet : bouton **"passer sans attendre les absents"** (tous) sur les phases de vote.
 - Roster qui rétrécit pendant un vote (fantôme pruné) → l'hôte revérifie le compte réel et avance auto.
 
 ### Cycle de vie des rooms
@@ -241,7 +247,7 @@ L'hôte choisit s'il joue ou non. **Actuellement l'hôte est toujours joueur** (
 
 **Si l'hôte joue** (futur) : écran joueur normal + bouton discret pour les contrôles hôte (Option B — écran joueur d'abord).
 
-> En jeu, l'hôte a déjà : bouton **pause** (haut-droite), et tout le monde a **"Quitter"** (haut-gauche).
+> En jeu, **tout le monde** a : **pause** (haut-droite) et **"Quitter"** (haut-gauche). Cf "Rôle de l'hôte (réduit)" dans la section technique.
 
 ---
 
@@ -405,14 +411,14 @@ L'app déclenche les moments — questions, révélations, désignations — mai
 
 ---
 
-## ⏸️ Système de pause hôte
+## ⏸️ Système de pause (ouvert à tous)
 
-L'hôte peut mettre la partie en pause à tout moment — pendant une révélation, entre deux rounds, pendant qu'une personne répond — si un débat s'engage, qu'un imprévu arrive, ou que le groupe a besoin de temps.
+**N'importe quel joueur** peut mettre la partie en pause à tout moment — pendant une révélation, entre deux manches, pendant qu'une personne répond — si un débat s'engage, qu'un imprévu arrive, ou que le groupe a besoin de temps. *(Implémenté : bouton pause haut-droite pour tous ; n'était hôte-only qu'au départ.)*
 
 **Comportement :**
-- Bouton pause accessible en permanence depuis le panel hôte (discret, pas envahissant)
-- En pause : tous les écrans affichent un état "en pause" — les timers se figent, aucune action possible pour les joueurs
-- La reprise est déclenchée uniquement par l'hôte
+- Bouton pause discret, accessible en permanence par tous
+- En pause : tous les écrans affichent un état "en pause" — les timers se figent, aucune action possible
+- La reprise est déclenchée par n'importe qui ; "Changer de thème" depuis la pause reste hôte-only
 - Pas de timeout automatique — la pause peut durer indéfiniment
 
 **Principe** : l'app suit le rythme du groupe, pas l'inverse.
