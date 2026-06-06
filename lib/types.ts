@@ -77,8 +77,10 @@ export type GameState = {
 export type Room = {
   id: string
   code: string
-  // 'waiting' is the DB default (lobby), then 'playing' once started, 'ended' at the end.
-  status: 'waiting' | 'playing' | 'ended'
+  // Lobby state is 'waiting' (DB default after schema.sql); 'lobby' is the legacy
+  // default from the original migration and is treated identically. 'playing' once
+  // started, 'ended' at the end.
+  status: 'waiting' | 'lobby' | 'playing' | 'ended'
   theme: string
   game_state: GameState | null
 }

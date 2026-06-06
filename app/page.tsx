@@ -6,8 +6,16 @@ import { supabase } from '@/lib/supabase'
 import { genId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 
+// Unambiguous alphabet (no 0/O, 1/I) so codes read off a screen don't get
+// mistyped. Always exactly 6 chars — the old Math.random().substring could
+// occasionally yield fewer.
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function generateCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase()
+  let out = ''
+  for (let i = 0; i < 6; i++) {
+    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]
+  }
+  return out
 }
 
 export default function Home() {
@@ -26,16 +34,24 @@ export default function Home() {
       if (error) console.warn('[cleanup_dead_rooms]', error.message)
     })
 
-    const code = generateCode()
+    // Retry on the rare code collision (UNIQUE constraint on rooms.code).
+    let room: { id: string; code: string } | null = null
+    let lastError: unknown = null
+    for (let attempt = 0; attempt < 5 && !room; attempt++) {
+      const code = generateCode()
+      const { data, error } = await supabase
+        .from('rooms')
+        .insert({ code, host_id: genId() })
+        .select()
+        .single()
+      if (data) { room = data; break }
+      lastError = error
+      // 23505 = unique_violation → retry with a fresh code; otherwise bail.
+      if (error?.code !== '23505') break
+    }
 
-    const { data: room, error } = await supabase
-      .from('rooms')
-      .insert({ code, host_id: genId() })
-      .select()
-      .single()
-
-    if (error || !room) {
-      console.error('[createRoom] room insert failed:', error)
+    if (!room) {
+      console.error('[createRoom] room insert failed:', lastError)
       alert(fr.home.create_error)
       setLoading(false)
       return
@@ -56,7 +72,7 @@ export default function Home() {
 
     sessionStorage.setItem('player_id', player.id)
 
-    router.push(`/room/${code}/lobby`)
+    router.push(`/room/${room.code}/lobby`)
   }
 
   return (

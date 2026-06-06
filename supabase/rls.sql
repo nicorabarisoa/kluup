@@ -2,6 +2,10 @@
 -- Run this in the Supabase SQL editor if join says "Room introuvable"
 -- despite the room having just been created.
 --
+-- ⚠️ Pour une base neuve ou à réparer entièrement (tables + RLS + realtime +
+-- contraintes), préfère `supabase/schema.sql` qui est la SOURCE DE VÉRITÉ
+-- idempotente. Ce fichier-ci ne corrige QUE le RLS (sous-ensemble de schema.sql).
+--
 -- Symptom: SELECT on rooms returns 0 rows for anon users → RLS is active
 -- but no SELECT policy exists. INSERT/UPDATE/DELETE have the same problem.
 --

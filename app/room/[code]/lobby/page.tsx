@@ -30,13 +30,19 @@ export default function LobbyPage() {
     setMyId(id)
 
     async function loadRoom() {
-      const { data: room } = await supabase
+      const { data: room, error } = await supabase
         .from('rooms')
         .select()
         .eq('code', code)
         .maybeSingle()
 
-      if (!room) { router.replace('/'); return }
+      // Diagnostic: if a freshly-created room reads as missing here, it's almost
+      // always RLS (no anon SELECT policy) — run supabase/schema.sql. Check console.
+      if (!room || error) {
+        console.warn('[lobby] room not found:', { code, error: error?.message })
+        router.replace('/')
+        return
+      }
       setRoomId(room.id)
       roomIdRef.current = room.id
 

@@ -53,18 +53,20 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 - `lib/usePresence.ts` — `useRoomPresence(roomId, myId)` : présence + prune fantômes + heartbeat.
 - `lib/supabase.ts` — client (warn console si env manquantes).
 - `lib/utils.ts` — `genId` / `copyToClipboard` (fallbacks contexte non-sécurisé / HTTP LAN).
-- `supabase/migration.sql` — schéma rooms/questions/votes + RLS + realtime.
+- `supabase/schema.sql` — **SOURCE DE VÉRITÉ DB, idempotent**. CREATE TABLE rooms/players/questions/votes + RLS ouvert + realtime (rooms/players/votes) + contraintes (UNIQUE code, FK cascade) + default `status='waiting'`. **À exécuter pour provisionner OU réparer une base** (notamment "Room introuvable").
+- `supabase/migration.sql` — **legacy** : ne CRÉE PAS rooms/players (ALTER seul), n'active pas leur RLS/realtime. Conservé pour historique ; préférer `schema.sql`.
 - `supabase/seed.sql` + `seed_themes.sql` — questions.
 - `supabase/lifecycle.sql` — cleanup rooms (cascade players, `last_activity` + trigger, `cleanup_dead_rooms()` TTL 30 min, pg_cron optionnel). **Déjà exécuté.**
-- `supabase/rls.sql` — politiques RLS anon open pour `rooms` + `players` (à exécuter si "Room introuvable" à la jonction). **Exécuter si le join échoue.**
+- `supabase/rls.sql` — sous-ensemble RLS-only de `schema.sql` (fix rapide si "Room introuvable").
 - `.env.example` — vars Supabase.
 
 ### Modèle de données (Supabase)
-- `rooms` : id, code, **status** `'lobby'|'playing'|'ended'|'waiting'` (défaut DB `'lobby'` ; `'waiting'` = retour au lobby après partie), theme, **game_state** (jsonb), host_id, created_at, last_activity.
-- `players` : id, room_id (→rooms **ON DELETE CASCADE**), pseudo, is_host, is_online, created_at.
+- `rooms` : id, code (**UNIQUE**), **status** `'waiting'|'playing'|'ended'` (défaut DB `'waiting'` après `schema.sql` ; legacy `'lobby'` traité comme `'waiting'`), theme, **game_state** (jsonb), host_id (**text**, jamais lu — vestigial), created_at, last_activity.
+- `players` : id, room_id (→rooms **ON DELETE CASCADE**), pseudo, is_host, is_online (vestigial, non lu), created_at.
 - `votes` : id, room_id (CASCADE), round, player_id (→players CASCADE), **vote_type** `'question_selection'|'designation'|'confession'|'volunteer'`, target_player_id, answer, question_index. UNIQUE(room_id, round, player_id, vote_type).
 - `questions` : id, theme, type (A/B/C), intensity (1-3), question jsonb `{fr,en,es,de}`.
-- RLS ouvert (MVP) : anon peut select/insert/update/delete sur rooms & players, select/insert sur votes.
+- RLS ouvert (MVP) : anon select/insert/update/delete sur rooms & players, select/insert/delete sur votes. **`schema.sql` rend cet état explicite** (l'ancien `migration.sql` ne l'activait pas → cause de "Room introuvable").
+- **Realtime** : `rooms`, `players`, `votes` dans la publication `supabase_realtime` (cf `schema.sql`). Sans `players`, les joueurs n'apparaissent pas en temps réel au lobby.
 
 ### GameState (jsonb)
 `phase, round, candidates[], current_question, b_subtype, designated_player_id` (B2 + roulette Type C), `designated_player_ids[]` + `designation_tie_all` (Type A), `revealed_player_ids[], yes_percentage, volunteer_player_ids[], played_question_ids[], paused, stats, b2_revealed`.
@@ -85,7 +87,7 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 
 ### Résolution des votes
 - Chaque vote = une row `votes`. Le client qui atteint le seuil `count >= players.length` appelle `resolveVotes`/`resolveTypeCChoice`.
-- Timer 30 s (composant `VoteTimer`) sur toutes les phases de vote. L'advancer élu (plus petit `player.id`) déclenche `onForce` à l'expiration.
+- Timer 30 s (composant `VoteTimer`) sur toutes les phases de vote. **Toujours monté** (plus gated `!hasVoted`) et **keyé par `gs.round`** → l'advancer élu (plus petit `player.id`) déclenche `onForce` à l'expiration de façon fiable, même s'il a déjà voté (sinon son timer disparaissait et l'auto-skip ne partait jamais). Refs synchronisées dans un effect (pas pendant le render).
 - Filet manuel : bouton **"passer sans attendre les absents"** — **hôte-only** — sur les phases de vote.
 - Roster qui rétrécit pendant un vote (fantôme pruné) → l'hôte revérifie le compte réel et avance auto.
 
@@ -102,10 +104,12 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 
 ### ⚠️ Gotchas / ops
 - **`NEXT_PUBLIC_*` inlinées au BUILD** : définir dans Railway → Variables PUIS **redéployer** (un restart ne suffit pas), sinon création de room cassée en prod.
-- Scripts SQL à exécuter dans Supabase : `migration.sql`, `seed.sql`/`seed_themes.sql`, `lifecycle.sql` (tous exécutés). Re-run le bloc concerné si on change le TTL.
-- **"Room introuvable" au join** → exécuter `supabase/rls.sql` dans l'éditeur SQL Supabase (RLS sans politique SELECT bloque les requêtes anon silencieusement). Vérifier aussi que les vars Railway correspondent au bon projet Supabase.
-- **Lobby sans formulaire d'entrée** → le lobby redirige maintenant vers `/join?code=XXX` si le visiteur n'a pas de `player_id` dans le sessionStorage. Le lien "Copier le lien" dans le lobby pointe vers `/join?code=XXX` (pas vers `/room/…/lobby`).
+- Scripts SQL à exécuter dans Supabase : **`schema.sql`** (source de vérité, idempotent) + `seed.sql`/`seed_themes.sql` + `lifecycle.sql`. `migration.sql` est legacy.
+- **"Room introuvable" / "la room existe puis disparaît"** = cause #1 racine : RLS activé sur `rooms` sans policy SELECT anon → le SELECT renvoie 0 ligne **sans erreur**. **Fix : exécuter `supabase/schema.sql`** (ou `rls.sql`). Diagnostic : la console logue `[join] lookup:` / `[lobby] room not found:` avec l'erreur PostgREST exacte. Vérifier aussi que les vars Railway pointent sur le bon projet Supabase.
+- **Lobby sans formulaire d'entrée** = cause #2 racine : un visiteur arrivant sur `/room/[code]/lobby` (URL barre d'adresse partagée) sans `player_id` n'avait aucun moyen de saisir un pseudo. Le lobby **redirige maintenant vers `/join?code=XXX`** si pas de `player_id` OU si le player_id n'est pas dans le roster. Le bouton "Copier le lien" pointe vers `/join?code=XXX` — partager CE lien, pas l'URL du lobby.
+- **`build` Next 16** : `next build` ne fait PAS échouer sur les erreurs ESLint (lint séparé). Quelques `react-hooks/set-state-in-effect` subsistent (patterns `setTimeout`→`setShown` idiomatiques) — non bloquants.
 - `onPause` / `onResume` utilisent `roomRef.current.game_state` (pas le state React) pour éviter les stale closures et la désynchronisation.
+- **Code de room** : 6 chars d'un alphabet sans ambiguïté (pas de 0/O/1/I), retry sur collision UNIQUE (`23505`). Ne pas revenir à `Math.random().substring` (pouvait produire < 6 chars).
 - Carte : NE PAS revenir à html2canvas. modern-screenshot capture une **copie hors-écran à taille réelle** (540×540) — l'aperçu en `transform:scale` faussait les mesures (rognage).
 
 ### Décisions playtest — NE PAS régresser

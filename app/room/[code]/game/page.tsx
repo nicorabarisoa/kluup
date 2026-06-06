@@ -270,24 +270,25 @@ function WaitingDots() {
 // (smallest player id) fires onExpire to avoid race conditions between clients.
 function VoteTimer({ isAdvancer, onExpire }: { isAdvancer: boolean; onExpire: () => void }) {
   const [secs, setSecs] = useState(30)
-  const isAdvancerRef = useRef(isAdvancer)
-  isAdvancerRef.current = isAdvancer
-  const onExpireRef = useRef(onExpire)
-  onExpireRef.current = onExpire
+  // Keep the latest props without re-subscribing the interval. Synced in an
+  // effect (not during render) so the interval reads fresh values at expiry.
+  const latest = useRef({ isAdvancer, onExpire })
+  useEffect(() => { latest.current = { isAdvancer, onExpire } })
 
+  // Single 1s tick down to 0.
   useEffect(() => {
-    let remaining = 30
-    const id = setInterval(() => {
-      remaining -= 1
-      setSecs(remaining)
-      if (remaining <= 0) {
-        clearInterval(id)
-        if (isAdvancerRef.current) onExpireRef.current()
-      }
-    }, 1000)
+    const id = setInterval(() => setSecs((s) => Math.max(0, s - 1)), 1000)
     return () => clearInterval(id)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Fire the auto-skip once, from the elected advancer only.
+  const fired = useRef(false)
+  useEffect(() => {
+    if (secs === 0 && !fired.current && latest.current.isAdvancer) {
+      fired.current = true
+      latest.current.onExpire()
+    }
+  }, [secs])
 
   const danger = secs <= 10
   const circumference = 2 * Math.PI * 14
@@ -474,7 +475,7 @@ function QuestionSelectionScreen({
         </div>
 
         <VoteProgress count={voteCount} total={playerCount} voted={hasVoted} />
-        {!hasVoted && <VoteTimer isAdvancer={isAdvancer} onExpire={onForce} />}
+        <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} />
         <HostSkipBtn show={isHost && hasVoted && voteCount < playerCount} onForce={onForce} />
       </div>
     </GameScreen>
@@ -502,7 +503,7 @@ function DesignationVoteScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
-          {!hasVoted && <VoteTimer isAdvancer={isAdvancer} onExpire={onForce} />}
+          <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} />
           <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
         </>
       }
@@ -703,7 +704,7 @@ function ConfessionVoteScreen({
           </p>
         )}
         <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
-        {!hasVoted && <VoteTimer isAdvancer={isAdvancer} onExpire={onForce} />}
+        <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} />
         <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
       </div>
     </GameScreen>
@@ -938,7 +939,7 @@ function ChoiceScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
-          {!hasVoted && <VoteTimer isAdvancer={isAdvancer} onExpire={onForce} />}
+          <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} />
           <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
         </>
       }
@@ -1570,8 +1571,10 @@ export default function GamePage() {
   }, [code])
 
   // Host stopped the session → everyone returns to the lobby to pick a theme.
+  // Any non-game status ('waiting', legacy 'lobby') bounces back; only
+  // 'playing'/'ended' belong on the game page.
   useEffect(() => {
-    if (room && room.status === 'waiting') {
+    if (room && room.status !== 'playing' && room.status !== 'ended') {
       router.replace(`/room/${code}/lobby`)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
