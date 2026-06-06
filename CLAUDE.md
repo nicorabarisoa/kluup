@@ -32,7 +32,7 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 ---
 
 ## 🔧 Architecture réelle & décisions — SOURCE DE VÉRITÉ TECHNIQUE
-> Section maintenue à jour pour donner le contexte sans relire l'historique. Màj 2026-06.
+> Section maintenue à jour pour donner le contexte sans relire l'historique. Màj 2026-06 (session 3).
 
 ### Stack effective
 - Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind v4.
@@ -56,10 +56,11 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 - `supabase/migration.sql` — schéma rooms/questions/votes + RLS + realtime.
 - `supabase/seed.sql` + `seed_themes.sql` — questions.
 - `supabase/lifecycle.sql` — cleanup rooms (cascade players, `last_activity` + trigger, `cleanup_dead_rooms()` TTL 30 min, pg_cron optionnel). **Déjà exécuté.**
+- `supabase/rls.sql` — politiques RLS anon open pour `rooms` + `players` (à exécuter si "Room introuvable" à la jonction). **Exécuter si le join échoue.**
 - `.env.example` — vars Supabase.
 
 ### Modèle de données (Supabase)
-- `rooms` : id, code, **status** `'waiting'|'playing'|'ended'` (défaut DB `'waiting'`), theme, **game_state** (jsonb), host_id, created_at, last_activity.
+- `rooms` : id, code, **status** `'lobby'|'playing'|'ended'|'waiting'` (défaut DB `'lobby'` ; `'waiting'` = retour au lobby après partie), theme, **game_state** (jsonb), host_id, created_at, last_activity.
 - `players` : id, room_id (→rooms **ON DELETE CASCADE**), pseudo, is_host, is_online, created_at.
 - `votes` : id, room_id (CASCADE), round, player_id (→players CASCADE), **vote_type** `'question_selection'|'designation'|'confession'|'volunteer'`, target_player_id, answer, question_index. UNIQUE(room_id, round, player_id, vote_type).
 - `questions` : id, theme, type (A/B/C), intensity (1-3), question jsonb `{fr,en,es,de}`.
@@ -76,14 +77,16 @@ GamePhase : `voting_question, round_a_vote, round_a_reveal, round_b_vote, round_
 - **Convergence** : après chaque write d'état, broadcast `phase_changed` → tous refetch (fiable, indépendant de postgres_changes).
 
 ### Rôle de l'hôte (réduit) — fait foi sur les tableaux d'écrans plus bas
-L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. En jeu, il n'orchestre PAS :
-- **Avancement de manche** : à la fin de chaque manche (écrans de révélation), **compteur 15 s qui avance automatiquement** + bouton **"Manche suivante" pour TOUS**. L'auto-avance est tirée par un **advancer élu** (plus petit `player.id` présent) pour éviter les races ; le bouton, lui, est cliquable par n'importe qui.
-- **Ouverts à tous** : pause / reprise, "passer sans attendre les absents" (phases de vote), "Révéler" (roulette B2).
-- **Restent hôte-only** : "Terminer la session" (`onEndGame`) et "Changer de thème / Rejouer" (`returnToLobby`) — actions destructives.
+L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. En jeu :
+- **Phases de vote** : timer **30 s** visible par tous (anneau SVG, passe au rouge à 10 s). À l'expiration, l'**advancer élu** (plus petit `player.id` présent) déclenche `onForce` pour éviter les races. L'hôte peut aussi cliquer "Passer sans attendre les absents" manuellement.
+- **Avancement de manche** : bouton **"Manche suivante" / "Voir les résultats" hôte-only** sur les écrans de révélation. Les autres joueurs voient "L'hôte lance la manche suivante…". Pas de timer sur les révélations.
+- **Ouverts à tous** : pause / reprise, "Révéler" (roulette B2).
+- **Hôte-only** : "Passer sans attendre les absents" (phases de vote), "Manche suivante", "Terminer la session" (`onEndGame`), "Changer de thème / Rejouer" (`returnToLobby`).
 
 ### Résolution des votes
 - Chaque vote = une row `votes`. Le client qui atteint le seuil `count >= players.length` appelle `resolveVotes`/`resolveTypeCChoice`.
-- Filet : bouton **"passer sans attendre les absents"** (tous) sur les phases de vote.
+- Timer 30 s (composant `VoteTimer`) sur toutes les phases de vote. L'advancer élu (plus petit `player.id`) déclenche `onForce` à l'expiration.
+- Filet manuel : bouton **"passer sans attendre les absents"** — **hôte-only** — sur les phases de vote.
 - Roster qui rétrécit pendant un vote (fantôme pruné) → l'hôte revérifie le compte réel et avance auto.
 
 ### Cycle de vie des rooms
@@ -100,6 +103,9 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 ### ⚠️ Gotchas / ops
 - **`NEXT_PUBLIC_*` inlinées au BUILD** : définir dans Railway → Variables PUIS **redéployer** (un restart ne suffit pas), sinon création de room cassée en prod.
 - Scripts SQL à exécuter dans Supabase : `migration.sql`, `seed.sql`/`seed_themes.sql`, `lifecycle.sql` (tous exécutés). Re-run le bloc concerné si on change le TTL.
+- **"Room introuvable" au join** → exécuter `supabase/rls.sql` dans l'éditeur SQL Supabase (RLS sans politique SELECT bloque les requêtes anon silencieusement). Vérifier aussi que les vars Railway correspondent au bon projet Supabase.
+- **Lobby sans formulaire d'entrée** → le lobby redirige maintenant vers `/join?code=XXX` si le visiteur n'a pas de `player_id` dans le sessionStorage. Le lien "Copier le lien" dans le lobby pointe vers `/join?code=XXX` (pas vers `/room/…/lobby`).
+- `onPause` / `onResume` utilisent `roomRef.current.game_state` (pas le state React) pour éviter les stale closures et la désynchronisation.
 - Carte : NE PAS revenir à html2canvas. modern-screenshot capture une **copie hors-écran à taille réelle** (540×540) — l'aperçu en `transform:scale` faussait les mesures (rognage).
 
 ### Décisions playtest — NE PAS régresser
@@ -109,9 +115,14 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 - Pas deux fois le même type d'affilée (`pickType` exclut le type précédent).
 - Réafficher la question sur les écrans de réponse à voix haute.
 - Export carte via Web Share API mobile (→ Photos), fallback download.
+- **Timer vote 30 s** (pas 15 s, pas sur les révélations). Seul l'advancer le déclenche à l'expiration.
+- **Sélection de question** : feedback visuel immédiat (fond coloré + bordure pleine + ✓) dès le tap, les autres questions s'opacifient à 40 %.
+- **"Manche suivante" hôte-only** — ne pas remettre ce bouton pour tous (risque de troll / spam).
+- **"Passer sans attendre" hôte-only** — idem.
+- **`onPause`/`onResume`** : toujours lire `roomRef.current.game_state`, jamais le state React — évite les désync pause/reprise.
 
 ### Reste à faire / idées
-ES/DE (dicos UI) · écran "hôte joue ou pas" (spécifié plus bas, **pas encore implémenté**) · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu.
+ES/DE (dicos UI) · écran "hôte joue ou pas" (spécifié plus bas, **pas encore implémenté**) · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu · exécuter `rls.sql` en prod si le join reste cassé.
 
 ---
 
