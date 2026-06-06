@@ -7,6 +7,7 @@ import { makeInitialGameState, pickCandidates } from '@/lib/game'
 import { Player } from '@/lib/types'
 import { copyToClipboard } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
+import { useRoomPresence } from '@/lib/usePresence'
 
 const THEME_IDS = ['hello-stranger', 'apero', 'no-filter', 'unmasked']
 
@@ -91,6 +92,9 @@ export default function LobbyPage() {
     return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code])
+
+  // Prune ghosts (closed tabs) and keep the room alive while anyone is here.
+  useRoomPresence(roomId, myId)
 
   function navigate() {
     if (navigatedRef.current) return

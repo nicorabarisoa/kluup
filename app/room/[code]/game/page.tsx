@@ -16,6 +16,7 @@ import {
   updateRoomGameState,
 } from '@/lib/game'
 import { useT, useLocale } from '@/lib/locale'
+import { useRoomPresence } from '@/lib/usePresence'
 import type { Dict } from '@/lib/i18n'
 import { GameState, Player, Room } from '@/lib/types'
 
@@ -1511,6 +1512,9 @@ export default function GamePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.status])
+
+  // Prune ghosts (closed tabs) and keep the room alive while anyone is here.
+  useRoomPresence(room?.id ?? null, myId)
 
   if (!room || !myId) return <LoadingScreen />
   const gs = room.game_state

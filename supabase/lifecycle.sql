@@ -39,8 +39,9 @@ CREATE TRIGGER trg_rooms_bump_activity
   FOR EACH ROW EXECUTE FUNCTION rooms_bump_activity();
 
 -- === Block 3 ================================================================
--- Sweep: delete rooms idle for more than 3h. players + votes cascade away.
--- Returns how many rooms were removed (handy when running it by hand).
+-- Sweep: delete rooms with no connected client for 30+ min. players + votes
+-- cascade away. Connected clients refresh last_activity via a presence heartbeat,
+-- so only truly-empty rooms get reclaimed. Returns how many were removed.
 CREATE OR REPLACE FUNCTION cleanup_dead_rooms()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER AS $fn$
 DECLARE
@@ -48,7 +49,7 @@ DECLARE
 BEGIN
   WITH dead AS (
     DELETE FROM rooms
-    WHERE COALESCE(last_activity, created_at) < now() - interval '3 hours'
+    WHERE COALESCE(last_activity, created_at) < now() - interval '30 minutes'
     RETURNING id
   )
   SELECT count(*) INTO n FROM dead;
