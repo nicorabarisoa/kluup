@@ -1516,6 +1516,17 @@ export default function GamePage() {
   // Prune ghosts (closed tabs) and keep the room alive while anyone is here.
   useRoomPresence(room?.id ?? null, myId)
 
+  // When the roster shrinks mid-vote (a ghost got pruned), the host re-checks the
+  // real vote count and advances if everyone still present has already voted.
+  const resolveOnShrinkRef = useRef<() => void>(() => {})
+  const prevPlayerLenRef = useRef(0)
+  useEffect(() => {
+    if (players.length > 0 && players.length < prevPlayerLenRef.current) {
+      resolveOnShrinkRef.current()
+    }
+    prevPlayerLenRef.current = players.length
+  }, [players.length])
+
   if (!room || !myId) return <LoadingScreen />
   const gs = room.game_state
   if (!gs) return <LoadingScreen />
@@ -1725,6 +1736,23 @@ export default function GamePage() {
     }
 
     router.push('/')
+  }
+
+  // Host-only: re-evaluate resolution after the roster shrinks (ghost pruned).
+  resolveOnShrinkRef.current = () => {
+    if (!isHost || !room) return
+    const isChoice = gs.phase === 'round_c_choice'
+    const vt = voteTypeForPhase(gs.phase)
+    if ((!vt && !isChoice) || players.length === 0) return
+    void (async () => {
+      const count = isChoice
+        ? await countChoiceVotes(room.id, gs.round)
+        : await countVotes(room.id, gs.round, vt as string)
+      if (count >= players.length) {
+        if (isChoice) await resolveTypeCChoice()
+        else await resolveVotes(vt as string)
+      }
+    })()
   }
 
   if (gs.paused) return <PausedScreen isHost={isHost} onResume={onResume} onStop={returnToLobby} />
