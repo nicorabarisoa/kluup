@@ -56,6 +56,7 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 - `supabase/schema.sql` — **SOURCE DE VÉRITÉ DB, idempotent**. CREATE TABLE rooms/players/questions/votes + RLS ouvert + realtime (rooms/players/votes) + contraintes (UNIQUE code, FK cascade) + default `status='waiting'`. **À exécuter pour provisionner OU réparer une base** (notamment "Room introuvable").
 - `supabase/migration.sql` — **legacy** : ne CRÉE PAS rooms/players (ALTER seul), n'active pas leur RLS/realtime. Conservé pour historique ; préférer `schema.sql`.
 - `supabase/seed.sql` + `seed_themes.sql` — questions.
+- `supabase/seed_cut.sql` — **78 questions adultes** (source CUT.xlsx, reformulées fun + courtes, FR/EN/ES/DE) remappées sur `apero` (23, léger), `no-filter` (15, moyen), `unmasked` (40, hot/NSFW). Types C50/B26/A2, intensités 1-3. **Exécuter UNE SEULE FOIS** (pas de clé unique sur le texte → ré-exécution = doublons).
 - `supabase/lifecycle.sql` — cleanup rooms (cascade players, `last_activity` + trigger, `cleanup_dead_rooms()` TTL 30 min, pg_cron optionnel). **Déjà exécuté.**
 - `supabase/rls.sql` — sous-ensemble RLS-only de `schema.sql` (fix rapide si "Room introuvable").
 - `.env.example` — vars Supabase.
