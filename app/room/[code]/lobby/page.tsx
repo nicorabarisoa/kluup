@@ -134,6 +134,11 @@ export default function LobbyPage() {
     if (!roomId) return
     setStarting(true)
 
+    // Wipe any votes from a previous game in this room. Rounds restart at 1, and
+    // the UNIQUE(room_id, round, player_id, vote_type) constraint would otherwise
+    // reject the new votes (and stale counts would break the resolution threshold).
+    await supabase.from('votes').delete().eq('room_id', roomId)
+
     const candidates = await pickCandidates(selectedTheme, 1, [])
     const gs = makeInitialGameState(candidates)
 

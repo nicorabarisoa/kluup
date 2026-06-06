@@ -9,7 +9,6 @@ import {
   countChoiceVotes,
   countVotes,
   fetchVotes,
-  pickBSubtype,
   pickCandidates,
   tallyDesignation,
   tallyQuestionSelection,
@@ -714,71 +713,7 @@ function ConfessionVoteScreen({
   )
 }
 
-// ---- B1 reveal ----
-
-function B1RevealScreen({
-  gs, players, isHost, nextLabel, onNext, onEnd,
-}: {
-  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void
-}) {
-  const fr = useT()
-  const yesCount = gs.revealed_player_ids.length
-  const total = players.length
-  const pct = gs.yes_percentage ?? 0
-  const nobody = yesCount === 0
-  const all = yesCount === total
-
-  return (
-    <GameScreen
-      header={<RoundHeader round={gs.round} label={fr.confession.label} accent={C.b} />}
-      footer={<RoundEndFooter ready isHost={isHost} nextLabel={nextLabel} accent={C.b} onNext={onNext} onEnd={onEnd} />}
-    >
-      <div className="w-full max-w-md flex flex-col items-center pt-10">
-        <h2
-          className="text-sm font-bold mb-6"
-          style={{ color: C.muted, fontFamily: 'var(--font-body)' }}
-        >
-          {fr.confession.b1_title}
-        </h2>
-
-        {nobody ? (
-          <p className="text-center" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
-            {fr.confession.b1_nobody}
-          </p>
-        ) : (
-          <>
-            <p
-              className="font-extrabold"
-              style={{ color: C.b, fontSize: 72, lineHeight: 1, fontFamily: 'var(--font-display)' }}
-            >
-              {pct}%
-            </p>
-            <p className="mt-2 text-center" style={{ color: C.text, fontFamily: 'var(--font-body)' }}>
-              {all ? fr.confession.b1_all : fr.confession.b1_count(yesCount, total)}
-            </p>
-            {/* B1 = révélation totale — tous les "oui" affichés */}
-            <div className="mt-6 flex flex-wrap justify-center gap-4">
-              {gs.revealed_player_ids.map((id) => {
-                const p = players.find((pl) => pl.id === id)
-                if (!p) return null
-                return (
-                  <div key={id} className="flex flex-col items-center gap-1">
-                    <PlayerAvatar pseudo={p.pseudo} index={players.indexOf(p)} size={48} />
-                    <span className="text-xs" style={{ color: C.muted, fontFamily: 'var(--font-body)' }}>
-                      {p.pseudo}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </>
-        )}
-      </div>
-    </GameScreen>
-  )
-}
-
-// ---- B2 roulette ----
+// ---- Confession roulette (ex-B2 ; seul mode de confession désormais) ----
 
 function B2RouletteScreen({
   gs, players, isHost, nextLabel, onReveal, onNext, onEnd,
@@ -1752,27 +1687,20 @@ export default function GamePage() {
     }
 
     if (voteType === 'confession') {
+      // Confession is ALWAYS a roulette now (B1/B2 sub-modes removed): show the
+      // group %, the wheel spins over everyone, and ONE "yes" is revealed.
       const yesVotes = votes.filter((v) => v.answer === true)
       const pct = Math.round((yesVotes.length / players.length) * 100)
-      const subtype = pickBSubtype(room.theme)
-      if (subtype === 'B1') {
-        await advance({
-          ...gs, phase: 'round_b1_reveal', b_subtype: 'B1',
-          revealed_player_ids: yesVotes.map((v) => v.player_id as string), yes_percentage: pct,
-        })
-      } else {
-        const yesIds = yesVotes.map((v) => v.player_id as string)
-        // If everyone said yes (100%), no one gets singled out — show the sheep message.
-        // Otherwise pick a random winner from those who said yes.
-        const winner = yesIds.length > 0 && pct < 100
-          ? yesIds[Math.floor(Math.random() * yesIds.length)]
-          : null
-        await advance({
-          ...gs, phase: 'round_b2_roulette', b_subtype: 'B2',
-          revealed_player_ids: yesIds,
-          designated_player_id: winner, yes_percentage: pct,
-        })
-      }
+      const yesIds = yesVotes.map((v) => v.player_id as string)
+      // 100% yes → nobody singled out (sheep). 0 yes → secret kept. Else pick one.
+      const winner = yesIds.length > 0 && pct < 100
+        ? yesIds[Math.floor(Math.random() * yesIds.length)]
+        : null
+      await advance({
+        ...gs, phase: 'round_b2_roulette', b_subtype: 'B2',
+        revealed_player_ids: yesIds,
+        designated_player_id: winner, yes_percentage: pct,
+      })
     }
   }
 
@@ -1936,8 +1864,6 @@ export default function GamePage() {
         return <DesignationRevealScreen gs={gs} players={players} isHost={isHost} accent={C.a} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_b_vote':
         return <ConfessionVoteScreen gs={gs} players={players} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} onVote={(a) => submitVote({ answer: a }, 'confession')} onForce={() => resolveVotes('confession')} />
-      case 'round_b1_reveal':
-        return <B1RevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_b2_roulette':
         return <B2RouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onReveal={onRevealB2} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_c_choice':

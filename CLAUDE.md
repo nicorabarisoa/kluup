@@ -47,7 +47,7 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 - `app/room/[code]/game/page.tsx` — **TOUTE la page de jeu** : tous les écrans + state machine + handlers (gros fichier).
 - `app/layout.tsx` — fonts **Bricolage Grotesque** (display, var `--font-display-face`) + **DM Sans** (corps, var `--font-body-face`) via next/font + `<LocaleProvider>`. globals.css mappe `--font-display` / `--font-body` (noms agnostiques → swap facile).
 - `lib/types.ts` — `Player`, `Question`, `GameState`, `GamePhase`, `Room`, etc.
-- `lib/game.ts` — moteur pur : `pickCandidates`, `pickType`, `tallyDesignation`, `tallyQuestionSelection`, `pickBSubtype`, `accumulateStats`, `computeGroupTitle`, `countVotes`, `countChoiceVotes`, `fetchVotes`, `makeInitialGameState`, `updateRoomGameState`.
+- `lib/game.ts` — moteur pur : `pickCandidates`, `pickType`, `tallyDesignation`, `tallyQuestionSelection`, `accumulateStats`, `computeGroupTitle`, `countVotes`, `countChoiceVotes`, `fetchVotes`, `makeInitialGameState`, `updateRoomGameState`. (`pickBSubtype` supprimé — confession toujours roulette.)
 - `lib/i18n.ts` — dictionnaires `fr` + `en` (mêmes clés, typés `Dict`), `dictionaries`, `Locale`, `defaultLocale`, `localeNames`.
 - `lib/locale.tsx` — `LocaleProvider`, hooks `useT()` / `useLocale()`, composant `LangSwitch`.
 - `lib/usePresence.ts` — `useRoomPresence(roomId, myId)` : présence + prune fantômes + heartbeat.
@@ -71,7 +71,7 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 
 ### GameState (jsonb)
 `phase, round, candidates[], current_question, b_subtype, designated_player_id` (B2 + roulette Type C), `designated_player_ids[]` + `designation_tie_all` (Type A), `revealed_player_ids[], yes_percentage, volunteer_player_ids[], played_question_ids[], paused, stats, b2_revealed`.
-GamePhase : `voting_question, round_a_vote, round_a_reveal, round_b_vote, round_b1_reveal, round_b2_roulette, round_c_choice, round_c_volunteers_reveal, round_c_roulette, ended`. **MAX_ROUNDS = 7.**
+GamePhase : `voting_question, round_a_vote, round_a_reveal, round_b_vote, round_b2_roulette, round_c_choice, round_c_volunteers_reveal, round_c_roulette, ended`. **MAX_ROUNDS = 7.** (`round_b1_reveal` supprimé : confession = toujours roulette.)
 
 ### Temps réel
 - Lobby : `lobby-${code}` (players INSERT filtré room_id + DELETE ; rooms UPDATE → navigate si `playing`).
@@ -118,7 +118,8 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 ### Décisions playtest — NE PAS régresser
 - **Type A** : pas de tie-break aléatoire (tous les ex-aequo affichés ; égalité totale = écran "Décevant" — **Type A UNIQUEMENT**). Self-vote autorisé. Texte "Assume… ou plaide ta cause" à la révélation.
 - **Type C** repensé (cf section dédiée) : phase unique, volontaires priment, roulette si égalité, **jamais d'écran "Décevant"**.
-- **B2 roulette** garde son tirage aléatoire (voulu).
+- **Confession (Type B) = roulette unique** (B1/B2 supprimés, playtest #3) : roue sur tous les pseudos → 1 seul "oui" révélé. NE PAS réintroduire B1/`pickBSubtype`.
+- **Replay (même lobby)** : `startGame` **DOIT** vider les votes de la room (`votes.delete().eq('room_id', …)`) avant de relancer. Sinon les manches recommencent à 1 et la contrainte `UNIQUE(room_id, round, player_id, vote_type)` rejette les nouveaux votes (= "votes non acceptés / joueurs pas détectés"). Régression déjà vécue.
 - Pas deux fois le même type d'affilée (`pickType` exclut le type précédent).
 - Réafficher la question sur les écrans de réponse à voix haute.
 - Export carte via Web Share API mobile (→ Photos), fallback download.
@@ -129,7 +130,7 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 - **`onPause`/`onResume`** : toujours lire `roomRef.current.game_state`, jamais le state React — évite les désync pause/reprise.
 
 ### Fait récemment (session 4)
-Landing page responsive (`/`) · stats perso (écran de fin + carte de partage) · i18n ES/DE complet + LangSwitch déroulant · message "moutons 🐑" si confession B2 à 100 % · Quitter/Pause intégrés au `RoundHeader` (plus de boutons flottants) · adaptation desktop (colonnes centrées) · **fix régression `host_id` NOT NULL**.
+Landing page responsive (`/`) · stats perso (écran de fin + carte de partage) · i18n ES/DE complet + LangSwitch déroulant · Quitter/Pause intégrés au `RoundHeader` · adaptation desktop (colonnes centrées) · **fix régression `host_id` NOT NULL** · 78 questions adultes (`seed_cut.sql`) · **confession = roulette unique** (B1/B2 supprimés) · **fix replay : purge des votes au lancement** · moutons 🐑 à 100 %.
 
 ### Reste à faire / idées
 Écran "hôte joue ou pas" (spécifié plus bas, **pas encore implémenté**) · stats perso détaillées (diversité des votes) · thèmes premium / paywall · plus de questions par thème · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu · **session de test réel à 3-4 joueurs** (priorité avant nouvelles features).
@@ -173,26 +174,14 @@ Round suivant
 
 ---
 
-### Type B — Confession collective ("t'as déjà…")
-Chaque joueur se désigne **lui-même** s'il se sent concerné. Vote secret (oui/non). Au moment de la révélation, le sous-mode est **tiré aléatoirement** selon le ratio du thème :
+### Type B — Confession collective ("t'as déjà…") — *(roulette unique, refonte playtest #3)*
+Chaque joueur se désigne **lui-même** s'il se sent concerné. Vote secret (oui/non). Révélation **toujours en roulette** (les sous-modes B1/B2 ont été **supprimés**) :
+1. Affichage du % du groupe ("67 % se sont reconnus")
+2. La roulette défile sur **tous les pseudos** (oui ET non, pour le suspense / ne pas leaker le pool) puis s'arrête sur **une seule personne** ayant répondu "oui"
+3. Les autres "oui" restent anonymes — tension individuelle
+4. Cas limites : **0 oui** → "secret gardé" ; **100 % oui** → écran moutons 🐑 (personne n'est désigné)
 
-**B1 — Révélation totale**
-Tous ceux qui ont répondu "oui" sont révélés simultanément → moment de groupe.
-
-**B2 — Pourcentage + Roulette**
-1. Affichage du % du groupe ("67% se sont reconnus")
-2. Roulette qui désigne **une seule personne** parmi les "oui"
-3. Les autres restent anonymes — tension individuelle
-
-**Ratio B1/B2 par thème :**
-| Thème | B1 (révélation totale) | B2 (roulette) |
-|---|---|---|
-| Hello Stranger | 30% | 70% |
-| Apéro | 30% | 70% |
-| No Filter | 70% | 30% |
-| Unmasked | 70% | 30% |
-
-> À calibrer lors des sessions de test réelles.
+> Le bouton "Révéler" (lancement de la roulette) reste ouvert à tous. `b_subtype` reste à `'B2'` en base pour la continuité des stats. Conséquence titres : `title_transparent`/`title_daring` (dépendaient de B1) ne se déclenchent plus ; un groupe très "confession" tombe sur `title_unfathomable`.
 
 ---
 
@@ -216,7 +205,7 @@ Tous ceux qui ont répondu "oui" sont révélés simultanément → moment de gr
 | Vote pour choisir la question | ✅ Fixe — toujours anonyme |
 | Vote de désignation Type A | ✅ Fixe — toujours anonyme |
 | Vote de désignation Type C | ✅ Fixe — toujours anonyme |
-| Réponses Type B | Dépend du sous-mode tiré (B1 = révélé, B2 = roulette) |
+| Réponses Type B | Roulette : une seule personne (parmi les "oui") révélée, les autres anonymes |
 
 > **Toggle anonyme/révélé supprimé** — inutile sur A et C (votes anonymes fixes), déjà géré par B1/B2 sur le Type B. Le thème gère tout automatiquement.
 

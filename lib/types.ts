@@ -19,8 +19,7 @@ export type GamePhase =
   | 'round_a_vote'
   | 'round_a_reveal'
   | 'round_b_vote'
-  | 'round_b1_reveal'
-  | 'round_b2_roulette'
+  | 'round_b2_roulette' // confession roulette — the only confession reveal now
   // Type C — single phase: each player either volunteers or sends someone.
   | 'round_c_choice'
   | 'round_c_volunteers_reveal' // ≥1 volunteer → they all answer

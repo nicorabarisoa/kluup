@@ -1,17 +1,8 @@
 import { supabase } from './supabase'
-import { BSubtype, GameState, GroupTitleKey, Question, SessionStats } from './types'
+import { GameState, GroupTitleKey, Question, SessionStats } from './types'
 
-const B_SUBTYPE_WEIGHTS: Record<string, { B1: number }> = {
-  'hello-stranger': { B1: 0.3 },
-  'apero': { B1: 0.3 },
-  'no-filter': { B1: 0.7 },
-  'unmasked': { B1: 0.7 },
-}
-
-export function pickBSubtype(theme: string): BSubtype {
-  const w = B_SUBTYPE_WEIGHTS[theme] ?? { B1: 0.5 }
-  return Math.random() < w.B1 ? 'B1' : 'B2'
-}
+// Confession (Type B) is always a roulette now — the B1/B2 sub-mode split was
+// removed after playtest. b_subtype stays 'B2' for stats continuity.
 
 function shuffle<T>(arr: T[]): T[] {
   return [...arr].sort(() => Math.random() - 0.5)
