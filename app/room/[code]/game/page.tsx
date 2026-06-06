@@ -1157,15 +1157,20 @@ function momentStat(titleKey: string, stats: GameState['stats'], totalRounds: nu
   }
 }
 
+type PlayerStats = { designated: number; confessed: number; volunteered: number }
+
 // Square share card (rendered to PNG via modern-screenshot).
 const ShareCard = forwardRef<HTMLDivElement, {
   theme: string
   titleName: string
   statText: string
   players: Player[]
-}>(function ShareCard({ theme, titleName, statText, players }, ref) {
+  myPseudo?: string
+  myStats?: PlayerStats
+}>(function ShareCard({ theme, titleName, statText, players, myPseudo, myStats }, ref) {
   const fr = useT()
   const meta = THEME_META[theme] ?? { name: theme, color: C.a }
+  const hasPersonal = myStats && (myStats.designated > 0 || myStats.confessed > 0 || myStats.volunteered > 0)
 
   return (
     <div
@@ -1180,7 +1185,7 @@ const ShareCard = forwardRef<HTMLDivElement, {
       <div style={{ height: 6, background: meta.color, width: '100%' }} />
 
       {/* gap-based column (no marginTop:auto) so nothing overlaps when rendered to canvas */}
-      <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', flex: 1, gap: 18, minHeight: 0 }}>
+      <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', flex: 1, gap: 16, minHeight: 0 }}>
         {/* Theme + logo */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <span style={{ color: meta.color, fontSize: 16, fontWeight: 700 }}>{meta.name}</span>
@@ -1202,16 +1207,42 @@ const ShareCard = forwardRef<HTMLDivElement, {
 
         {/* Moment fort */}
         <div style={{
-          background: C.surface, borderRadius: 18, padding: '16px 18px',
+          background: C.surface, borderRadius: 18, padding: '14px 18px',
           borderLeft: `4px solid ${meta.color}`, flexShrink: 0,
         }}>
           <p style={{ color: C.muted, fontSize: 12, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {fr.card.moment}
           </p>
-          <p style={{ color: '#fff', fontSize: 17, fontWeight: 500, margin: '6px 0 0', lineHeight: 1.35 }}>
+          <p style={{ color: '#fff', fontSize: 16, fontWeight: 500, margin: '6px 0 0', lineHeight: 1.35 }}>
             {statText}
           </p>
         </div>
+
+        {/* Personal stats — only shown when the player has at least one event */}
+        {hasPersonal && myPseudo && (
+          <div style={{ background: C.surface, borderRadius: 18, padding: '14px 18px', flexShrink: 0 }}>
+            <p style={{ color: C.muted, fontSize: 11, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {myPseudo} · {fr.card.tonight}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {myStats!.designated > 0 && (
+                <span style={{ background: `${C.a}22`, color: C.a, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
+                  {fr.end.stat_designated(myStats!.designated)}
+                </span>
+              )}
+              {myStats!.confessed > 0 && (
+                <span style={{ background: `${C.b}22`, color: C.b, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
+                  {fr.end.stat_confessed(myStats!.confessed)}
+                </span>
+              )}
+              {myStats!.volunteered > 0 && (
+                <span style={{ background: `${C.c}22`, color: C.c, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
+                  {fr.end.stat_volunteered(myStats!.volunteered)}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Spacer pushes players + footer to the bottom */}
         <div style={{ flex: 1, minHeight: 0 }} />
@@ -1256,6 +1287,15 @@ function EndScreen({
   const titleKey = computeGroupTitle(gs.stats, theme, totalRounds)
   const title = fr.titles[titleKey]
   const statText = momentStat(titleKey, gs.stats, totalRounds, fr)
+
+  // Personal stats for the share card — only what was publicly revealed.
+  const me = players.find((p) => p.id === myId)
+  const myPseudo = me?.pseudo
+  const myStats: PlayerStats | undefined = myId ? {
+    designated:  (gs.stats.designated  ?? {})[myId] ?? 0,
+    confessed:   (gs.stats.confessed   ?? {})[myId] ?? 0,
+    volunteered: (gs.stats.volunteered ?? {})[myId] ?? 0,
+  } : undefined
 
   const [showCard, setShowCard] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -1407,12 +1447,12 @@ function EndScreen({
           <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-4">
             {/* Full-size card rendered off-screen — captured as-is (no transform → no crop). */}
             <div style={{ position: 'fixed', top: 0, left: -10000, pointerEvents: 'none' }} aria-hidden>
-              <ShareCard ref={cardRef} theme={theme} titleName={title.name} statText={statText} players={players} />
+              <ShareCard ref={cardRef} theme={theme} titleName={title.name} statText={statText} players={players} myPseudo={myPseudo} myStats={myStats} />
             </div>
             {/* Scaled-down visual preview (display only). */}
             <div style={{ width: 313, height: 313, overflow: 'hidden', borderRadius: 16 }}>
               <div style={{ transform: 'scale(0.58)', transformOrigin: 'top left', width: 540, height: 540 }}>
-                <ShareCard theme={theme} titleName={title.name} statText={statText} players={players} />
+                <ShareCard theme={theme} titleName={title.name} statText={statText} players={players} myPseudo={myPseudo} myStats={myStats} />
               </div>
             </div>
             <div className="flex flex-col gap-2 w-full" style={{ maxWidth: 320 }}>

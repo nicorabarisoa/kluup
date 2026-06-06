@@ -129,6 +129,7 @@ export const fr = {
     download: "Télécharger l'image",
     close: "Fermer",
     footer: "kluup.app",
+    tonight: "ce soir",
     stat: {
       designations: (n: number) => `${n} désignation${n > 1 ? "s" : ""} prononcée${n > 1 ? "s" : ""} ce soir`,
       confessions_open: (n: number) => `${n} confession${n > 1 ? "s" : ""} révélée${n > 1 ? "s" : ""} au grand jour`,
@@ -286,6 +287,7 @@ export const en: Dict = {
     download: "Download the image",
     close: "Close",
     footer: "kluup.app",
+    tonight: "tonight",
     stat: {
       designations: (n: number) => `${n} designation${n > 1 ? "s" : ""} called out tonight`,
       confessions_open: (n: number) => `${n} confession${n > 1 ? "s" : ""} brought into the open`,
