@@ -378,6 +378,29 @@ Les gages sont retirés du core game. L'app ne sanctionne pas les refus — la d
 - **Abonnement** : envisagé long terme (1,99€/mois)
 - **B2B** : licences pour événements et team building (200–2 000€/événement)
 
+### Plan de monétisation — DIRECTION FUTURE (⚠️ NON IMPLÉMENTÉ, ne pas coder sans validation)
+> Décidé en discussion produit. Sert de cap, pas encore construit. Le MVP actuel n'a **aucune auth ni paiement**.
+
+**Modèle = par hôte (style Jackbox), déblocage permanent.**
+- **L'hôte doit être inscrit** (compte) même en gratuit total. Les **joueurs restent invités** (anonymes) OU inscrits — le join reste 100 % frictionless.
+- **Hôte gratuit** : accès aux thèmes gratuits, **limite de 2 sessions par thème gratuit** (1 session = 1 lancement de partie, compté **côté serveur**).
+- **Quota épuisé → cooldown 12 h** **sur l'hôte uniquement** (PAS les joueurs — décision : bloquer les joueurs est injuste, inapplicable sur les anonymes, et fait fuir au lieu de convertir).
+- Quand l'hôte est capé : **mur "Limite atteinte — débloque l'illimité (X €)" affiché à TOUTE la room** → pression sociale (l'hôte achète, ou un autre membre devient hôte payant). Même incentive, zéro frustration.
+- **Tout achat** (un thème OU un mode payant) → **illimité, plus aucune limite** (lève le cap partout, y compris sur les gratuits). Acheter un thème payant = accès à CE thème **+** statut illimité.
+- **Joueur premium présent = la room hérite des avantages** : si l'hôte n'est pas premium mais qu'un **joueur connecté avec un compte premium** est dans la room, la room joue en premium. Vérif serveur : *"hôte premium OU un joueur de la room a un compte premium"*. Vaut tant qu'il est présent (ligne `players` liée à un compte premium) ; s'il part, retour au palier de l'hôte à la **prochaine** partie (on ne coupe pas la partie en cours). Levier de croissance assumé (le premium = ambassadeur), au prix d'une **cannibalisation** acceptée en lancement (1 acheteur peut couvrir un groupe quand il est là) — *tunable plus tard*.
+
+**Faisabilité / implémentation (quand on y va) :**
+- **Auth hôte + joueurs premium** : Supabase Auth (magic link / Google). `players`/rooms liés à un `user_id`.
+- **Entitlements** : table `entitlements (user_id, produit, date)` + statut "illimité".
+- **Quota** : compteur `(host_user_id, theme, count, window_start)` pour 2 sessions + cooldown 12 h.
+- **Stripe** : Checkout + webhook (route API Next) → accorde l'entitlement.
+- ⚠️ **Gating OBLIGATOIREMENT côté serveur** : aujourd'hui tout est client + RLS ouvert → contournable en 30 s. Le check limite/déblocage doit vivre dans un **RPC `start_game()` `SECURITY DEFINER`** (vérif atomique entitlement/quota) + **RLS resserré**. C'est le vrai morceau (on quitte le "trust the client" du MVP).
+- **Fuites acceptées** (nudge, pas coffre-fort) : cap contournable en recréant un compte ; unlock-par-joueur-premium cannibalise. Ne pas sur-investir dans l'anti-triche.
+
+**Décisions encore ouvertes :** quels thèmes exactement gratuits vs payants (figer le split) · packaging (à-la-carte thèmes vs "Pass illimité") · prix.
+
+**Ordre de build recommandé :** 1) auth hôte · 2) free/paid thèmes + entitlements (gating serveur) · 3) Stripe · 4) cap 2 sessions + cooldown 12 h (le plus fiddly, en dernier).
+
 ---
 
 ## 🗺️ Roadmap modes de jeu
