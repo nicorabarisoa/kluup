@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getPlayerId, setPlayerId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 
 function JoinForm() {
@@ -45,20 +46,35 @@ function JoinForm() {
       return
     }
 
-    const { data: player, error: playerError } = await supabase
-      .from('players')
-      .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: false })
-      .select()
-      .single()
-
-    if (playerError || !player) {
-      console.error('[joinRoom] player insert failed:', playerError)
-      alert(fr.join.join_error)
-      setLoading(false)
-      return
+    // Reconnect: if we still hold an identity for this room and that row still
+    // exists, reuse it instead of inserting a duplicate (browser was closed,
+    // the old row hasn't been pruned yet).
+    let playerId: string | null = null
+    const stored = getPlayerId(normalizedCode)
+    if (stored) {
+      const { data: existing } = await supabase
+        .from('players').select('id').eq('room_id', room.id).eq('id', stored).maybeSingle()
+      if (existing) playerId = existing.id
     }
 
-    sessionStorage.setItem('player_id', player.id)
+    if (!playerId) {
+      const { data: player, error: playerError } = await supabase
+        .from('players')
+        .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: false })
+        .select()
+        .single()
+
+      if (playerError || !player) {
+        console.error('[joinRoom] player insert failed:', playerError)
+        alert(fr.join.join_error)
+        setLoading(false)
+        return
+      }
+      playerId = player.id
+    }
+
+    if (!playerId) { setLoading(false); return }
+    setPlayerId(room.code, playerId)
 
     const dest = room.status === 'playing' ? `/room/${room.code}/game` : `/room/${room.code}/lobby`
     router.push(dest)

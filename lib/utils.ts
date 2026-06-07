@@ -23,6 +23,34 @@ export function genId(): string {
 }
 
 /**
+ * Player identity, scoped per room and persisted in localStorage so it survives
+ * a browser/tab close (sessionStorage does NOT) — this lets a player who closes
+ * and reopens reconnect to their SAME row instead of creating a duplicate.
+ * Falls back to the legacy global sessionStorage key for in-flight sessions.
+ */
+const PID_PREFIX = 'kluup_pid_'
+
+export function getPlayerId(code: string): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const scoped = localStorage.getItem(PID_PREFIX + code.toUpperCase())
+    if (scoped) return scoped
+  } catch { /* ignore */ }
+  try { return sessionStorage.getItem('player_id') } catch { return null }
+}
+
+export function setPlayerId(code: string, id: string) {
+  try { localStorage.setItem(PID_PREFIX + code.toUpperCase(), id) } catch { /* ignore */ }
+  // Keep the legacy global key in sync for backward compatibility.
+  try { sessionStorage.setItem('player_id', id) } catch { /* ignore */ }
+}
+
+export function clearPlayerId(code: string) {
+  try { localStorage.removeItem(PID_PREFIX + code.toUpperCase()) } catch { /* ignore */ }
+  try { sessionStorage.removeItem('player_id') } catch { /* ignore */ }
+}
+
+/**
  * Copy text to the clipboard. Uses the async Clipboard API when available
  * (secure context), otherwise falls back to a temporary textarea + execCommand.
  * Returns true on success.

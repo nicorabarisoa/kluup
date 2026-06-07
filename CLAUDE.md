@@ -52,7 +52,7 @@ Flow entier jouable : accueil → création/join → lobby (choix thème) → ro
 - `lib/locale.tsx` — `LocaleProvider`, hooks `useT()` / `useLocale()`, composant `LangSwitch`.
 - `lib/usePresence.ts` — `useRoomPresence(roomId, myId)` : présence + prune fantômes + heartbeat.
 - `lib/supabase.ts` — client (warn console si env manquantes).
-- `lib/utils.ts` — `genId` / `copyToClipboard` (fallbacks contexte non-sécurisé / HTTP LAN).
+- `lib/utils.ts` — `genId` / `copyToClipboard` (fallbacks contexte non-sécurisé / HTTP LAN) + `getPlayerId`/`setPlayerId`/`clearPlayerId` (identité par room en localStorage → reconnexion sans doublon).
 - `supabase/schema.sql` — **SOURCE DE VÉRITÉ DB, idempotent**. CREATE TABLE rooms/players/questions/votes + RLS ouvert + realtime (rooms/players/votes) + contraintes (UNIQUE code, FK cascade) + default `status='waiting'`. **À exécuter pour provisionner OU réparer une base** (notamment "Room introuvable").
 - `supabase/migration.sql` — **legacy** : ne CRÉE PAS rooms/players (ALTER seul), n'active pas leur RLS/realtime. Conservé pour historique ; préférer `schema.sql`.
 - `supabase/seed.sql` + `seed_themes.sql` — questions.
@@ -93,6 +93,7 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 - Roster qui rétrécit pendant un vote (fantôme pruné) → l'hôte revérifie le compte réel et avance auto.
 
 ### Cycle de vie des rooms
+- **Identité joueur persistée par room** (`lib/utils.ts` : `getPlayerId`/`setPlayerId`/`clearPlayerId`, clé `kluup_pid_<CODE>` en **localStorage**, fallback `sessionStorage` legacy). Survit à la fermeture du navigateur → **reconnexion sans doublon**. `join` réutilise la row existante si l'id stocké est encore dans le roster (sinon insert). `onQuit` appelle `clearPlayerId`. ⚠️ Ne PAS revenir au `sessionStorage.getItem('player_id')` global (vidé à la fermeture → recréait une row = doublon, bug vécu).
 - **Quit explicite** (bouton "Quitter", tous) : si hôte → transfert au plus ancien restant ; si dernier → suppression room (cascade players+votes).
 - **Présence** (lobby+jeu) : déconnexion → après **60 s de grâce** (anti phone-lock), un client élu (plus petit id présent) supprime la row fantôme ; **heartbeat 2 min** rafraîchit `last_activity`.
 - **Balayage** `cleanup_dead_rooms()` (RPC opportuniste appelé à la création de room) : supprime les rooms **sans aucun client connecté depuis 30 min**. pg_cron = option pour le 100 % auto (2 lignes en commentaire dans lifecycle.sql).

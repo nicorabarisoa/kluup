@@ -16,6 +16,7 @@ import {
 } from '@/lib/game'
 import { useT, useLocale } from '@/lib/locale'
 import { useRoomPresence } from '@/lib/usePresence'
+import { getPlayerId, clearPlayerId } from '@/lib/utils'
 import type { Dict } from '@/lib/i18n'
 import { GameState, Player, Room } from '@/lib/types'
 
@@ -1460,7 +1461,7 @@ export default function GamePage() {
   const voteChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
-    const id = sessionStorage.getItem('player_id')
+    const id = getPlayerId(code)
     setMyId(id)
 
     async function init() {
@@ -1816,6 +1817,9 @@ export default function GamePage() {
     if (!room || !myId) { router.push('/'); return }
     const wasHost = isHost
 
+    // Deliberate leave → forget our identity so we don't try to reconnect to a
+    // deleted row later.
+    clearPlayerId(code)
     await supabase.from('players').delete().eq('id', myId)
 
     const { data: rest } = await supabase.from('players').select().eq('room_id', room.id)

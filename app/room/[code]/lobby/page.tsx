@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { makeInitialGameState, pickCandidates } from '@/lib/game'
 import { Player } from '@/lib/types'
-import { copyToClipboard } from '@/lib/utils'
+import { copyToClipboard, getPlayerId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 import { useRoomPresence } from '@/lib/usePresence'
 
@@ -26,7 +26,7 @@ export default function LobbyPage() {
   const roomIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    const id = sessionStorage.getItem('player_id')
+    const id = getPlayerId(code)
     setMyId(id)
 
     async function loadRoom() {

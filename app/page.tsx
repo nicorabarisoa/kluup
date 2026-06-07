@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { genId } from '@/lib/utils'
+import { genId, setPlayerId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 
 // ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ export default function Home() {
       return
     }
 
-    sessionStorage.setItem('player_id', player.id)
+    setPlayerId(room.code, player.id)
     router.push(`/room/${room.code}/lobby`)
   }
 
