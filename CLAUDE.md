@@ -134,7 +134,7 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 Landing page responsive (`/`) · stats perso (écran de fin + carte de partage) · i18n ES/DE complet + LangSwitch déroulant · Quitter/Pause intégrés au `RoundHeader` · adaptation desktop (colonnes centrées) · **fix régression `host_id` NOT NULL** · 78 questions adultes (`seed_cut.sql`) · **confession = roulette unique** (B1/B2 supprimés) · **fix replay : purge des votes au lancement** · moutons 🐑 à 100 %.
 
 ### Reste à faire / idées
-Écran "hôte joue ou pas" (spécifié plus bas, **pas encore implémenté**) · stats perso détaillées (diversité des votes) · thèmes premium / paywall · plus de questions par thème · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu · **session de test réel à 3-4 joueurs** (priorité avant nouvelles features).
+stats perso détaillées (diversité des votes) · thèmes premium / paywall · plus de questions par thème · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu · **session de test réel à 3-4 joueurs** (priorité avant nouvelles features). *(Écran "hôte joue ou pas" : abandonné — l'hôte est toujours joueur.)*
 
 ---
 
@@ -253,12 +253,10 @@ Les gages sont retirés du core game. L'app ne sanctionne pas les refus — la d
 
 ## 🖥️ Écrans de la page de jeu
 
-### Paramètre hôte (avant création du lobby) — ⚠️ SPÉCIFIÉ, PAS ENCORE IMPLÉMENTÉ
-L'hôte choisit s'il joue ou non. **Actuellement l'hôte est toujours joueur** (compté dans `players.length`).
+### L'hôte est TOUJOURS joueur — décision figée
+**L'hôte joue toujours** (compté dans `players.length`, vote/répond comme tout le monde). L'idée d'un écran "hôte joue ou pas" a été **abandonnée** — ne pas la réintroduire. L'hôte garde seulement quelques pouvoirs (cf "Rôle de l'hôte (réduit)").
 
-**Si l'hôte joue** (futur) : écran joueur normal + bouton discret pour les contrôles hôte (Option B — écran joueur d'abord).
-
-> En jeu, **tout le monde** a : **pause** (haut-droite) et **"Quitter"** (haut-gauche). Cf "Rôle de l'hôte (réduit)" dans la section technique.
+> En jeu, **tout le monde** a : **pause** et **"Quitter"** (intégrés au `RoundHeader`). Cf "Rôle de l'hôte (réduit)" dans la section technique.
 
 ---
 
@@ -268,7 +266,7 @@ L'hôte choisit s'il joue ou non. **Actuellement l'hôte est toujours joueur** (
 | | Hôte | Joueurs |
 |---|---|---|
 | Affichage | Question + "Les joueurs votent…" + compteur | Question + liste des pseudos à voter |
-| Action | Attendre (ou voter si hôte joueur) | Voter pour quelqu'un |
+| Action | Voter pour quelqu'un (l'hôte joue aussi) | Voter pour quelqu'un |
 | Transition | Automatique quand tous ont voté | — |
 
 **Écran 2A — Révélation**
@@ -286,7 +284,7 @@ L'hôte choisit s'il joue ou non. **Actuellement l'hôte est toujours joueur** (
 | | Hôte | Joueurs |
 |---|---|---|
 | Affichage | Question + "Les joueurs répondent…" + compteur | Question + boutons Oui / Non |
-| Action | Attendre (ou répondre si hôte joueur) | Répondre oui/non |
+| Action | Répondre oui/non (l'hôte joue aussi) | Répondre oui/non |
 | Transition | Automatique quand tous ont répondu | — |
 
 **Écran 2B1 — Révélation totale**
