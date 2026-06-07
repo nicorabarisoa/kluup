@@ -1,4 +1,7 @@
-# Requirements
+# Requirements: Kluup
+
+**Defined:** 2026-06-07
+**Core Value:** Creating genuine human moments through structured social questions — the app triggers the moment, the group handles the dynamic.
 
 ## v1 Requirements
 
@@ -9,16 +12,81 @@
 
 ## v2 Requirements
 
-(None identified)
+### Authentication
+
+- [ ] **AUTH-01**: User can sign in with Google via OAuth (optional — game is fully playable without an account)
+- [ ] **AUTH-02**: Auth session persists across browser refresh and page navigation
+- [ ] **AUTH-03**: Signed-in user can sign out from any page
+- [ ] **AUTH-04**: Full anonymous game flow (create room, join, all round types, end screen, replay) works without regression after every phase that touches RLS or auth configuration
+
+### Player Identity
+
+- [ ] **IDEN-01**: `players` table has a nullable `user_id` FK — anonymous players have null, signed-in players reference their account
+- [ ] **IDEN-02**: A signed-in user joining a room on a new device (no localStorage entry) is recognized via `user_id` lookup and reuses their account identity without creating a duplicate row
+
+### Stats Persistence
+
+- [ ] **STAT-01**: At game end, each signed-in player's stats for that session are written to their account (designation count, confession reveals, volunteer count, group title earned)
+- [ ] **STAT-02**: Each session is stored as a separate history row (per-session records, not only cumulative counters)
+- [ ] **STAT-03**: Stats writes are idempotent — a `UNIQUE(user_id, session_id)` constraint prevents duplicate entries on replay
+
+### Stats Profile
+
+- [ ] **PROF-01**: Signed-in user can view their stats history on a `/profile` page (designation count, confession reveals, volunteer count, sessions played, group titles earned)
+- [ ] **PROF-02**: Anonymous users see a "sign in to save your stats" CTA on the end screen, shown after session stats are displayed
+
+## Future Requirements
+
+### Monetisation
+
+- **MON-01**: Host has an account tier (free vs premium)
+- **MON-02**: Free tier is capped at 2 sessions per free theme with a 12-hour cooldown
+- **MON-03**: Premium purchase removes all caps and unlocks premium themes
+- **MON-04**: A premium player present in a room grants the room premium access for that session
+
+### Premium Features
+
+- **PREM-01**: Premium themes (No Filter, Unmasked) gated behind account purchase
+- **PREM-02**: Custom Theme mode — players create their own questions before the game
+- **PREM-03**: Configurable round count (5 / 7 / 15 / custom)
 
 ## Out of Scope
 
-- `/health` root-level path — Next.js routes live under `/api/`; a `next.config.ts` rewrite is available if needed but not required for load-balancer use
-- Detailed health sub-checks (DB connectivity, Supabase ping) — not required for MVP load-balancer probe
+| Feature | Reason |
+|---------|--------|
+| `/health` root-level path | Next.js routes live under `/api/`; rewrite available if needed |
+| Detailed health sub-checks | Not required for MVP load-balancer probe |
+| Stripe / payment | v3.0 monetisation milestone — auth must be stable first |
+| Premium feature gating / quota | v3.0 — build the auth foundation cleanly before layering gating |
+| Avatar display in lobby player list | Real-time sync complexity; deferred to avoid lobby regressions |
+| Google avatar on `/profile` | Nice to have; `avatar_url` sync deferred |
+| Magic link / email+password auth | Google OAuth only for v2.0; lower friction, one well-tested path |
+| In-app chat | Deliberately excluded — WhatsApp does it better |
+| Automatic sanctions / dare pack | Post-v1 optional mode |
 
 ## Traceability
 
-| REQ-ID | Phase |
-|--------|-------|
-| HLT-01 | Phase 1: Health Endpoint |
-| HLT-02 | Phase 1: Health Endpoint |
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| HLT-01 | Phase 1: Health Endpoint | ✓ Complete |
+| HLT-02 | Phase 1: Health Endpoint | ✓ Complete |
+| AUTH-01 | TBD | Pending |
+| AUTH-02 | TBD | Pending |
+| AUTH-03 | TBD | Pending |
+| AUTH-04 | TBD | Pending |
+| IDEN-01 | TBD | Pending |
+| IDEN-02 | TBD | Pending |
+| STAT-01 | TBD | Pending |
+| STAT-02 | TBD | Pending |
+| STAT-03 | TBD | Pending |
+| PROF-01 | TBD | Pending |
+| PROF-02 | TBD | Pending |
+
+**Coverage:**
+- v2 requirements: 11 total
+- Mapped to phases: 0 (roadmap pending)
+- Unmapped: 11 ⚠️
+
+---
+*Requirements defined: 2026-06-07*
+*Last updated: 2026-06-07 after v2.0 milestone start*
