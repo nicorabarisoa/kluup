@@ -32,17 +32,17 @@ function pickType(theme: string, exclude?: QType): QType {
 }
 
 // A round has a SINGLE type. We pick the round's type (weighted by theme), then
-// return 3 questions of that type — preferring the target intensity, filling
-// from other intensities of the same type if needed. Falls back to another type
-// only if the preferred type has no unplayed questions left.
+// return 3 RANDOM unplayed questions of that type. Intensity is intentionally
+// IGNORED — the theme already bounds the overall spice; ignoring the intensity
+// ramp makes the run unpredictable (no light→deep ordering). Falls back to
+// another type only if the preferred type has no unplayed questions left.
+// (`round` is kept in the signature for callers but no longer drives selection.)
 export async function pickCandidates(
   theme: string,
-  round: number,
+  _round: number,
   playedIds: string[],
   lastType?: 'A' | 'B' | 'C'
 ): Promise<Question[]> {
-  const intensity = round <= 3 ? 1 : round <= 6 ? 2 : 3
-
   // Prefer a type different from the previous round; the tail still includes it
   // as a fallback if no other type has unplayed questions left.
   const preferred = pickType(theme, lastType)
@@ -63,10 +63,8 @@ export async function pickCandidates(
     const pool = (data ?? []) as Question[]
     if (pool.length === 0) continue
 
-    // Prefer the target intensity, then fill with other intensities of same type.
-    const atIntensity = shuffle(pool.filter((q) => q.intensity === intensity))
-    const others = shuffle(pool.filter((q) => q.intensity !== intensity))
-    return [...atIntensity, ...others].slice(0, 3)
+    // Random pick regardless of intensity.
+    return shuffle(pool).slice(0, 3)
   }
 
   return []

@@ -122,6 +122,7 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 - **Confession (Type B) = roulette unique** (B1/B2 supprimés, playtest #3) : roue sur tous les pseudos → 1 seul "oui" révélé. NE PAS réintroduire B1/`pickBSubtype`.
 - **Replay (même lobby)** : `startGame` **DOIT** vider les votes de la room (`votes.delete().eq('room_id', …)`) avant de relancer. Sinon les manches recommencent à 1 et la contrainte `UNIQUE(room_id, round, player_id, vote_type)` rejette les nouveaux votes (= "votes non acceptés / joueurs pas détectés"). Régression déjà vécue.
 - Pas deux fois le même type d'affilée (`pickType` exclut le type précédent).
+- **Intensité ignorée à la sélection** (`pickCandidates` tire au hasard) — choix volontaire pour l'imprévisibilité ; le thème borne la spice. Colonne `intensity` gardée en base. Ne pas réintroduire la rampe sans le redemander.
 - Réafficher la question sur les écrans de réponse à voix haute.
 - Export carte via Web Share API mobile (→ Photos), fallback download.
 - **Timer vote 30 s** (pas 15 s, pas sur les révélations). Seul l'advancer le déclenche à l'expiration.
@@ -141,7 +142,7 @@ stats perso détaillées (diversité des votes) · thèmes premium / paywall · 
 ## 🎮 Flow global d'une session
 
 ```
-App propose 3 questions (tirées aléatoirement selon thème + niveau d'intensité croissant)
+App propose 3 questions (tirées aléatoirement dans le thème — intensité ignorée, ordre imprévisible)
        ↓
 Tous les joueurs votent pour choisir laquelle jouer  [vote anonyme]
        ↓
@@ -233,10 +234,10 @@ Confessions coupables, Nostalgie, Opinions chaudes, Et toi dans 10 ans, Team Klu
 Chaque question a :
 - `theme` : hello-stranger / apero / no-filter / unmasked
 - `type` : A / B / C
-- `intensity` : 1 / 2 / 3 *(relatif au thème, pas absolu)*
+- `intensity` : 1 / 2 / 3 *(relatif au thème, pas absolu)* — **conservée en base mais IGNORÉE par la sélection** (cf ci-dessous).
 - `question` : `{ fr: "...", en: "...", es: "...", de: "..." }`
 
-L'algorithme de sélection monte en intensité au fil des rounds — les questions niveau 1 passent en premier, niveau 3 en fin de session.
+**Sélection actuelle : intensité IGNORÉE.** `pickCandidates` tire 3 questions **au hasard** du type choisi dans le thème (plus de rampe légère→profonde). Volontaire : le **thème** borne déjà l'intensité globale, l'aléatoire rend la partie imprévisible. La colonne `intensity` reste en base (réversible si on veut réactiver la montée progressive). Seule règle d'ordre conservée : pas deux fois le même type d'affilée.
 
 ### Système analytics interne (post-MVP)
 Chaque question trackée : taux de sélection, taux de complétion, taux de skip → auto-cycling pour éviter la répétition.
