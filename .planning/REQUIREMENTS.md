@@ -70,23 +70,24 @@
 |--------|-------|--------|
 | HLT-01 | Phase 1: Health Endpoint | ✓ Complete |
 | HLT-02 | Phase 1: Health Endpoint | ✓ Complete |
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| AUTH-03 | TBD | Pending |
-| AUTH-04 | TBD | Pending |
-| IDEN-01 | TBD | Pending |
-| IDEN-02 | TBD | Pending |
-| STAT-01 | TBD | Pending |
-| STAT-02 | TBD | Pending |
-| STAT-03 | TBD | Pending |
-| PROF-01 | TBD | Pending |
-| PROF-02 | TBD | Pending |
+| AUTH-01 | Phase 3: Sign-in UX + Player Linking | Pending |
+| AUTH-02 | Phase 2: Auth Infrastructure + Schema | Pending |
+| AUTH-03 | Phase 3: Sign-in UX + Player Linking | Pending |
+| AUTH-04 | Phase 2: Auth Infrastructure + Schema | Pending |
+| IDEN-01 | Phase 2: Auth Infrastructure + Schema | Pending |
+| IDEN-02 | Phase 3: Sign-in UX + Player Linking | Pending |
+| STAT-01 | Phase 4: Stats Persistence + Profile | Pending |
+| STAT-02 | Phase 4: Stats Persistence + Profile | Pending |
+| STAT-03 | Phase 4: Stats Persistence + Profile | Pending |
+| PROF-01 | Phase 4: Stats Persistence + Profile | Pending |
+| PROF-02 | Phase 4: Stats Persistence + Profile | Pending |
 
 **Coverage:**
+- v1 requirements: 2/2 complete ✓
 - v2 requirements: 11 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11 ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-07*
-*Last updated: 2026-06-07 after v2.0 milestone start*
+*Last updated: 2026-06-07 after v2.0 roadmap created*
