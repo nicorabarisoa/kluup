@@ -22,6 +22,17 @@ Creating genuine human moments through structured social questions — the app t
 
 **Stack:** Next.js 16 (App Router, client-only), React 19, TypeScript, Tailwind v4, Supabase (Postgres + Realtime), Railway hosting.
 
+## Current Milestone: v2.0 Auth & Stats
+
+**Goal:** Add optional Google accounts that persist personal stats across sessions — no impact on the frictionless anonymous game.
+
+**Target features:**
+- Google OAuth sign-in via Supabase Auth (optional for everyone — host or player)
+- Player identity linked to account when signed in (`players.user_id` FK)
+- Personal stats saved per account across sessions (designation count, confession reveals, volunteer count, sessions played, group titles history)
+- Stats profile page to view personal history
+- Anonymous game flow unchanged — account never required to play
+
 ## Requirements
 
 ### Validated
@@ -41,12 +52,16 @@ Creating genuine human moments through structured social questions — the app t
 
 ### Active
 
-(None — first milestone complete)
+- [ ] Optional Google OAuth accounts (host or player) via Supabase Auth
+- [ ] Player rows linkable to user account (`players.user_id` FK)
+- [ ] Personal stats persisted per account across sessions
+- [ ] Stats profile page (designation count, confession reveals, volunteer count, sessions played, group titles)
 
 ### Out of Scope
 
+- Premium feature gating / quota — v3.0 monetisation milestone
+- Payment / Stripe — v3.0
 - Auth / accounts — post-MVP (monetisation milestone)
-- Payment / Stripe — post-MVP
 - Custom Theme mode — validated direction, not yet built
 - Configurable round count — validated direction, not yet built
 - In-app chat — deliberately excluded (WhatsApp does it better)
@@ -82,4 +97,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-07 after initialization*
+*Last updated: 2026-06-07 after v2.0 milestone start*

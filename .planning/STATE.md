@@ -1,12 +1,12 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: 1 (complete)
-status: unknown
-last_updated: "2026-06-07T10:01:17.209Z"
+milestone: v2.0
+milestone_name: Auth & Stats
+status: planning
+last_updated: "2026-06-07T10:13:36.617Z"
+last_activity: 2026-06-07
 progress:
-  total_phases: 1
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -33,3 +33,10 @@ None — all phases complete.
 
 - Project initialized from brownfield (Kluup MVP already deployed)
 - Phase 1 implementation pre-existed initialization: `app/api/health/route.ts`
+
+## Current Position
+
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-07 — Milestone v2.0 started
