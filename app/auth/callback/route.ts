@@ -3,11 +3,13 @@ import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
 function getPublicOrigin(request: NextRequest): string {
-  // Railway (and most reverse proxies) forward the original host via X-Forwarded-Host.
-  // request.nextUrl.origin reflects the internal address (localhost:8080), not the public URL.
+  // Railway auto-injects RAILWAY_PUBLIC_DOMAIN (no protocol). Use it first — most reliable.
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  // Generic reverse-proxy fallback (X-Forwarded-Host).
   const fwdHost = request.headers.get('x-forwarded-host')
   const fwdProto = request.headers.get('x-forwarded-proto') ?? 'https'
   if (fwdHost) return `${fwdProto.split(',')[0].trim()}://${fwdHost.split(',')[0].trim()}`
+  // Local dev: use the actual origin.
   return request.nextUrl.origin
 }
 
