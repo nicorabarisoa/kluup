@@ -69,6 +69,6 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
-| 2. Auth Infrastructure + Schema | 1/3 | In progress | - |
+| 2. Auth Infrastructure + Schema | 2/3 | In progress | - |
 | 3. Sign-in UX + Player Linking | 0/? | Not started | - |
 | 4. Stats Persistence + Profile | 0/? | Not started | - |
