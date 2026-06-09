@@ -56,6 +56,27 @@ CREATE TABLE IF NOT EXISTS votes (
   UNIQUE (room_id, round, player_id, vote_type)
 );
 
+-- Phase 2 (Auth Infrastructure): user_id FK on players + user_session_stats
+-- Safe to add here — additive only, mirrors supabase/migrations/002-auth.sql.
+
+-- IDEN-01: nullable user_id FK on players (anon players keep NULL)
+ALTER TABLE players
+  ADD COLUMN IF NOT EXISTS user_id uuid
+  REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- STAT-03 (Phase 4): user_session_stats — persists per-user game stats across sessions
+CREATE TABLE IF NOT EXISTS user_session_stats (
+  id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_id        uuid        NOT NULL,
+  designated_count  int         NOT NULL DEFAULT 0,
+  confessed_count   int         NOT NULL DEFAULT 0,
+  volunteered_count int         NOT NULL DEFAULT 0,
+  group_title       text,
+  played_at         timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT user_session_stats_unique UNIQUE (user_id, session_id)
+);
+
 -- === Contraintes / defaults (réparation d'une base existante) ==============
 
 -- Aligne le default de status sur 'waiting' (l'ancien migration mettait 'lobby').
@@ -116,6 +137,22 @@ DROP POLICY IF EXISTS "votes_delete" ON votes;
 CREATE POLICY "votes_insert" ON votes FOR INSERT WITH CHECK (true);
 CREATE POLICY "votes_select" ON votes FOR SELECT USING (true);
 CREATE POLICY "votes_delete" ON votes FOR DELETE USING (true);
+
+-- user_session_stats (scoped RLS — chaque utilisateur voit/modifie seulement ses propres stats)
+ALTER TABLE user_session_stats ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "stats_select_own" ON user_session_stats;
+DROP POLICY IF EXISTS "stats_insert_own" ON user_session_stats;
+DROP POLICY IF EXISTS "stats_update_own" ON user_session_stats;
+
+CREATE POLICY "stats_select_own" ON user_session_stats
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "stats_insert_own" ON user_session_stats
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "stats_update_own" ON user_session_stats
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- === Realtime (postgres_changes) ==========================================
 -- Lobby & jeu écoutent les changements de rooms ET players. Sans ça, les
