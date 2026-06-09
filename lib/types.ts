@@ -76,6 +76,9 @@ export type GameState = {
   paused: boolean
   stats: SessionStats
   b2_revealed: boolean // host triggered the B2 roulette reveal
+  // UUID v4 set by startGame() in the lobby on every game launch (including replay).
+  // Used as session_id in user_session_stats (Phase 4). Never generated here — see makeInitialGameState.
+  session_uuid: string
 }
 
 export type Room = {

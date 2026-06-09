@@ -92,6 +92,7 @@ export function makeInitialGameState(candidates: Question[]): GameState {
     paused: false,
     stats: emptyStats(),
     b2_revealed: false,
+    session_uuid: '', // startGame() in lobby assigns a fresh UUID via the browser crypto API before writing to DB
   }
 }
 
@@ -145,18 +146,14 @@ export function accumulateStats(gs: GameState): SessionStats {
 }
 
 export function computeGroupTitle(stats: SessionStats, theme: string, totalRounds: number): GroupTitleKey {
-  const { rounds_a, rounds_b, rounds_b1, rounds_c, volunteers } = stats
+  const { rounds_a, rounds_b, rounds_c, volunteers } = stats
   const pctA = totalRounds > 0 ? rounds_a / totalRounds : 0
   const pctB = totalRounds > 0 ? rounds_b / totalRounds : 0
   const pctC = totalRounds > 0 ? rounds_c / totalRounds : 0
-  const pctB1ofB = rounds_b > 0 ? rounds_b1 / rounds_b : 0
   const volunteerRate = rounds_c > 0 ? volunteers / rounds_c : 0
 
   if ((theme === 'no-filter' || theme === 'unmasked') && pctA > 0.5) return 'title_nofilter'
-  if (theme === 'unmasked' && pctB > 0.4 && pctB1ofB > 0.6) return 'title_daring'
-  if (pctB > 0.5 && pctB1ofB < 0.4) return 'title_unfathomable'
-  if (pctB > 0.5 && pctB1ofB >= 0.6) return 'title_transparent'
-  if (pctB > 0.5) return 'title_mysterious'
+  if (pctB > 0.5) return 'title_unfathomable'
   if (pctC > 0.4 && volunteerRate >= 0.6) return 'title_brave'
   if (pctC > 0.4 && volunteerRate < 0.3) return 'title_cautious'
   if (pctA > 0.6) return 'title_ruthless'
