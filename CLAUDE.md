@@ -137,6 +137,10 @@ Landing page responsive (`/`) · stats perso (écran de fin + carte de partage) 
 ### Reste à faire / idées
 stats perso détaillées (diversité des votes) · thèmes premium / paywall · plus de questions par thème · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu · **session de test réel à 3-4 joueurs** (priorité avant nouvelles features). *(Écran "hôte joue ou pas" : abandonné — l'hôte est toujours joueur.)*
 
+**Prochains chantiers premium (non implémentés, direction validée) :**
+- **Custom Theme** — mode où les joueurs créent eux-mêmes les questions avant la partie (cf section dédiée ci-dessous).
+- **Configuration des manches** — nombre de manches paramétrable (5/7/15/custom) ; `MAX_ROUNDS` doit devenir une config de room en base, plus une constante hardcodée.
+
 ---
 
 ## 🎮 Flow global d'une session
@@ -406,6 +410,7 @@ Les gages sont retirés du core game. L'app ne sanctionne pas les refus — la d
 ## 🗺️ Roadmap modes de jeu
 
 - **MVP** : Classic (flow décrit ci-dessus)
+- **V2 premium** : Custom Theme (questions collaboratives — cf section dédiée) + Configuration des manches
 - **V3** : Mode Couples en groupe
 - **V4** : Mode Dating (2 joueurs, compatibilité)
 - **Plus tard** : Mode Tribunal, Mode Caption ça, méta-jeu/badges, Mode Team Building pro
@@ -416,6 +421,82 @@ Les gages sont retirés du core game. L'app ne sanctionne pas les refus — la d
 | Chat intégré | WhatsApp le fait mieux |
 | Blind test musical | Droits d'auteur complexes |
 | Mode solo | Casse le principe social |
+
+---
+
+## 🎨 Mode Custom Theme (premium) — ⚠️ NON IMPLÉMENTÉ, direction validée
+
+> Analogie produit : **playlist collaborative Spotify** — l'hôte crée l'espace, tout le monde y contribue des questions avant le lancement.
+
+### Concept
+
+Premium uniquement. L'hôte choisit "Custom Theme" au lieu d'un thème prédéfini. Aucune question prédéfinie n'est chargée — la session démarre avec une liste vide.
+
+Cas d'usage cibles : anniversaires, EVG/EVJF, mariages, team buildings, groupes avec des références internes impossibles à proposer dans les thèmes standards.
+
+### Flow
+
+```
+Hôte crée une pré-room → choisit "Custom Theme (Premium)"
+       ↓
+Partage le code/lien d'invitation
+       ↓
+Les joueurs rejoignent et ajoutent des questions (en temps réel via Supabase)
+       ↓
+Hôte modère (supprime/réorganise) et lance la partie quand prêt
+       ↓
+La pré-room devient une room de jeu standard → flow Classic normal
+```
+
+### Permissions de contribution
+
+| Action | Hôte | Joueurs |
+|---|---|---|
+| Ajouter une question | ✅ | ✅ |
+| Modifier sa propre question avant lancement | ✅ | ✅ |
+| Supprimer sa propre question avant lancement | ✅ | ✅ |
+| Supprimer n'importe quelle question | ✅ | ❌ |
+| Réorganiser l'ordre des questions | ✅ | ❌ |
+| Lancer la partie | ✅ | ❌ |
+
+### Modèle de données (à concevoir)
+
+- Les questions custom doivent être stockées séparément des questions de la table `questions` (pour ne pas polluer le catalogue global).
+- Table candidate : `custom_questions (id, room_id, author_player_id, text, type, position, created_at)` — à modéliser proprement lors de l'implémentation.
+- Synchronisation en temps réel via Supabase Realtime (comme `players` et `votes`).
+- Compatible avec le flow de jeu existant : au lancement, les questions custom alimentent `pickCandidates` à la place des questions de la table `questions`.
+
+### Contraintes techniques
+- i18n : les questions custom sont saisies par les joueurs dans leur langue — **pas de traduction automatique**. Le champ `text` est une string libre, pas un jsonb multilingue.
+- Aucun texte hardcodé dans l'UI (libellés boutons, placeholders, messages d'erreur → i18n).
+- Mobile-first, synchronisation temps réel.
+- Extensible pour de futurs modes communautaires ou partagés.
+
+---
+
+## ⚙️ Configuration des manches (premium) — ⚠️ NON IMPLÉMENTÉ, direction validée
+
+> Disponible pour tout hôte ayant acheté **Custom Theme ou tout autre pack premium**.
+
+### Concept
+
+Avant de lancer une session (thème standard **ou** Custom Theme), l'hôte peut choisir le nombre de manches.
+
+| Option | Label | Valeur |
+|---|---|---|
+| Fast life | 5 manches | 5 |
+| Standard *(défaut actuel)* | 7 manches | 7 |
+| Grind | 15 manches | 15 |
+| Personnalisé | Saisie libre | N |
+
+### Contrainte de refactoring obligatoire
+
+`MAX_ROUNDS = 7` dans `app/room/[code]/game/page.tsx` est actuellement une **constante hardcodée**. Elle doit devenir une **configuration de room stockée en base** :
+
+- Nouveau champ `max_rounds INTEGER DEFAULT 7` sur la table `rooms`.
+- Toute la logique de progression (`round >= MAX_ROUNDS`, conditions de fin) doit lire `room.max_rounds` au lieu de la constante.
+- Le moteur de jeu (`lib/game.ts`) reçoit `maxRounds` en paramètre — plus d'import de constante globale.
+- Interface lobby : slider ou sélecteur, hôte-only, visible avant le lancement ; valeur envoyée à l'insert/update de la room.
 
 ---
 
