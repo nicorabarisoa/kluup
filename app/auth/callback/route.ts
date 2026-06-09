@@ -2,14 +2,23 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function getPublicOrigin(request: NextRequest): string {
+  // Railway (and most reverse proxies) forward the original host via X-Forwarded-Host.
+  // request.nextUrl.origin reflects the internal address (localhost:8080), not the public URL.
+  const fwdHost = request.headers.get('x-forwarded-host')
+  const fwdProto = request.headers.get('x-forwarded-proto') ?? 'https'
+  if (fwdHost) return `${fwdProto.split(',')[0].trim()}://${fwdHost.split(',')[0].trim()}`
+  return request.nextUrl.origin
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
+  const origin = getPublicOrigin(request)
 
   // Per D-02: no code → not a real OAuth callback → silent redirect to home.
-  // Use request.nextUrl.origin (respects X-Forwarded-Host from Railway proxy).
   if (!code) {
-    return NextResponse.redirect(new URL('/', request.nextUrl.origin))
+    return NextResponse.redirect(new URL('/', origin))
   }
 
   const cookieStore = await cookies() // MUST be awaited in Next.js 15+/16
@@ -44,5 +53,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Redirect to home on both success and error (D-02: silent redirect, no error surface).
-  return NextResponse.redirect(new URL('/', request.nextUrl.origin))
+  return NextResponse.redirect(new URL('/', origin))
 }
