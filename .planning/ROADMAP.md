@@ -1,13 +1,14 @@
 # Roadmap
 
-**4 phases** | **13 requirements mapped** | All v1 + v2 requirements covered ✓
+**5 phases** | **13 requirements mapped** | All v1 + v2 requirements covered ✓
 
 ## Phases
 
 - [x] **Phase 1: Health Endpoint** - GET /api/health for load-balancer probes
-- [ ] **Phase 2: Auth Infrastructure + Schema** - Lay auth plumbing and DB schema before any user-facing auth ships
-- [ ] **Phase 3: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows
-- [ ] **Phase 4: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page
+- [x] **Phase 2: Auth Infrastructure + Schema** - Lay auth plumbing and DB schema before any user-facing auth ships
+- [ ] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships
+- [ ] **Phase 4: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows
+- [ ] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page
 
 ---
 
@@ -36,9 +37,26 @@
 **Plans:** 3 plans (02-01 complete, 02-02 and 02-03 pending)
 **UI hint**: no
 
-### Phase 3: Sign-in UX + Player Linking
-**Goal:** Any user (host or player) can optionally sign in with Google; signed-in identity flows into the player row for that session.
+### Phase 3: Playtest Quality Fixes
+**Goal:** Fix the core game bugs and UX issues found during playtest so the game is solid before auth ships.
 **Depends on:** Phase 2
+**Requirements:** (game quality — no auth requirements)
+**Success Criteria** (what must be TRUE):
+  1. Two players cannot join a room with the same pseudo — the second attempt is rejected with a clear message
+  2. Closing the browser tab or navigating away removes the player from the room within a short grace period; screen-lock on mobile does not trigger removal
+  3. A room with zero connected players is automatically deleted
+  4. A player rejoining a lobby after quitting gets a fresh join flow (new pseudo entry), not their old cached pseudo
+  5. A player who refreshes mid-round sees the correct remaining timer and all previously cast votes are counted
+  6. The quit button is accessible from the lobby (same as in-game)
+  7. Type C with 0 volunteers triggers the roulette designation flow, not a "responds out loud" message
+  8. A player joining mid-round does not distort the vote threshold or timer for the current question
+  9. Landing page says "recommended 3–10 players" instead of "3 to 10 players"
+**Plans:** TBD
+**UI hint**: no
+
+### Phase 4: Sign-in UX + Player Linking
+**Goal:** Any user (host or player) can optionally sign in with Google; signed-in identity flows into the player row for that session.
+**Depends on:** Phase 3
 **Requirements:** AUTH-01, AUTH-03, IDEN-02
 **Success Criteria** (what must be TRUE):
   1. A user on the landing page can tap "Sign in with Google", complete OAuth, and return to the app signed in — with no mandatory sign-in gate anywhere in the game flow
@@ -49,9 +67,9 @@
 **Plans:** TBD
 **UI hint**: yes
 
-### Phase 4: Stats Persistence + Profile
+### Phase 5: Stats Persistence + Profile
 **Goal:** Signed-in players accumulate a cross-session stats history they can view on their profile; anonymous players are nudged to sign in after a completed game.
-**Depends on:** Phase 3
+**Depends on:** Phase 4
 **Requirements:** STAT-01, STAT-02, STAT-03, PROF-01, PROF-02
 **Success Criteria** (what must be TRUE):
   1. After a signed-in player reaches the end screen, their session stats (designation count, confession reveals, volunteer count, group title) are saved automatically — and do not double-write if the player replays the same session
@@ -70,5 +88,6 @@
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
-| 3. Sign-in UX + Player Linking | 0/? | Not started | - |
-| 4. Stats Persistence + Profile | 0/? | Not started | - |
+| 3. Playtest Quality Fixes | 0/? | Not started | - |
+| 4. Sign-in UX + Player Linking | 0/? | Not started | - |
+| 5. Stats Persistence + Profile | 0/? | Not started | - |
