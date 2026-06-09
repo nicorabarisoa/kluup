@@ -33,7 +33,7 @@
   3. `GET /auth/callback` (Route Handler) exchanges a PKCE code and sets a session cookie without crashing for both authenticated and unauthenticated requests
   4. The `players` table has a nullable `user_id` column; existing anonymous player rows are unaffected
   5. The `user_session_stats` table exists with `UNIQUE(user_id, session_id)` and RLS scoped to `auth.uid() = user_id`; the open anon policies on `rooms`, `players`, and `votes` remain in place
-**Plans:** TBD
+**Plans:** 3 plans (02-01 complete, 02-02 and 02-03 pending)
 **UI hint**: no
 
 ### Phase 3: Sign-in UX + Player Linking
@@ -69,6 +69,6 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
-| 2. Auth Infrastructure + Schema | 0/? | Not started | - |
+| 2. Auth Infrastructure + Schema | 1/3 | In progress | - |
 | 3. Sign-in UX + Player Linking | 0/? | Not started | - |
 | 4. Stats Persistence + Profile | 0/? | Not started | - |

@@ -2,36 +2,42 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-current_phase: 2 (not started)
-status: Not started
-last_updated: "2026-06-07T10:46:45.933Z"
-last_activity: 2026-06-07 — Roadmap created for v2.0 milestone
+current_phase: 02
+status: executing
+last_updated: "2026-06-09T22:35:39Z"
+last_activity: 2026-06-09 -- Plan 02-01 complete (DB schema migration SQL authored)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 8
 ---
 
 # Project State
 
-**Last updated:** 2026-06-07
-**Current phase:** 2 (not started)
-**Overall status:** Roadmap created — ready for phase planning
+**Last updated:** 2026-06-09
+**Current phase:** 02
+**Overall status:** Executing — Plan 02-01 complete
 
 ## Phase Status
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Health Endpoint | ✓ Complete |
-| 2 | Auth Infrastructure + Schema | Not started |
+| 2 | Auth Infrastructure + Schema | In progress (1/3 plans done) |
 | 3 | Sign-in UX + Player Linking | Not started |
 | 4 | Stats Persistence + Profile | Not started |
 
 ## Active Work
 
-Next: Plan Phase 2 — Auth Infrastructure + Schema
+Next: Plan 02-02 — Server-side Supabase clients + OAuth callback route
+
+## Decisions
+
+- user_session_stats.session_id is uuid NOT NULL with no FK (sourced from game_state.session_uuid in plan 02-03)
+- No DELETE RLS policy on user_session_stats (anon and other users cannot delete rows)
+- user_session_stats NOT added to supabase_realtime publication (stats fetched via client query)
 
 ## Notes
 
@@ -43,7 +49,7 @@ Next: Plan Phase 2 — Auth Infrastructure + Schema
 
 ## Current Position
 
-Phase: 2 (Auth Infrastructure + Schema)
-Plan: —
-Status: Not started
-Last activity: 2026-06-07 — Roadmap created for v2.0 milestone
+Phase: 02 (auth-infrastructure-schema) — EXECUTING
+Plan: 2 of 3
+Status: Plan 02-01 complete. Ready for plan 02-02.
+Last activity: 2026-06-09 -- Plan 02-01 complete (DB schema migration SQL authored)
