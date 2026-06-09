@@ -59,12 +59,14 @@ Source: `app/globals.css`, `app/room/[code]/game/page.tsx`, `app/room/[code]/lob
 | Role | Font | Size | Weight | Line Height | CSS var |
 |------|------|------|--------|-------------|---------|
 | Body | DM Sans | 14px | 400 (regular) | 1.5 | `--font-body` |
-| Label / UI | DM Sans | 12px | 500 (medium) | 1.4 | `--font-body` |
+| Label / UI | DM Sans | 12px | 400 (regular) | 1.4 | `--font-body` |
 | Button | DM Sans | 16px | 700 (bold) | 1 | `--font-body` |
-| Heading | Bricolage Grotesque | 20–24px | 700–800 (extrabold) | 1.2 | `--font-display` |
-| Display / Logo | Bricolage Grotesque | 28–36px | 800 (extrabold) | 1 | `--font-display` |
+| Heading | Bricolage Grotesque | 20–24px ¹ | 700 (bold) | 1.2 | `--font-display` |
+| Display / Logo | Bricolage Grotesque | 28–36px ¹ | 700 (bold) | 1 | `--font-display` |
 
-Weights in use: **400** (body copy) + **700/800** (headings, buttons, labels). No other weights.
+¹ Each range is the responsive bounds of a single role (e.g. heading scales from 20px on mobile to 24px on desktop), not two independent sizes.
+
+Weights in use: **400** (body copy, labels) + **700** (headings, display, buttons). No other weights.
 
 New elements in this phase use body (DM Sans) at the same sizes already established — no new type styles introduced.
 
