@@ -141,6 +141,7 @@ export default function LobbyPage() {
 
     const candidates = await pickCandidates(selectedTheme, 1, [])
     const gs = makeInitialGameState(candidates)
+    gs.session_uuid = crypto.randomUUID() // fresh UUID per session; also on replay
 
     await supabase
       .from('rooms')
