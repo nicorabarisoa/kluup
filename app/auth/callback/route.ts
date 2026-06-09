@@ -7,8 +7,9 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
 
   // Per D-02: no code → not a real OAuth callback → silent redirect to home.
+  // Use request.nextUrl.origin (respects X-Forwarded-Host from Railway proxy).
   if (!code) {
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(new URL('/', request.nextUrl.origin))
   }
 
   const cookieStore = await cookies() // MUST be awaited in Next.js 15+/16
@@ -43,5 +44,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Redirect to home on both success and error (D-02: silent redirect, no error surface).
-  return NextResponse.redirect(new URL('/', request.url))
+  return NextResponse.redirect(new URL('/', request.nextUrl.origin))
 }
