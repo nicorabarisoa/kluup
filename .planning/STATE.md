@@ -5,33 +5,33 @@ milestone_name: milestone
 current_phase: 02
 status: executing
 last_updated: "2026-06-10T00:00:00Z"
-last_activity: 2026-06-10 -- Plan 02-02 complete (server-side auth plumbing: @supabase/ssr, middleware, PKCE callback)
+last_activity: 2026-06-10 -- Plan 02-03 complete (GameState session_uuid, makeInitialGameState init, startGame assignment)
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 2
-  percent: 17
+  completed_plans: 3
+  percent: 25
 ---
 
 # Project State
 
 **Last updated:** 2026-06-10
 **Current phase:** 02
-**Overall status:** Executing — Plan 02-02 complete
+**Overall status:** Executing — Plan 02-03 complete (Phase 2 all plans done)
 
 ## Phase Status
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Health Endpoint | ✓ Complete |
-| 2 | Auth Infrastructure + Schema | In progress (2/3 plans done) |
+| 2 | Auth Infrastructure + Schema | ✓ Complete (3/3 plans done) |
 | 3 | Sign-in UX + Player Linking | Not started |
 | 4 | Stats Persistence + Profile | Not started |
 
 ## Active Work
 
-Next: Plan 02-03 — GameState session_uuid + lib/types.ts + lib/game.ts + lobby startGame update
+Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 
 ## Decisions
 
@@ -42,6 +42,9 @@ Next: Plan 02-03 — GameState session_uuid + lib/types.ts + lib/game.ts + lobby
 - lib/supabase/index.ts NOT created: would shadow lib/supabase.ts and break existing imports
 - getUser() used instead of getSession(): authoritative Auth server validation
 - D-02 silent-redirect: callback always redirects to / — no OAuth error detail exposed to client
+- session_uuid initialized to '' in makeInitialGameState (not a UUID) — startGame() overwrites it; prevents stale ID on replay
+- session_uuid type is string (not string|null) — simplifies Phase 4 schema (uuid NOT NULL column)
+- crypto.randomUUID() used as browser built-in in use client lobby component — no import required
 
 ## Notes
 
@@ -53,7 +56,7 @@ Next: Plan 02-03 — GameState session_uuid + lib/types.ts + lib/game.ts + lobby
 
 ## Current Position
 
-Phase: 02 (auth-infrastructure-schema) — EXECUTING
-Plan: 3 of 3
-Status: Plan 02-02 complete. Ready for plan 02-03.
-Last activity: 2026-06-10 -- Plan 02-02 complete (server-side auth plumbing: @supabase/ssr, middleware, PKCE callback)
+Phase: 02 (auth-infrastructure-schema) — COMPLETE
+Plan: 3 of 3 (all done)
+Status: All Phase 2 plans complete. Phase 3 (Sign-in UX + Player Linking) is next.
+Last activity: 2026-06-10 -- Plan 02-03 complete (GameState session_uuid, makeInitialGameState init, startGame assignment)
