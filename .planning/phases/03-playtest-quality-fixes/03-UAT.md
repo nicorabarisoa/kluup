@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 03-playtest-quality-fixes
 source: [03-VERIFICATION.md]
 started: "2026-06-10T00:00:00Z"
@@ -60,44 +60,95 @@ pending: 0
 skipped: 0
 blocked: 0
 
+## Diagnosis Note — DEPLOYMENT GAP (affects interpretation of all gaps)
+
+The entire Phase-03 commit chain (~24 commits) is LOCAL-ONLY and was never pushed to `origin/main`. Railway deploys from `origin/main` (f9c8db5), which contains NONE of the Phase-03 fixes. The UAT was run against the live build → several "failures" are deployment artifacts, not code gaps. Each gap below is classified as REAL-LOCAL-GAP (broken in HEAD source too) vs DEPLOYMENT-ONLY (HEAD source is correct; needs push + redeploy).
+
 ## Gaps
 
 - truth: "A room with zero connected players is automatically deleted after the grace period (SC-3)"
-  status: failed
-  reason: "User reported: after both players left, the room is still joinable after >15s, the host role is not transferred, and the player is not removed from the roster. Symptom suggests the presence prune / last-player room-deletion (elected-pruner client in lib/usePresence.ts) does not fire when players leave — possibly because no surviving client remains to run the prune callback, and/or the tab-close (beforeunload) path does not clean up."
+  status: diagnosed
+  classification: real-local-gap (architectural)
+  reason: "After both players left, room still joinable after >15s, host not transferred, player not removed."
+  root_cause: "Tab-close cleanup is survivor-dependent. The prune+room-delete runs in a setTimeout(GRACE_MS) scheduled by ANOTHER connected client on a presence 'leave' event (key===myId returns early, so a client never self-prunes). When ALL clients close their tabs (the SC-3 scenario), no JS runtime survives to run any prune → rows, host transfer, and room delete never happen. There is NO beforeunload/pagehide/visibilitychange handler anywhere (tab close = zero DB writes). The only server reaper, cleanup_dead_rooms(), uses a 30-min threshold and is invoked only opportunistically on room creation (pg_cron commented out). SC-3's '>15s' tab-close guarantee is NOT achievable client-side."
   severity: major
   test: 3
-  artifacts: []
-  missing: []
+  artifacts:
+    - path: "lib/usePresence.ts"
+      issue: "prune/room-delete is survivor-dependent; cannot fire for the last departing client; no self-prune; unmount teardown does no DB delete"
+    - path: "supabase/lifecycle.sql"
+      issue: "only reaper is 30-min threshold; pg_cron not scheduled"
+    - path: "app/page.tsx"
+      issue: "cleanup_dead_rooms() called only on room creation"
+  missing:
+    - "Server-side empty-room sweep on a SHORT interval (pg_cron ~every 1 min) with a short idle threshold (~30-60s) — accept ~sweep-interval latency"
+    - "Optional best-effort pagehide/visibilitychange handler (navigator.sendBeacon / supabase delete) to remove the player row on close (speeds common case, not a correctness guarantee)"
+    - "Relax SC-3 acceptance from '>15s' to the sweep interval"
+  debug_session: .planning/debug/empty-room-not-deleted.md
 
 - truth: "After quitting from the lobby, returning to /join?code=XXXX pre-fills the old pseudo (editable, explicit submit still required) (SC-4)"
-  status: failed
-  reason: "User reported: the pseudo field was empty (no pre-fill at all) when returning to /join after quitting from the lobby. Root cause likely: onQuit calls clearPlayerId() and deletes the player row, so the storedPseudo prefetch (which queries players.pseudo by the stored player id) has no id to look up — nothing to pre-fill. The pre-fill needs to persist the last-used pseudo independently of the player id/row (e.g. a separate localStorage key not cleared on quit)."
+  status: diagnosed
+  classification: real-local-gap
+  reason: "The pseudo field was empty (no pre-fill at all) when returning to /join after quitting."
+  root_cause: "The /join pre-fill is sourced ENTIRELY from the stored player id: getPlayerId(code) → if null return → else query players.pseudo by id. onQuit (lobby) calls clearPlayerId(code) AND deletes the player row before navigating. So on return, getPlayerId is null, the effect early-returns, field stays empty. Deterministic (not a race). The pseudo text is never persisted client-side independently — it lives only in players.pseudo reachable solely via the id that quit clears."
   severity: major
   test: 4
-  artifacts: []
-  missing: []
+  artifacts:
+    - path: "app/join/page.tsx"
+      issue: "pre-fill effect (lines ~19-33) depends solely on getPlayerId + row lookup; no id/row-independent fallback"
+    - path: "app/room/[code]/lobby/page.tsx"
+      issue: "onQuit (124-142) clears the id and deletes the row — wipes everything the pre-fill relies on"
+    - path: "lib/utils.ts"
+      issue: "no independent last-pseudo persistence helper"
+  missing:
+    - "Persist last-used pseudo independently (e.g. localStorage key kluup_pseudo_<CODE>), written on successful join alongside setPlayerId"
+    - "Read that key as a fallback in the /join prefetch when getPlayerId is null / row lookup empty"
+    - "Ensure clearPlayerId / onQuit do NOT clear the remembered-pseudo key (keep input editable, explicit submit)"
+  debug_session: .planning/debug/rejoin-pseudo-prefill-empty.md
 
 - truth: "After a mid-round refresh, the vote timer shows the remaining time (~30 − elapsed), not a fresh 30s (SC-5)"
-  status: failed
-  reason: "User reported: on refresh the timer resets to 30s — no resync. round_started_at-based initialSecs derivation is not taking effect. Likely round_started_at is empty/not written for the active phase (NaN guard falls back to 30), or VoteTimer is not consuming the derived initialSecs at the relevant call site. Needs root-cause diagnosis across startGame/onNextRound/resolveVotes (where round_started_at is snapshotted) and the VoteTimer initialSecs wiring."
+  status: diagnosed
+  classification: deployment-only (HEAD source is CORRECT)
+  reason: "On refresh the timer reset to 30s."
+  root_cause: "The refresh-safe VoteTimer logic is CORRECT in HEAD source — round_started_at is written by lobby startGame, onNextRound, and resolveVotes('question_selection'); all four VoteTimer call sites pass initialSecs = max(0, 30 - elapsed). The failure is the deployment gap: origin/main (deployed) has 0 occurrences of initialSecs / round_started_at, so prod runs the OLD VoteTimer (useState(30)) and resets on refresh. Local next build of HEAD passes by construction."
   severity: major
   test: 5
-  artifacts: []
-  missing: []
+  artifacts:
+    - path: "app/room/[code]/game/page.tsx"
+      issue: "HEAD: correct (no fix needed). Deployed origin/main: lacks the feature entirely."
+  missing:
+    - "Push the Phase-03 branch and redeploy so prod contains the fix; re-test SC-5 against the redeployed build"
+    - "Optional: lazily stamp round_started_at when a timer-bearing phase is observed empty (anchors pre-Phase-3 in-flight game rows)"
+  debug_session: .planning/debug/timer-resets-on-refresh.md
 
 - truth: "The Type C choice phase (volunteer / send-to-bûcher) advances when all players have acted, without a misapplied 30s vote timer"
-  status: failed
-  reason: "Emergent UAT feedback (not in original success criteria): the Type C choice phase should not carry a vote timer. DESIGN DECISION (user, 2026-06-10): REMOVE the 30s timer from the Type C choice phase entirely. The round resolves as soon as every present player has acted (volunteered or designated). The host's manual 'Passer sans attendre' force-button remains the only escape for AFK players (no automatic timer expiry on this phase). Implementation: do not render VoteTimer on the choice phase; ensure resolution triggers on actions == frozen player count; keep host force-path."
+  status: diagnosed
+  classification: real-local-gap (design change)
+  reason: "DESIGN DECISION (user, 2026-06-10): the Type C choice phase must have NO vote timer; it resolves when every present player has acted; host 'Passer' button is the only AFK fallback."
+  root_cause: "ChoiceScreen unconditionally renders a 30s VoteTimer in its footer (game/page.tsx:908-912); on expiry the elected advancer fires onForce=resolveTypeCChoice (auto-skip), contradicting the decision."
   severity: major
   test: 5b
-  artifacts: []
-  missing: []
+  artifacts:
+    - path: "app/room/[code]/game/page.tsx"
+      issue: "ChoiceScreen renders VoteTimer (IIFE at 908-912); isAdvancer prop becomes unused once removed"
+  missing:
+    - "Delete the VoteTimer IIFE at game/page.tsx:908-912 (leave VoteProgress 907 and HostSkipBtn 913)"
+    - "Resolution already works: submitChoice triggers resolveTypeCChoice at actions==frozen count (timer-independent) — no change needed"
+    - "Drop the now-unused isAdvancer prop from ChoiceScreen (cosmetic); verify host can still force-skip after acting"
+  debug_session: .planning/debug/typec-choice-timer-and-threshold.md
 
 - truth: "A player joining mid-round does not change the vote threshold for the current question (stays at the round-start count) (SC-8)"
-  status: failed
-  reason: "User reported: during the Type C choice phase, the count jumps from 0/3 to 0/4 when a 4th player joins — the threshold is NOT frozen. The vote_round_player_count snapshot is either not set on entry to the choice phase, or the UI denominator (the X/N display) uses live players.length instead of the snapshot. Matches code-review WR-02 (mid-round joiner / half-snapshot). Diagnose where the choice phase sets/reads vote_round_player_count and where the count denominator is rendered."
+  status: diagnosed
+  classification: real-local-gap (WR-02 half-snapshot)
+  reason: "During the Type C choice phase the count jumps 0/3 → 0/4 when a 4th player joins."
+  root_cause: "Half-implemented freeze. Entry DOES set vote_round_player_count (resolveVotes question_selection, game/page.tsx:1734) and the actual resolve threshold uses the snapshot (submitChoice:1794, shrink re-eval:1912 — round still resolves at 3). BUT the X/N DISPLAY uses LIVE players.length: ChoiceScreen passes total={players.length} to VoteProgress (game/page.tsx:907), so a 4th joiner renders 0/4. The host skip-button gate (913) also uses live players.length."
   severity: major
   test: 6
-  artifacts: []
-  missing: []
+  artifacts:
+    - path: "app/room/[code]/game/page.tsx"
+      issue: "line 907 total={players.length} (display denominator); line 913 host-skip gate voteCount < players.length — both ignore the snapshot"
+  missing:
+    - "game/page.tsx:907 → total={gs.vote_round_player_count || players.length}"
+    - "game/page.tsx:913 gate → voteCount < (gs.vote_round_player_count || players.length)"
+    - "Keep the || players.length fallback for pre-Phase-3 in-flight games"
+  debug_session: .planning/debug/typec-choice-timer-and-threshold.md
