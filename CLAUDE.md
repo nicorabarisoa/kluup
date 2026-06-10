@@ -141,6 +141,7 @@ stats perso détaillées (diversité des votes) · thèmes premium / paywall · 
 - **Custom Theme** — mode où les joueurs créent eux-mêmes les questions avant la partie (cf section dédiée ci-dessous).
 - **Configuration des manches** — nombre de manches paramétrable (5/7/15/custom) ; `MAX_ROUNDS` doit devenir une config de room en base, plus une constante hardcodée.
 - **Profil social & archétypes** — tags sur les questions → scores par trait → archétype personnel en fin de partie (cf section dédiée ci-dessous et `docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md`).
+- **Duo awards** — 4 awards nommés pour les paires les plus marquantes de la soirée (Magnétisme Suspicieux, Même longueur d'onde, Les Ennemis Jurés, Les Complices) ; carte de partage 2 faces (groupe / perso) (cf `docs/superpowers/specs/2026-06-10-duo-awards-design.md`).
 
 ---
 
