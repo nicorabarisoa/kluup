@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/superpowers/specs/2026-06-10-duo-awards-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Design — Système de relations & duo awards",
+  "summary": "Technical specification for calculating and displaying end-of-session duo awards from vote data, including a 2-face share card.",
+  "scope": ["duo awards", "share card", "votes table", "i18n", "client-side algorithm", "end screen"],
+  "cross_refs": ["lib/i18n.ts", "lib/supabase.ts", "docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

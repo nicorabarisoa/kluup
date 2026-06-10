@@ -89,6 +89,34 @@ Plans:
 
 ---
 
+## Future Milestone: v3.0 Superpowers
+
+> Not part of v2.0. These phases are planned once v2.0 is shipped.
+> Sequencing validated 2026-06-10 via spec ingest.
+
+### Phase A: Social Profile & Archetypes + Duo Awards
+**Goal:** Assign social archetypes to players based on in-game behaviour tags, and compute duo awards for the most notable pairs — both displayed on a new 2-faced share card.
+**Depends on:** v2.0 complete
+**Requirements:** REQ-AR-01 through REQ-AR-06, REQ-DA-01 through REQ-DA-05
+**Key constraints:** Archetypes and Duo Awards share Face 2 of the share card — must ship together. modern-screenshot for both faces (locked decision). REQ-AR-07 (cross-session tag_scores) deferred to Phase 5.
+**DB migrations needed:**
+  - `ALTER TABLE questions ADD COLUMN tags jsonb DEFAULT '[]'::jsonb`
+  - Question curation (all existing questions tagged)
+
+### Phase B: Contextual Questions
+**Goal:** Insert adaptive follow-up questions between rounds, triggered by in-game events with increasing probability.
+**Depends on:** Phase A (contextual_questions table, no archetype dependency)
+**Requirements:** REQ-CQ-01 through REQ-CQ-06
+**DB migrations needed:**
+  - `CREATE TABLE contextual_questions (id uuid, parent_question_id uuid FK → questions ON DELETE CASCADE, template jsonb)`
+
+### Phase C: Power Cards (Target & Reveal)
+**Goal:** Assign secret power cards to volunteers via weighted draw; usable during Type B roulette reveal for dramatic extra revelations.
+**Depends on:** Phase A (volunteer tracking already in place)
+**Requirements:** REQ-PC-01 through REQ-PC-08
+
+---
+
 ## Progress Table
 
 | Phase | Plans Complete | Status | Completed |

@@ -35,6 +35,50 @@
 - [ ] **PROF-01**: Signed-in user can view their stats history on a `/profile` page (designation count, confession reveals, volunteer count, sessions played, group titles earned)
 - [ ] **PROF-02**: Anonymous users see a "sign in to save your stats" CTA on the end screen, shown after session stats are displayed
 
+## v3.0 Requirements (Superpowers / Future Milestone)
+
+> These requirements map to a future v3.0 milestone. They do NOT affect active v2.0 phases.
+
+### Social Profile & Archetypes
+
+- [ ] **REQ-AR-01**: `questions` table has a `tags jsonb DEFAULT '[]'::jsonb` column (migration: ALTER TABLE questions ADD COLUMN tags jsonb DEFAULT '[]'::jsonb)
+- [ ] **REQ-AR-02**: All existing questions are curated with appropriate tags before feature launch (0–3 tag objects per question: `{"tag": string, "points": number}`)
+- [ ] **REQ-AR-03**: In the ended phase, the client calculates the player's trait scores from their own votes and played question tags (single query, actor-rule per type A/B/C)
+- [ ] **REQ-AR-04**: Archetype determined from trait scores using simple (single trait > 50%) and hybrid (top 2 both > 25%, within 15%) threshold rules — 21 named + 1 fallback
+- [ ] **REQ-AR-05**: Archetype and top 3 traits displayed on the personal face of the share card (Bricolage Grotesque, progress bars, hidden if total = 0)
+- [ ] **REQ-AR-06**: i18n keys for all 22 archetype names and 6 trait names added to all four locale dictionaries (fr/en/es/de)
+- [ ] **REQ-AR-07** *(Phase 5 hook)*: `user_session_stats` gains a `tag_scores jsonb` column for cross-session archetype accumulation on `/profile`
+
+### Duo Awards
+
+- [ ] **REQ-DA-01**: At end of session, client computes 5 metrics per unique player pair from a single votes query (mutual_designations, vote_alignment, opposition, confession_overlap, co_volunteers)
+- [ ] **REQ-DA-02**: Four named duo awards assigned from metrics: Magnétisme Suspicieux, Même longueur d'onde, Les Ennemis Jurés, Les Complices — minimum score threshold 2, variety rule on ties
+- [ ] **REQ-DA-03**: Duo awards slide omitted from end screen if fewer than 2 awards qualify
+- [ ] **REQ-DA-04**: Share card becomes 2-faced with tap-to-toggle — Face 1: group title + duo awards; Face 2: personal stats + archetype data (depends on REQ-AR-*); `modern-screenshot` exports current face
+- [ ] **REQ-DA-05**: i18n keys for all 4 award names and section title added to all four locale dictionaries
+
+### Contextual Questions
+
+- [ ] **REQ-CQ-01**: `contextual_questions` DB table exists with columns (id uuid, parent_question_id uuid FK → questions ON DELETE CASCADE, template jsonb `{fr,en,es,de}`)
+- [ ] **REQ-CQ-02**: GameState includes `last_contextual_round: number | null` and `contextual_question: {template: string, target_player_id: string} | null`
+- [ ] **REQ-CQ-03**: Game engine triggers a contextual question between rounds with probability `round === 1 ? 0 : (round - 1) * 0.10` — at most one per round, silent skip if no matching sub-questions
+- [ ] **REQ-CQ-04**: Target player identified from most recent round result (A→designated_player_ids[0], B→roulette winner, C vol→volunteer_player_ids[0], C roulette→designated_player_id); silent skip if player left
+- [ ] **REQ-CQ-05**: New `contextual_question` GamePhase between reveal and next voting_question — all players see resolved template + target pseudo; host-only "Continue" button
+- [ ] **REQ-CQ-06**: i18n keys `contextual_header` and `contextual_continue` added to all four locale dictionaries
+
+### Power Cards (Target & Reveal)
+
+- [ ] **REQ-PC-01**: GameState includes `power_cards: {target: string|null, reveal: string|null}` and `used_cards: {target: string[], reveal: string[]}` (initialized in makeInitialGameState)
+- [ ] **REQ-PC-02**: End of each round: weighted attribution roll assigns power cards to eligible volunteers (weight = volunteering count, elected host executes, broadcast phase_changed)
+- [ ] **REQ-PC-03**: Cards visible/usable only during `round_b2_roulette`, in a 5-second window after reveal — host "Next round" blocked during window; only card holders see "Use my card"
+- [ ] **REQ-PC-04**: Target card: holder selects a player; their confession answer (yes/no) revealed publicly; card consumed
+- [ ] **REQ-PC-05**: Reveal card: second revelation from unrevealed "oui" pool; animated roulette; `revealed_player_ids` updated; card consumed
+- [ ] **REQ-PC-06**: Two new GamePhases: `card_target_result` and `card_reveal_roulette`
+- [ ] **REQ-PC-07**: Cards auto-disabled on: sheep screen, no unrevealed voters remaining, card holder leaves room, game ends
+- [ ] **REQ-PC-08**: i18n keys for all power card UI strings added to all four locale dictionaries (card_target_name, card_reveal_name, card_use_button, card_target_announce, card_target_yes, card_target_no, card_reveal_announce)
+
+---
+
 ## Future Requirements
 
 ### Monetisation

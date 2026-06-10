@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/superpowers/specs/2026-06-10-power-cards-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Design — Cartes pouvoir (Target & Reveal)",
+  "summary": "Technical specification for two secret power cards (Target and Reveal) usable after Type B confession rounds, including attribution logic, game state schema, and anti-race conditions.",
+  "scope": ["power_cards", "game_state", "GamePhase", "Type B confession", "round_b2_roulette", "i18n"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

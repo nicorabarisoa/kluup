@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Design — Système de profil social & archétypes",
+  "summary": "Technical specification for a session-based social profile system that assigns archetype labels to players based on in-game behavior scores across 6 personality traits.",
+  "scope": ["questions", "tags", "archetypes", "player-profile", "share-card", "i18n", "user_session_stats"],
+  "cross_refs": ["lib/i18n.ts", "lib/game.ts", "supabase/schema.sql"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

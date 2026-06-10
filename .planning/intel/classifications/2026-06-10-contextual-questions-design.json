@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/superpowers/specs/2026-06-10-contextual-questions-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Design — Mémoire de session & questions contextuelles",
+  "summary": "Defines the data model, trigger logic, game phase, and UI for contextual follow-up questions inserted between rounds based on prior session events.",
+  "scope": ["contextual_questions", "GameState", "GamePhase", "Supabase schema", "i18n"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}
