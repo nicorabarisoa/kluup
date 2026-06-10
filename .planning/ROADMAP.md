@@ -6,7 +6,7 @@
 
 - [x] **Phase 1: Health Endpoint** - GET /api/health for load-balancer probes
 - [x] **Phase 2: Auth Infrastructure + Schema** - Lay auth plumbing and DB schema before any user-facing auth ships
-- [ ] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships (5/5 base plans built + 3 gap-closure plans from UAT)
+- [x] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships (8/8 plans complete, all SCs addressed)
 - [ ] **Phase 4: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows
 - [ ] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page
 
@@ -60,7 +60,7 @@
   8. A player joining mid-round does not distort the vote threshold or timer for the current question
   9. Landing page says "recommended 3–10 players" instead of "3 to 10 players"
 
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 Plans:
 
 - [x] 03-01-PLAN.md — GameState fields (round_started_at, vote_round_player_count)
@@ -70,7 +70,7 @@ Plans:
 - [x] 03-05-PLAN.md — join page (pseudo error + rejoin pre-populate) + lobby quit button
 - [x] 03-06-PLAN.md — [gap] game page: Type C choice frozen display denominator (SC-8) + remove choice-phase timer (5b) + SC-5 lazy-stamp (implemented)
 - [x] 03-07-PLAN.md — [gap] rejoin pseudo persistence (lib/utils.ts kluup_pseudo_<CODE> + join page fallback) (SC-4)
-- [ ] 03-08-PLAN.md — [gap] pg_cron server sweep for empty-room deletion (~1 min) + SC-3 acceptance relax (autonomous: false — DB checkpoint)
+- [x] 03-08-PLAN.md — [gap] pg_cron server sweep for empty-room deletion (~1 min) + SC-3 acceptance relax (pg_cron live, jobid 6, applied 2026-06-10)
 
 **UI hint**: no
 
@@ -148,6 +148,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
-| 3. Playtest Quality Fixes | 7/8 | In Progress|  |
+| 3. Playtest Quality Fixes | 8/8 | Complete   | 2026-06-10 |
 | 4. Sign-in UX + Player Linking | 0/? | Not started | - |
 | 5. Stats Persistence + Profile | 0/? | Not started | - |

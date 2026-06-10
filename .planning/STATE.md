@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: milestone
 current_phase: 03
 status: executing
-last_updated: "2026-06-10T21:39:33Z"
-last_activity: 2026-06-10 -- Phase 03 Plan 08 blocked at human-action checkpoint (apply lifecycle.sql pg_cron blocks to live Supabase DB)
+last_updated: "2026-06-10T22:00:00Z"
+last_activity: 2026-06-10 -- Phase 03 Plan 08 complete (pg_cron live, jobid 6, every-minute sweep, SC-3 done)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 10
-  percent: 20
+  completed_plans: 11
+  percent: 22
 ---
 
 # Project State
@@ -72,10 +72,10 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 
 ## Current Position
 
-Phase: 03 (playtest-quality-fixes) — EXECUTING
-Plan: 8 of 8 — blocked at human-action checkpoint (Task 3: apply lifecycle.sql to live DB)
-Status: Executing Phase 03 — Plan 08 blocked awaiting human DB action
-Last activity: 2026-06-10 -- Phase 03 Plan 08 Tasks 1+2 committed; Task 3 (pg_cron live DB apply) awaits human
+Phase: 03 (playtest-quality-fixes) — COMPLETE
+Plan: 8 of 8 — all plans complete
+Status: Phase 03 fully complete — all 8 plans done, all 9 success criteria addressed
+Last activity: 2026-06-10 -- Phase 03 Plan 08 complete: pg_cron live (jobid 6, every-minute sweep), SC-3 done; Phase 03 all plans complete
 
 ## Performance Metrics
 
@@ -87,4 +87,4 @@ Last activity: 2026-06-10 -- Phase 03 Plan 08 Tasks 1+2 committed; Task 3 (pg_cr
 | Phase 03 P05 | 2min | 4 tasks | 2 files |
 | Phase 03 P06 | 15min | 3 tasks | 1 file |
 | Phase 03 P07 | 7min | 2 tasks | 2 files |
-| Phase 03 P08 | 79s | 2/3 tasks (Task 3 = human checkpoint — apply pg_cron SQL to live DB) | 3 files |
+| Phase 03 P08 | ~2m + human DB apply | 3/3 tasks (pg_cron live, jobid 6, every-minute sweep, 60s threshold) | 3 files |
