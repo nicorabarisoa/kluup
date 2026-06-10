@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { makeInitialGameState, pickCandidates } from '@/lib/game'
 import { Player } from '@/lib/types'
-import { copyToClipboard, getPlayerId } from '@/lib/utils'
+import { copyToClipboard, getPlayerId, clearPlayerId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 import { useRoomPresence } from '@/lib/usePresence'
 
@@ -121,6 +121,26 @@ export default function LobbyPage() {
   const me = players.find((p) => p.id === myId)
   const isHost = me?.is_host ?? false
 
+  async function onQuit() {
+    if (!roomId || !myId) { router.push('/'); return }
+    const wasHost = isHost
+
+    clearPlayerId(code)
+    await supabase.from('players').delete().eq('id', myId)
+
+    const { data: rest } = await supabase.from('players').select().eq('room_id', roomId)
+    const remaining = (rest ?? []) as Player[]
+
+    if (remaining.length === 0) {
+      await supabase.from('rooms').delete().eq('id', roomId)
+    } else if (wasHost) {
+      const next = [...remaining].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))[0]
+      await supabase.from('players').update({ is_host: true }).eq('id', next.id)
+    }
+
+    router.push('/')
+  }
+
   const [copied, setCopied] = useState(false)
 
   async function copyLink() {
@@ -142,6 +162,8 @@ export default function LobbyPage() {
     const candidates = await pickCandidates(selectedTheme, 1, [])
     const gs = makeInitialGameState(candidates)
     gs.session_uuid = crypto.randomUUID() // fresh UUID per session; also on replay
+    gs.round_started_at = new Date().toISOString()
+    gs.vote_round_player_count = players.length
 
     await supabase
       .from('rooms')
@@ -161,7 +183,15 @@ export default function LobbyPage() {
     >
      {/* Centered column so the lobby doesn't stretch edge-to-edge on desktop. */}
      <div className="w-full max-w-md mx-auto flex flex-col flex-1 pb-8">
-      <div className="w-full flex justify-end px-5 pt-4">
+      <div className="w-full flex justify-between items-center px-5 pt-4">
+        <button
+          type="button"
+          onClick={onQuit}
+          className="text-xs font-medium px-3 h-8 rounded-xl"
+          style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: 'var(--font-body)' }}
+        >
+          {fr.game.quit}
+        </button>
         <LangSwitch />
       </div>
       {/* Header */}
