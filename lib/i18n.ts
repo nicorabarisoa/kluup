@@ -19,7 +19,7 @@ export const fr = {
     badge_free: "Gratuit",
     badge_nosignup: "Sans inscription",
     badge_browser: "Dans le navigateur",
-    players_hint: "3 à 10 joueurs · 10–20 min",
+    players_hint: "Conseillé entre 3 et 10 joueurs · 10–20 min",
     how_title: "Comment ça marche",
     how_1_title: "Crée une room",
     how_1_body: "Lance une partie et partage ton code.",
@@ -46,6 +46,8 @@ export const fr = {
     room_not_found: "Room introuvable — vérifie le code",
     join_error: "Impossible de rejoindre la room. Réessaie dans un instant.",
     back_home: "← Accueil",
+    pseudo_taken: "Ce pseudo est déjà pris, choisis-en un autre.",
+    pseudo_prefilled_hint: "Ton ancien pseudo est pré-rempli.",
   },
   lobby: {
     copy_link: "Copier le lien",
@@ -80,6 +82,7 @@ export const fr = {
     quit: "Quitter",
     quit_confirm: "Quitter la partie ? Les autres continueront sans toi.",
     waiting_host_advance: "L'hôte lance la manche suivante…",
+    player_joined: (pseudo: string) => `${pseudo} a rejoint la partie`,
   },
   voting_question: {
     title: "Choisissez votre question",
@@ -253,7 +256,7 @@ export const en: Dict = {
     badge_free: "Free",
     badge_nosignup: "No sign-up",
     badge_browser: "In your browser",
-    players_hint: "3 to 10 players · 10–20 min",
+    players_hint: "Recommended 3–10 players · 10–20 min",
     how_title: "How it works",
     how_1_title: "Create a room",
     how_1_body: "Start a game and share your code.",
@@ -280,6 +283,8 @@ export const en: Dict = {
     room_not_found: "Room not found — check the code",
     join_error: "Couldn't join the room. Try again in a moment.",
     back_home: "← Home",
+    pseudo_taken: "That name is already taken — pick another one.",
+    pseudo_prefilled_hint: "Your previous name has been pre-filled.",
   },
   lobby: {
     copy_link: "Copy link",
@@ -314,6 +319,7 @@ export const en: Dict = {
     quit: "Leave",
     quit_confirm: "Leave the game? The others will continue without you.",
     waiting_host_advance: "Waiting for the host…",
+    player_joined: (pseudo: string) => `${pseudo} joined the game`,
   },
   voting_question: {
     title: "Choose your question",
@@ -485,7 +491,7 @@ export const es: Dict = {
     badge_free: "Gratis",
     badge_nosignup: "Sin registro",
     badge_browser: "En el navegador",
-    players_hint: "3 a 10 jugadores · 10–20 min",
+    players_hint: "Recomendado entre 3 y 10 jugadores · 10–20 min",
     how_title: "Cómo funciona",
     how_1_title: "Crea una sala",
     how_1_body: "Inicia una partida y comparte tu código.",
@@ -512,6 +518,8 @@ export const es: Dict = {
     room_not_found: "Sala no encontrada — verifica el código",
     join_error: "No se pudo unir a la sala. Inténtalo de nuevo.",
     back_home: "← Inicio",
+    pseudo_taken: "Ese nombre ya está en uso, elige otro.",
+    pseudo_prefilled_hint: "Tu nombre anterior está rellenado.",
   },
   lobby: {
     copy_link: "Copiar enlace",
@@ -546,6 +554,7 @@ export const es: Dict = {
     quit: "Salir",
     quit_confirm: "¿Salir del juego? Los demás continuarán sin ti.",
     waiting_host_advance: "El anfitrión lanza la siguiente ronda…",
+    player_joined: (pseudo: string) => `${pseudo} se unió a la partida`,
   },
   voting_question: {
     title: "Elige tu pregunta",
@@ -717,7 +726,7 @@ export const de: Dict = {
     badge_free: "Kostenlos",
     badge_nosignup: "Ohne Anmeldung",
     badge_browser: "Im Browser",
-    players_hint: "3 bis 10 Spieler · 10–20 Min",
+    players_hint: "Empfohlen 3–10 Spieler · 10–20 Min",
     how_title: "So funktioniert's",
     how_1_title: "Raum erstellen",
     how_1_body: "Starte ein Spiel und teile deinen Code.",
@@ -744,6 +753,8 @@ export const de: Dict = {
     room_not_found: "Raum nicht gefunden — überprüfe den Code",
     join_error: "Beitreten fehlgeschlagen. Versuche es erneut.",
     back_home: "← Startseite",
+    pseudo_taken: "Dieser Name ist schon vergeben, wähle einen anderen.",
+    pseudo_prefilled_hint: "Dein vorheriger Name wurde vorausgefüllt.",
   },
   lobby: {
     copy_link: "Link kopieren",
@@ -778,6 +789,7 @@ export const de: Dict = {
     quit: "Verlassen",
     quit_confirm: "Spiel verlassen? Die anderen spielen ohne dich weiter.",
     waiting_host_advance: "Der Gastgeber startet die nächste Runde…",
+    player_joined: (pseudo: string) => `${pseudo} ist beigetreten`,
   },
   voting_question: {
     title: "Wähle deine Frage",
