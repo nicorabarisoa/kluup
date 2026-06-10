@@ -80,10 +80,11 @@ The entire Phase-03 commit chain (~24 commits) is LOCAL-ONLY and was never pushe
       issue: "only reaper is 30-min threshold; pg_cron not scheduled"
     - path: "app/page.tsx"
       issue: "cleanup_dead_rooms() called only on room creation"
+  decision: "APPROACH CHOSEN (user, 2026-06-10): pg_cron server sweep (~1 min). Enable pg_cron in Supabase, lower cleanup_dead_rooms() idle threshold from 30 min to ~60s, schedule it every minute. Relax SC-3 acceptance from '>15s' to '~1 min'. No pagehide beacon this pass."
   missing:
-    - "Server-side empty-room sweep on a SHORT interval (pg_cron ~every 1 min) with a short idle threshold (~30-60s) — accept ~sweep-interval latency"
-    - "Optional best-effort pagehide/visibilitychange handler (navigator.sendBeacon / supabase delete) to remove the player row on close (speeds common case, not a correctness guarantee)"
-    - "Relax SC-3 acceptance from '>15s' to the sweep interval"
+    - "Lower cleanup_dead_rooms() idle threshold to ~60s in supabase/lifecycle.sql"
+    - "Schedule cleanup_dead_rooms() via pg_cron every 1 min (uncomment/add the pg_cron block in lifecycle.sql) — requires applying to live Supabase (human checkpoint, like the 03-03 migration)"
+    - "Relax SC-3 acceptance criterion from '>15s' to '~1 min' in ROADMAP/UAT"
   debug_session: .planning/debug/empty-room-not-deleted.md
 
 - truth: "After quitting from the lobby, returning to /join?code=XXXX pre-fills the old pseudo (editable, explicit submit still required) (SC-4)"
