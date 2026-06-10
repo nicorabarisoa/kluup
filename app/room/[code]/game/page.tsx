@@ -904,13 +904,13 @@ function ChoiceScreen({
       header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
       footer={
         <>
-          <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
+          <VoteProgress count={voteCount} total={gs.vote_round_player_count || players.length} voted={hasVoted} />
           {(() => {
             const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
             const initialSecs = Math.max(0, 30 - elapsed)
             return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
           })()}
-          <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
+          <HostSkipBtn show={isHost && hasVoted && voteCount < (gs.vote_round_player_count || players.length)} onForce={onForce} />
         </>
       }
     >
