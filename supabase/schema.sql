@@ -174,6 +174,19 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE INDEX IF NOT EXISTS idx_rooms_last_activity ON rooms (last_activity);
 CREATE INDEX IF NOT EXISTS idx_players_room_id ON players (room_id);
 
+-- Phase 03 : unicité du pseudo par room (insensible à la casse).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE tablename = 'players'
+      AND indexname = 'idx_players_pseudo_lower'
+  ) THEN
+    CREATE UNIQUE INDEX idx_players_pseudo_lower
+      ON players (room_id, LOWER(pseudo));
+  END IF;
+END $$;
+
 -- === Vérif rapide (décommente pour diagnostiquer) =========================
 --   SELECT relname, relrowsecurity FROM pg_class WHERE relname IN ('rooms','players','votes','questions');
 --   SELECT * FROM pg_policies WHERE tablename IN ('rooms','players','votes','questions');
