@@ -65,7 +65,7 @@ Plans:
 
 - [x] 03-01-PLAN.md — GameState fields (round_started_at, vote_round_player_count)
 - [x] 03-02-PLAN.md — i18n keys + landing copy + presence grace/heartbeat constants
-- [~] 03-03-PLAN.md — pseudo-uniqueness DB migration (SQL written; PENDING human apply to live DB)
+- [x] 03-03-PLAN.md — pseudo-uniqueness DB migration (SQL written + applied to live DB 2026-06-10)
 - [x] 03-04-PLAN.md — game page: refresh-safe timer, snapshot threshold, join toast, Type C 0-vol guard
 - [x] 03-05-PLAN.md — join page (pseudo error + rejoin pre-populate) + lobby quit button
 

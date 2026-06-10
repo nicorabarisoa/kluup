@@ -40,20 +40,20 @@ patterns-established:
 requirements-completed: [SC-1]
 
 # Metrics
-duration: 1min
+duration: 2min
 completed: 2026-06-10
 ---
 
 # Phase 03 Plan 03: Pseudo Uniqueness Constraint Summary
 
-**Case-insensitive per-room pseudo uniqueness enforced via PostgreSQL expression UNIQUE INDEX `idx_players_pseudo_lower ON players (room_id, LOWER(pseudo))`, written as idempotent migration + mirrored into schema.sql — pending human application to live DB**
+**Case-insensitive per-room pseudo uniqueness enforced via PostgreSQL expression UNIQUE INDEX `idx_players_pseudo_lower ON players (room_id, LOWER(pseudo))`, written as idempotent migration + mirrored into schema.sql, and applied to the live Supabase database (project ref dmxjspnrrgcixzcthgwf).**
 
 ## Performance
 
-- **Duration:** ~1 min
+- **Duration:** ~2 min
 - **Started:** 2026-06-10T15:49:34Z
-- **Completed:** 2026-06-10T15:50:35Z (checkpoint pause)
-- **Tasks:** 2 of 3 complete (Task 3 is a blocking human-action checkpoint)
+- **Completed:** 2026-06-10 (Task 3 confirmed applied by user)
+- **Tasks:** 3 of 3 complete
 - **Files modified:** 2
 
 ## Accomplishments
@@ -61,12 +61,13 @@ completed: 2026-06-10
 - Created `supabase/migrations/003-pseudo-unique.sql` with idempotent DO block that creates `idx_players_pseudo_lower`
 - Mirrored the same idempotent block into `supabase/schema.sql` after the `idx_players_room_id` line
 - Both files verified via automated node check: contain `idx_players_pseudo_lower`, `LOWER(pseudo)`, `CREATE UNIQUE INDEX`, `IF NOT EXISTS`, no `ADD CONSTRAINT`
+- Migration applied to live Supabase database — user confirmed pre-flight duplicate check was clean and index is live
 
 ## Task Commits
 
-1. **Task 1: Write the 003-pseudo-unique.sql migration** - `42856dd` (feat)
-2. **Task 2: Mirror the index into the source-of-truth schema.sql** - `c88b222` (feat)
-3. **Task 3: Apply the migration to the live Supabase database** - PENDING HUMAN ACTION
+1. **Task 1: Write the 003-pseudo-unique.sql migration** — `42856dd` (feat)
+2. **Task 2: Mirror the index into the source-of-truth schema.sql** — `c88b222` (feat)
+3. **Task 3: Apply the migration to the live Supabase database** — completed by human on 2026-06-10 (no code commit — human-action gate satisfied)
 
 ## Files Created/Modified
 
@@ -98,26 +99,12 @@ completed: 2026-06-10
 
 ## Issues Encountered
 
-None beyond the comment-wording fix described above.
-
-## User Setup Required
-
-**Task 3 is a blocking human-action checkpoint.** See the checkpoint section below.
-
-The `idx_players_pseudo_lower` index must be applied to the live Supabase database (project ref `dmxjspnrrgcixzcthgwf`) before Plan 05 (join page 23505 error handling) can be verified end-to-end.
-
-**Steps:**
-1. Open Supabase Dashboard → SQL Editor (project `dmxjspnrrgcixzcthgwf`)
-2. Pre-flight: run `SELECT room_id, LOWER(pseudo) AS p, COUNT(*) FROM players GROUP BY room_id, LOWER(pseudo) HAVING COUNT(*) > 1;` — resolve any rows before proceeding
-3. Paste and run `supabase/migrations/003-pseudo-unique.sql`
-4. Confirm: `SELECT indexname FROM pg_indexes WHERE tablename = 'players' AND indexname = 'idx_players_pseudo_lower';` must return one row
-5. Smoke-test: join room with "Nico", try joining same room with "nico" — second join must be rejected
-6. Re-run migration to confirm idempotency (no error)
+None beyond the comment-wording fix described above. Task 3 was a blocking human-action gate; the user confirmed the migration was applied cleanly with a clean pre-flight duplicate check.
 
 ## Next Phase Readiness
 
-- SQL files are complete and committed; the index definition is correct
-- Task 3 (DB apply) is the only blocker — once applied, Plan 05 can wire the 23505 error UI
+- SQL files are complete and committed; the index definition is correct and live in the DB
+- Plan 05 (join page 23505 error handling) can wire the inline error UI against this index — SC-1 now holds end-to-end
 - No TypeScript changes in this plan; next build is unaffected
 
 ## Known Stubs
@@ -128,6 +115,12 @@ None — this plan contains only SQL files. No client-side stub values.
 
 None — no new network endpoints, auth paths, or file access patterns introduced. The index itself is the mitigation for T-03-01 (pseudo uniqueness tampering).
 
+## Self-Check: PASSED
+
+- `42856dd` — feat(03-03): add 003-pseudo-unique.sql migration — verified in git log
+- `c88b222` — feat(03-03): mirror idx_players_pseudo_lower into schema.sql — verified in git log
+- Task 3 (DB apply): human-action gate satisfied — user confirmed migration applied to live DB on 2026-06-10
+
 ---
 *Phase: 03-playtest-quality-fixes*
-*Completed: 2026-06-10 (partial — checkpoint at Task 3)*
+*Completed: 2026-06-10*
