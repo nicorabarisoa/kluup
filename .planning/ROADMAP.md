@@ -6,7 +6,7 @@
 
 - [x] **Phase 1: Health Endpoint** - GET /api/health for load-balancer probes
 - [x] **Phase 2: Auth Infrastructure + Schema** - Lay auth plumbing and DB schema before any user-facing auth ships
-- [x] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships (completed 2026-06-10)
+- [ ] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships (5/5 plans built — awaiting UAT)
 - [ ] **Phase 4: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows
 - [ ] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page
 
@@ -145,6 +145,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
-| 3. Playtest Quality Fixes | 5/5 | Complete   | 2026-06-10 |
+| 3. Playtest Quality Fixes | 5/5 | Awaiting UAT | - |
 | 4. Sign-in UX + Player Linking | 0/? | Not started | - |
 | 5. Stats Persistence + Profile | 0/? | Not started | - |
