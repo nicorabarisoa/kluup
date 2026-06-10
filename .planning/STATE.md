@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: milestone
 current_phase: 03
 status: executing
-last_updated: "2026-06-10T15:43:50.881Z"
+last_updated: "2026-06-10T15:48:18.894Z"
 last_activity: 2026-06-10 -- Phase 03 execution started
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 5
   percent: 20
 ---
 
@@ -45,6 +45,8 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - session_uuid initialized to '' in makeInitialGameState (not a UUID) — startGame() overwrites it; prevents stale ID on replay
 - session_uuid type is string (not string|null) — simplifies Phase 4 schema (uuid NOT NULL column)
 - crypto.randomUUID() used as browser built-in in use client lobby component — no import required
+- [Phase ?]: GRACE_MS reduced to 15s (D-04/D-06): covers phone screen-lock without keeping ghost players for 60s
+- [Phase ?]: landing.players_hint updated to Conseille/Recommended phrasing (D-15): string-only change in i18n dictionaries
 
 ## Notes
 
@@ -57,6 +59,12 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 ## Current Position
 
 Phase: 03 (playtest-quality-fixes) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-06-10 -- Phase 03 execution started
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 03 P02 | 7m | 3 tasks | 2 files |

@@ -60,11 +60,11 @@
   8. A player joining mid-round does not distort the vote threshold or timer for the current question
   9. Landing page says "recommended 3–10 players" instead of "3 to 10 players"
 
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 Plans:
 
 - [x] 03-01-PLAN.md — GameState fields (round_started_at, vote_round_player_count)
-- [ ] 03-02-PLAN.md — i18n keys + landing copy + presence grace/heartbeat constants
+- [x] 03-02-PLAN.md — i18n keys + landing copy + presence grace/heartbeat constants
 - [ ] 03-03-PLAN.md — pseudo-uniqueness DB migration (case-insensitive, per room)
 - [ ] 03-04-PLAN.md — game page: refresh-safe timer, snapshot threshold, join toast, Type C 0-vol guard
 - [ ] 03-05-PLAN.md — join page (pseudo error + rejoin pre-populate) + lobby quit button
@@ -145,6 +145,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
-| 3. Playtest Quality Fixes | 1/5 | In Progress|  |
+| 3. Playtest Quality Fixes | 2/5 | In Progress|  |
 | 4. Sign-in UX + Player Linking | 0/? | Not started | - |
 | 5. Stats Persistence + Profile | 0/? | Not started | - |
