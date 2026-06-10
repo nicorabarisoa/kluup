@@ -79,6 +79,13 @@ export type GameState = {
   // UUID v4 set by startGame() in the lobby on every game launch (including replay).
   // Used as session_id in user_session_stats (Phase 4). Never generated here — see makeInitialGameState.
   session_uuid: string
+  // ISO timestamp set at each voting phase start by the caller (startGame/onNextRound/resolveVotes);
+  // '' for non-voting phases. Clients derive remaining timer time from it after a refresh (D-07).
+  round_started_at: string
+  // Snapshot of players.length taken when the voting phase started; mid-round joiners are excluded
+  // from the current round's threshold (D-09). 0 means 'use players.length fallback' for in-flight
+  // games created before Phase 3.
+  vote_round_player_count: number
 }
 
 export type Room = {
