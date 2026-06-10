@@ -39,9 +39,16 @@ CREATE TRIGGER trg_rooms_bump_activity
   FOR EACH ROW EXECUTE FUNCTION rooms_bump_activity();
 
 -- === Block 3 ================================================================
--- Sweep: delete rooms with no connected client for 30+ min. players + votes
--- cascade away. Connected clients refresh last_activity via a presence heartbeat,
--- so only truly-empty rooms get reclaimed. Returns how many were removed.
+-- Sweep: delete rooms with no connected client for ~60 seconds. players + votes
+-- cascade away. Connected clients refresh last_activity via the presence
+-- heartbeat (HEARTBEAT_MS = 30s in lib/usePresence.ts), which keeps active
+-- rooms comfortably under the 60s threshold — so live rooms are never swept
+-- mid-session. Only truly-empty abandoned rooms age past the threshold.
+-- Returns how many rooms were removed.
+--
+-- NOTE: The ~60s threshold means SC-3 ("room auto-deleted") has an acceptance
+-- window of ~1 min (the pg_cron sweep interval), not >15s. This is the locked
+-- approach (user, 2026-06-10): server-side sweep instead of client-side beacon.
 CREATE OR REPLACE FUNCTION cleanup_dead_rooms()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER AS $fn$
 DECLARE
@@ -49,7 +56,7 @@ DECLARE
 BEGIN
   WITH dead AS (
     DELETE FROM rooms
-    WHERE COALESCE(last_activity, created_at) < now() - interval '30 minutes'
+    WHERE COALESCE(last_activity, created_at) < now() - interval '60 seconds'
     RETURNING id
   )
   SELECT count(*) INTO n FROM dead;
@@ -59,13 +66,29 @@ $fn$;
 
 -- === Block 4 ================================================================
 -- Expose the sweep so the app can trigger it. The app calls this RPC on room
--- creation (opportunistic cleanup) — no pg_cron / extension required.
+-- creation (opportunistic cleanup) — no pg_cron / extension required for the
+-- opportunistic call; the scheduled sweep below handles the guaranteed cleanup.
 GRANT EXECUTE ON FUNCTION cleanup_dead_rooms() TO anon, authenticated;
 
 -- Run the sweep right now (optional sanity check; returns rooms removed):
 --   SELECT cleanup_dead_rooms();
 
--- (Optional) Fully automatic cleanup instead of/with the app trigger.
--- Run these TWO lines ONE AT A TIME (the editor can't analyze multiple at once):
---   CREATE EXTENSION IF NOT EXISTS pg_cron;
---   SELECT cron.schedule('cleanup-dead-rooms', '0 * * * *', 'SELECT cleanup_dead_rooms()');
+-- === Block 5 ================================================================
+-- Fully automatic cleanup via pg_cron (REQUIRED for SC-3 guarantee).
+-- pg_cron is available on Supabase Postgres — enable it under Database → Extensions
+-- before running these statements. Run each statement ONE AT A TIME.
+--
+-- The cron expression '* * * * *' is every minute — the finest pg_cron
+-- granularity. This is why SC-3's guarantee is "~1 min", not ">15s".
+--
+-- This block is idempotent: the unschedule guard removes a stale job before
+-- re-creating it, so re-running this block does not create duplicate cron jobs.
+
+-- Step 1: Enable pg_cron (run alone):
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Step 2: Idempotent unschedule guard — safe no-op if job does not yet exist (run alone):
+SELECT cron.unschedule('cleanup-dead-rooms') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'cleanup-dead-rooms');
+
+-- Step 3: Schedule the every-minute sweep (run alone):
+SELECT cron.schedule('cleanup-dead-rooms', '* * * * *', 'SELECT cleanup_dead_rooms()');
