@@ -52,7 +52,7 @@
 
   1. Two players cannot join a room with the same pseudo — the second attempt is rejected with a clear message
   2. Closing the browser tab or navigating away removes the player from the room within a short grace period; screen-lock on mobile does not trigger removal
-  3. A room with zero connected players is automatically deleted
+  3. A room with zero connected players is automatically deleted by the server within ~1 min (pg_cron sweep interval)
   4. A player rejoining a lobby after quitting gets a fresh join flow (new pseudo entry), not their old cached pseudo
   5. A player who refreshes mid-round sees the correct remaining timer and all previously cast votes are counted
   6. The quit button is accessible from the lobby (same as in-game)

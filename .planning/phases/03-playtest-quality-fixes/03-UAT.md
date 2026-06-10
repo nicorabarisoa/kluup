@@ -81,6 +81,7 @@ The entire Phase-03 commit chain (~24 commits) is LOCAL-ONLY and was never pushe
     - path: "app/page.tsx"
       issue: "cleanup_dead_rooms() called only on room creation"
   decision: "APPROACH CHOSEN (user, 2026-06-10): pg_cron server sweep (~1 min). Enable pg_cron in Supabase, lower cleanup_dead_rooms() idle threshold from 30 min to ~60s, schedule it every minute. Relax SC-3 acceptance from '>15s' to '~1 min'. No pagehide beacon this pass."
+  resolution: "SC-3 delivered via plan 03-08 (pg_cron sweep). Acceptance window relaxed from '>15s' to '~1 min (server sweep interval)'. supabase/lifecycle.sql updated: cleanup_dead_rooms() now uses interval '60 seconds'; pg_cron Block 5 schedules the sweep every minute (idempotent). No pagehide/beforeunload handler added (out of scope this pass). Requires human checkpoint: apply updated lifecycle.sql blocks to live Supabase DB and confirm cron job exists."
   missing:
     - "Lower cleanup_dead_rooms() idle threshold to ~60s in supabase/lifecycle.sql"
     - "Schedule cleanup_dead_rooms() via pg_cron every 1 min (uncomment/add the pg_cron block in lifecycle.sql) — requires applying to live Supabase (human checkpoint, like the 03-03 migration)"
