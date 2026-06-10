@@ -4,8 +4,8 @@ milestone: v2.0
 milestone_name: milestone
 current_phase: 03
 status: executing
-last_updated: "2026-06-10T21:36:27.602Z"
-last_activity: 2026-06-10 -- Phase 03 Plan 07 complete (SC-4 pseudo pre-fill after quit)
+last_updated: "2026-06-10T21:39:33Z"
+last_activity: 2026-06-10 -- Phase 03 Plan 08 blocked at human-action checkpoint (apply lifecycle.sql pg_cron blocks to live Supabase DB)
 progress:
   total_phases: 5
   completed_phases: 1
@@ -59,6 +59,8 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase 03 P06]: VoteTimer removed from Type C choice phase — HostSkipBtn is sole AFK fallback (5b locked decision 2026-06-10)
 - [Phase 03 P06]: SC-5 lazy-stamp implemented — advancer-elected one-shot effect stamps round_started_at for pre-Phase-3 in-flight rows
 - [Phase ?]: SC-4: kluup_pseudo_ key persists pseudo independently of clearPlayerId; pre-fill fallback in /join reads it when pid is null (post-quit)
+- [Phase 03 P08]: cleanup_dead_rooms() threshold lowered from 30 minutes to 60 seconds; pg_cron scheduled every minute ('* * * * *') via idempotent block in lifecycle.sql
+- [Phase 03 P08]: SC-3 acceptance window relaxed from >15s to ~1 min (server sweep interval); no pagehide/beforeunload handler this pass (locked decision 2026-06-10)
 
 ## Notes
 
@@ -71,9 +73,9 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 ## Current Position
 
 Phase: 03 (playtest-quality-fixes) — EXECUTING
-Plan: 7 of 8 complete (Plan 08 next)
-Status: Executing Phase 03 — gap closure plans
-Last activity: 2026-06-10 -- Phase 03 Plan 07 complete (SC-4 pseudo pre-fill after quit)
+Plan: 8 of 8 — blocked at human-action checkpoint (Task 3: apply lifecycle.sql to live DB)
+Status: Executing Phase 03 — Plan 08 blocked awaiting human DB action
+Last activity: 2026-06-10 -- Phase 03 Plan 08 Tasks 1+2 committed; Task 3 (pg_cron live DB apply) awaits human
 
 ## Performance Metrics
 
@@ -85,3 +87,4 @@ Last activity: 2026-06-10 -- Phase 03 Plan 07 complete (SC-4 pseudo pre-fill aft
 | Phase 03 P05 | 2min | 4 tasks | 2 files |
 | Phase 03 P06 | 15min | 3 tasks | 1 file |
 | Phase 03 P07 | 7min | 2 tasks | 2 files |
+| Phase 03 P08 | 79s | 2/3 tasks (Task 3 = human checkpoint — apply pg_cron SQL to live DB) | 3 files |
