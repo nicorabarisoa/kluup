@@ -625,17 +625,19 @@ The current code already has this structure. The bug is that `VolunteersRevealSc
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Type C bug exact reproduction path**
    - What we know: D-11 states "the 'répond à voix haute' message appears on `round_c_volunteers_reveal` when `volunteer_player_ids.length === 0`"
    - What's unclear: Is the bug in `resolveTypeCChoice` (wrong phase transition) or in `VolunteersRevealScreen` (renders `volunteers_reveal_one` with `vols[0]` even when `vols` is empty)?
    - Recommendation: Inspect `VolunteersRevealScreen` — if `vols` is empty, `vols[0]` is `undefined` and `volunteers_reveal_one(undefined?.pseudo)` could render garbage. The fix may need both: correct transition logic AND a guard in the render screen.
+   - RESOLVED: Both transition guard and render guard fixed in Plan 04 Task 3 — `resolveTypeCChoice` transition fixed + `VolunteersRevealScreen` early-return guard added.
 
 2. **Heartbeat interval reduction**
    - What we know: CLAUDE.md lists heartbeat at 2min; CONTEXT.md says "consider dropping to 30s".
    - What's unclear: Whether reducing the heartbeat has a Supabase billing impact (more Realtime messages).
    - Recommendation: Reduce to 30s per CONTEXT.md suggestion. Supabase Realtime messages at this scale (small party game rooms) are negligible.
+   - RESOLVED: Reduced to 30s in Plan 02 Task 3 per CONTEXT.md; billing impact negligible at party-game scale.
 
 ---
 
