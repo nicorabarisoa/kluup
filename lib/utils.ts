@@ -51,6 +51,24 @@ export function clearPlayerId(code: string) {
 }
 
 /**
+ * Last-used pseudo, scoped per room and persisted independently of the player
+ * id/row. Written on a successful join so the /join page can pre-fill the
+ * pseudo even after an explicit quit (which clears the player id and deletes
+ * the player row, but intentionally leaves this key intact for SC-4).
+ */
+const LAST_PSEUDO_PREFIX = 'kluup_pseudo_'
+
+export function setLastPseudo(code: string, pseudo: string) {
+  if (typeof window === 'undefined') return
+  try { localStorage.setItem(LAST_PSEUDO_PREFIX + code.toUpperCase(), pseudo) } catch { /* ignore */ }
+}
+
+export function getLastPseudo(code: string): string | null {
+  if (typeof window === 'undefined') return null
+  try { return localStorage.getItem(LAST_PSEUDO_PREFIX + code.toUpperCase()) } catch { return null }
+}
+
+/**
  * Copy text to the clipboard. Uses the async Clipboard API when available
  * (secure context), otherwise falls back to a temporary textarea + execCommand.
  * Returns true on success.
