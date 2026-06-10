@@ -298,8 +298,8 @@ function WaitingDots() {
 
 // 30-second countdown shown during vote phases. Only the elected advancer
 // (smallest player id) fires onExpire to avoid race conditions between clients.
-function VoteTimer({ isAdvancer, onExpire }: { isAdvancer: boolean; onExpire: () => void }) {
-  const [secs, setSecs] = useState(30)
+function VoteTimer({ isAdvancer, onExpire, initialSecs = 30 }: { isAdvancer: boolean; onExpire: () => void; initialSecs?: number }) {
+  const [secs, setSecs] = useState(initialSecs)
   // Keep the latest props without re-subscribing the interval. Synced in an
   // effect (not during render) so the interval reads fresh values at expiry.
   const latest = useRef({ isAdvancer, onExpire })
@@ -478,7 +478,11 @@ function QuestionSelectionScreen({
         </div>
 
         <VoteProgress count={voteCount} total={playerCount} voted={hasVoted} />
-        <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} />
+        {(() => {
+          const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
+          const initialSecs = Math.max(0, 30 - elapsed)
+          return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
+        })()}
         <HostSkipBtn show={isHost && hasVoted && voteCount < playerCount} onForce={onForce} />
       </div>
     </GameScreen>
@@ -506,7 +510,11 @@ function DesignationVoteScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
-          <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} />
+          {(() => {
+            const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
+            const initialSecs = Math.max(0, 30 - elapsed)
+            return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
+          })()}
           <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
         </>
       }
@@ -707,7 +715,11 @@ function ConfessionVoteScreen({
           </p>
         )}
         <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
-        <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} />
+        {(() => {
+          const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
+          const initialSecs = Math.max(0, 30 - elapsed)
+          return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
+        })()}
         <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
       </div>
     </GameScreen>
@@ -893,7 +905,11 @@ function ChoiceScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
-          <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} />
+          {(() => {
+            const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
+            const initialSecs = Math.max(0, 30 - elapsed)
+            return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
+          })()}
           <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
         </>
       }
@@ -1661,7 +1677,8 @@ export default function GamePage() {
       type: 'broadcast', event: 'vote_count', payload: { count, round: gs!.round },
     })
 
-    if (count >= players.length) await resolveVotes(voteType)
+    const threshold = gs!.vote_round_player_count || players.length
+    if (count >= threshold) await resolveVotes(voteType)
   }
 
   async function resolveVotes(voteType: string) {
@@ -1675,6 +1692,7 @@ export default function GamePage() {
       await advance({
         ...gs, phase: nextPhase as GameState['phase'],
         current_question: chosen, played_question_ids: [...gs.played_question_ids, chosen.id],
+        round_started_at: new Date().toISOString(), vote_round_player_count: playersRef.current.length,
       })
       return
     }
@@ -1730,7 +1748,8 @@ export default function GamePage() {
       type: 'broadcast', event: 'vote_count', payload: { count, round: gs.round },
     })
 
-    if (count >= players.length) await resolveTypeCChoice()
+    const threshold = gs!.vote_round_player_count || players.length
+    if (count >= threshold) await resolveTypeCChoice()
   }
 
   async function resolveTypeCChoice() {
@@ -1792,6 +1811,7 @@ export default function GamePage() {
       designated_player_ids: [], designation_tie_all: false,
       revealed_player_ids: [], yes_percentage: null, volunteer_player_ids: [],
       b2_revealed: false, stats,
+      round_started_at: new Date().toISOString(), vote_round_player_count: playersRef.current.length,
     })
   }
 
@@ -1846,7 +1866,7 @@ export default function GamePage() {
       const count = isChoice
         ? await countChoiceVotes(room.id, gs.round)
         : await countVotes(room.id, gs.round, vt as string)
-      if (count >= players.length) {
+      if (count >= (gs.vote_round_player_count || players.length)) {
         if (isChoice) await resolveTypeCChoice()
         else await resolveVotes(vt as string)
       }
