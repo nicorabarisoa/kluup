@@ -4,8 +4,8 @@ milestone: v2.0
 milestone_name: milestone
 current_phase: 03
 status: executing
-last_updated: "2026-06-10T15:48:18.894Z"
-last_activity: 2026-06-10 -- Phase 03 execution started
+last_updated: "2026-06-10T15:50:35Z"
+last_activity: 2026-06-10 -- Phase 03 Plan 03 paused at checkpoint:human-verify (Task 3: apply migration to live DB)
 progress:
   total_phases: 5
   completed_phases: 1
@@ -47,6 +47,8 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - crypto.randomUUID() used as browser built-in in use client lobby component — no import required
 - [Phase ?]: GRACE_MS reduced to 15s (D-04/D-06): covers phone screen-lock without keeping ghost players for 60s
 - [Phase ?]: landing.players_hint updated to Conseille/Recommended phrasing (D-15): string-only change in i18n dictionaries
+- [Phase 03 P03]: idx_players_pseudo_lower uses CREATE UNIQUE INDEX not ADD CONSTRAINT — PostgreSQL rejects expression-based UNIQUE constraints via ALTER TABLE
+- [Phase 03 P03]: Index scoped to (room_id, LOWER(pseudo)) — uniqueness is per room and case-insensitive; error code 23505 on violation (caught in join page Plan 05)
 
 ## Notes
 
@@ -60,11 +62,12 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 
 Phase: 03 (playtest-quality-fixes) — EXECUTING
 Plan: 3 of 5
-Status: Ready to execute
-Last activity: 2026-06-10 -- Phase 03 execution started
+Status: Paused at checkpoint:human-verify (Task 3 — apply idx_players_pseudo_lower to live DB)
+Last activity: 2026-06-10 -- Phase 03 Plan 03 checkpoint:human-verify
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
 | Phase 03 P02 | 7m | 3 tasks | 2 files |
+| Phase 03 P03 | 1m | 2/3 tasks (paused at human-verify checkpoint) | 2 files |
