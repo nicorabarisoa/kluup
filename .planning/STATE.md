@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: milestone
 current_phase: 03
 status: executing
-last_updated: "2026-06-10T15:50:35Z"
-last_activity: 2026-06-10 -- Phase 03 Plan 03 paused at checkpoint:human-verify (Task 3: apply migration to live DB)
+last_updated: "2026-06-10T16:30:00Z"
+last_activity: 2026-06-10 -- Phase 03 Plan 04 complete (game page: VoteTimer initialSecs, snapshot threshold, toast, Type C guard)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
-  percent: 20
+  completed_plans: 6
+  percent: 25
 ---
 
 # Project State
@@ -49,6 +49,8 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase ?]: landing.players_hint updated to Conseille/Recommended phrasing (D-15): string-only change in i18n dictionaries
 - [Phase 03 P03]: idx_players_pseudo_lower uses CREATE UNIQUE INDEX not ADD CONSTRAINT — PostgreSQL rejects expression-based UNIQUE constraints via ALTER TABLE
 - [Phase 03 P03]: Index scoped to (room_id, LOWER(pseudo)) — uniqueness is per room and case-insensitive; error code 23505 on violation (caught in join page Plan 05)
+- [Phase 03 P04]: VoteTimer initialSecs derived from round_started_at elapsed time, clamped [0,30] with NaN guard for pre-Phase3 in-flight games
+- [Phase 03 P04]: Vote resolution threshold uses vote_round_player_count || players.length fallback; 0 (factory default) correctly triggers fallback to live players.length
 
 ## Notes
 
@@ -61,9 +63,9 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 ## Current Position
 
 Phase: 03 (playtest-quality-fixes) — EXECUTING
-Plan: 3 of 5
-Status: Paused at checkpoint:human-verify (Task 3 — apply idx_players_pseudo_lower to live DB)
-Last activity: 2026-06-10 -- Phase 03 Plan 03 checkpoint:human-verify
+Plan: 4 of 5 complete
+Status: Plan 04 complete; Plan 05 (join page UX) is next
+Last activity: 2026-06-10 -- Phase 03 Plan 04 complete
 
 ## Performance Metrics
 
@@ -71,3 +73,4 @@ Last activity: 2026-06-10 -- Phase 03 Plan 03 checkpoint:human-verify
 |-------|------|----------|-------|
 | Phase 03 P02 | 7m | 3 tasks | 2 files |
 | Phase 03 P03 | 1m | 2/3 tasks (paused at human-verify checkpoint) | 2 files |
+| Phase 03 P04 | 15m | 3 tasks | 1 file |
