@@ -979,6 +979,22 @@ function VolunteersRevealScreen({
     return () => clearTimeout(t)
   }, [])
 
+  // Defensive guard: resolveTypeCChoice never transitions here with 0 volunteers,
+  // but if it somehow does (e.g. a race or stale state), never render volunteers_reveal_*
+  // text and never dereference vols[0] — just show the question and the host footer.
+  if (vols.length === 0) {
+    return (
+      <GameScreen
+        header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
+        footer={<RoundEndFooter ready isHost={isHost} nextLabel={nextLabel} accent={C.c} textDark onNext={onNext} onEnd={onEnd} />}
+      >
+        <div className="w-full max-w-md flex flex-col items-center">
+          <QuestionCard text={q.question[locale]} accent={C.c} />
+        </div>
+      </GameScreen>
+    )
+  }
+
   return (
     <GameScreen
       header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
