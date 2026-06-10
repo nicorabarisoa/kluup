@@ -143,6 +143,7 @@ stats perso détaillées (diversité des votes) · thèmes premium / paywall · 
 - **Profil social & archétypes** — tags sur les questions → scores par trait → archétype personnel en fin de partie (cf section dédiée ci-dessous et `docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md`).
 - **Duo awards** — 4 awards nommés pour les paires les plus marquantes de la soirée (Magnétisme Suspicieux, Même longueur d'onde, Les Ennemis Jurés, Les Complices) ; carte de partage 2 faces (groupe / perso) (cf `docs/superpowers/specs/2026-06-10-duo-awards-design.md`).
 - **Questions contextuelles** — follow-up sur un événement de la partie (table `contextual_questions`, probabilité croissante par round, phase `contextual_question` entre deux manches, résolution hors-app) (cf `docs/superpowers/specs/2026-06-10-contextual-questions-design.md`).
+- **Cartes pouvoir Target & Reveal** — cartes secrètes attribuées par tirage pondéré aux volontaires, utilisables 5 s après révélation Type B, annonce publique dramatique ; stockées dans `game_state.power_cards` (cf `docs/superpowers/specs/2026-06-10-power-cards-design.md`).
 
 ---
 
