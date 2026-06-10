@@ -140,6 +140,46 @@ stats perso détaillées (diversité des votes) · thèmes premium / paywall · 
 **Prochains chantiers premium (non implémentés, direction validée) :**
 - **Custom Theme** — mode où les joueurs créent eux-mêmes les questions avant la partie (cf section dédiée ci-dessous).
 - **Configuration des manches** — nombre de manches paramétrable (5/7/15/custom) ; `MAX_ROUNDS` doit devenir une config de room en base, plus une constante hardcodée.
+- **Profil social & archétypes** — tags sur les questions → scores par trait → archétype personnel en fin de partie (cf section dédiée ci-dessous et `docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md`).
+
+---
+
+## 🎭 Profil social & archétypes — direction validée
+
+> Spec complète : `docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md`. Ce résumé sert de source de vérité rapide pour le développement.
+
+### Principe
+Chaque question possède un champ `tags jsonb` (ex. `[{"tag":"drôle","points":2}]`). Les comportements en jeu alimentent des scores par trait. En fin de partie, chaque joueur reçoit un archétype personnel affiché sur sa carte de partage.
+
+### Les 6 traits
+`drole` · `fiable` · `audacieux` · `empathique` · `mysterieux` · `romantique`
+
+### Attribution des points
+- **Type A** : le/les joueurs désignés reçoivent les points
+- **Type B** : le joueur ayant voté "oui" reçoit les points (lu depuis ses propres votes — anonymat préservé)
+- **Type C volontaires** : les volontaires reçoivent les points
+- **Type C roulette** : le joueur désigné reçoit les points
+- Les points peuvent être **négatifs** (un tag peut diminuer un trait)
+
+### Calcul (côté client, fin de partie)
+1. Fetch `votes WHERE player_id = myId` depuis Supabase
+2. Pour chaque question jouée : appliquer les tags si le joueur était "acteur"
+3. Floor à 0 par trait → calcul des % → détermination de l'archétype
+
+### Archétypes (21 total + fallback)
+**Simples (trait > 50 %)** : Le Farceur (drôle) · Le Confident (fiable) · Le Leader (audacieux) · Le Diplomate (empathique) · Le Mystérieux (mystérieux) · Le Romantique (romantique)
+
+**Hybrides (2 traits co-dominants, écart < 15 %, tous deux > 25 %)** :
+L'Agitateur (drôle+audacieux) · L'Âme de la fête (drôle+empathique) · Le Joker (drôle+mystérieux) · Le Clown Fidèle (drôle+fiable) · Le Séducteur Maladroit (drôle+romantique) · Le Pilier (fiable+empathique) · Le Capitaine (fiable+audacieux) · L'Amoureux Loyal (fiable+romantique) · Le Loup Solitaire (audacieux+mystérieux) · Le Séducteur (audacieux+romantique) · Le Protecteur (audacieux+empathique) · Le Rêveur (empathique+romantique) · L'Ombre Bienveillante (empathique+mystérieux) · L'Inaccessible (mystérieux+romantique) · Le Gardien (mystérieux+fiable)
+
+**Fallback** : Une simple personne
+
+### Affichage carte de partage
+Bloc ajouté sous les stats perso existantes : nom de l'archétype + top 3 traits avec barres de progression et %.
+
+### Livraison en 2 temps
+- **Étape 1 (prochaine)** : session uniquement — migration SQL `tags`, curation des questions, calcul client, carte de partage
+- **Étape 2 (Phase 5)** : cross-session — champ `tag_scores jsonb` dans `user_session_stats`, archétype cumulé sur `/profile`
 
 ---
 

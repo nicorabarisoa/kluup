@@ -83,6 +83,7 @@ Plans:
   3. A signed-in user visiting `/profile` sees their full stats history (cumulative and per-session) including all group titles earned
   4. An anonymous user who completes a game sees a "sign in to save your stats" CTA on the end screen, displayed after the session stats — with no CTA shown if the user is already signed in
   5. A long game (>1 hour) does not lose Realtime channel sync for authenticated users after JWT expiry
+  6. `user_session_stats` includes a `tag_scores jsonb` field (per-trait scores for that session) — accumulated into a global archetype on the profile page
 **Plans:** TBD
 **UI hint**: yes
 
