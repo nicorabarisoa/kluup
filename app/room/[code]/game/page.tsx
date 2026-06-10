@@ -1470,11 +1470,13 @@ export default function GamePage() {
   const [myId, setMyId] = useState<string | null>(null)
   const [hasVoted, setHasVoted] = useState(false)
   const [voteCount, setVoteCount] = useState(0)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const prevPhaseRef = useRef<string | null>(null)
   const roomRef = useRef<Room | null>(null)
   const playersRef = useRef<Player[]>([])
   const voteChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const id = getPlayerId(code)
@@ -1556,6 +1558,11 @@ export default function GamePage() {
           // Someone advanced the game — pull the fresh state from the DB.
           refetchRoom()
         })
+        .on('broadcast', { event: 'player_joined' }, ({ payload }) => {
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+          setToastMessage(fr.game.player_joined(payload.pseudo as string))
+          toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500)
+        })
         .subscribe()
 
       voteChannelRef.current = voteChannel
@@ -1577,6 +1584,14 @@ export default function GamePage() {
           if (prev.find((p) => p.id === payload.new.id)) return prev
           const next = [...prev, payload.new as Player]
           playersRef.current = next
+          // Broadcast join notification only when a game is active (not ended).
+          const currentGs = roomRef.current?.game_state
+          if (currentGs && currentGs.phase !== 'ended') {
+            voteChannelRef.current?.send({
+              type: 'broadcast', event: 'player_joined',
+              payload: { pseudo: (payload.new as Player).pseudo },
+            })
+          }
           return next
         })
       })
@@ -1913,6 +1928,20 @@ export default function GamePage() {
   return (
     <GameControlsCtx.Provider value={controls}>
       {screen}
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 50, background: C.surface, border: `1px solid ${C.border}`,
+            borderRadius: 24, padding: '8px 16px', maxWidth: 280,
+            color: '#fff', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font-body)',
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
     </GameControlsCtx.Provider>
   )
 }
