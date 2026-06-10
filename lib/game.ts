@@ -93,6 +93,8 @@ export function makeInitialGameState(candidates: Question[]): GameState {
     stats: emptyStats(),
     b2_revealed: false,
     session_uuid: '', // startGame() in lobby assigns a fresh UUID via the browser crypto API before writing to DB
+    round_started_at: '', // caller (startGame/onNextRound/resolveVotes) sets the real timestamp at phase start
+    vote_round_player_count: 0, // caller sets the real snapshot; 0 triggers the players.length fallback
   }
 }
 
