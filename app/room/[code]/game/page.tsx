@@ -1596,20 +1596,28 @@ export default function GamePage() {
         event: 'INSERT', schema: 'public', table: 'players',
       }, (payload) => {
         if (payload.new.room_id !== roomRef.current?.id) return
+        const joined = payload.new as Player
+        // Was this a genuinely new row? (Read the synced ref BEFORE the update.)
+        const isNewJoin = !playersRef.current.some((p) => p.id === joined.id)
         setPlayers((prev) => {
-          if (prev.find((p) => p.id === payload.new.id)) return prev
-          const next = [...prev, payload.new as Player]
+          if (prev.find((p) => p.id === joined.id)) return prev
+          const next = [...prev, joined]
           playersRef.current = next
-          // Broadcast join notification only when a game is active (not ended).
-          const currentGs = roomRef.current?.game_state
-          if (currentGs && currentGs.phase !== 'ended') {
-            voteChannelRef.current?.send({
-              type: 'broadcast', event: 'player_joined',
-              payload: { pseudo: (payload.new as Player).pseudo },
-            })
-          }
           return next
         })
+        // Broadcast the join toast OUTSIDE the state updater (updaters must stay
+        // pure — this handler runs on every connected client). Elect a single
+        // sender (smallest id present) so one join produces one broadcast, not K.
+        if (!isNewJoin) return
+        const currentGs = roomRef.current?.game_state
+        if (!currentGs || currentGs.phase === 'ended') return
+        const ids = playersRef.current.map((p) => p.id).sort()
+        if (ids[0] === getPlayerId(code)) {
+          voteChannelRef.current?.send({
+            type: 'broadcast', event: 'player_joined',
+            payload: { pseudo: joined.pseudo },
+          })
+        }
       })
       .on('postgres_changes', {
         event: 'DELETE', schema: 'public', table: 'players',
@@ -1744,7 +1752,11 @@ export default function GamePage() {
       // Confession is ALWAYS a roulette now (B1/B2 sub-modes removed): show the
       // group %, the wheel spins over everyone, and ONE "yes" is revealed.
       const yesVotes = votes.filter((v) => v.answer === true)
-      const pct = Math.round((yesVotes.length / players.length) * 100)
+      // Divide by the round's frozen participant count (same denominator as the
+      // vote threshold), not the live roster — a mid-round join or ghost prune
+      // would otherwise skew the % and could block the 100% sheep case.
+      const denom = gs.vote_round_player_count || players.length
+      const pct = denom > 0 ? Math.round((yesVotes.length / denom) * 100) : 0
       const yesIds = yesVotes.map((v) => v.player_id as string)
       // 100% yes → nobody singled out (sheep). 0 yes → secret kept. Else pick one.
       const winner = yesIds.length > 0 && pct < 100
