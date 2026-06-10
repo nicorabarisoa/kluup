@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getPlayerId, setPlayerId } from '@/lib/utils'
+import { getPlayerId, setPlayerId, getLastPseudo, setLastPseudo } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 
 function JoinForm() {
@@ -21,6 +21,19 @@ function JoinForm() {
     if (!c) return
     const upperCode = c.toUpperCase()
     setCode(upperCode)
+
+    // Baseline fallback: pre-fill from the id/row-independent pseudo key.
+    // This survives an explicit quit (clearPlayerId removes the pid key but
+    // leaves kluup_pseudo_<CODE> intact — SC-4).
+    const remembered = getLastPseudo(upperCode)
+    if (remembered) {
+      setStoredPseudo(remembered)
+      setPseudo(remembered)
+    }
+
+    // Authoritative override: if the player id is still present and the DB row
+    // still exists (reconnect path — browser closed without quitting), prefer
+    // the DB value over the remembered pseudo.
     const pid = getPlayerId(upperCode)
     if (!pid) return
     supabase.from('players').select('pseudo').eq('id', pid).maybeSingle()
@@ -93,6 +106,7 @@ function JoinForm() {
 
     if (!playerId) { setLoading(false); return }
     setPlayerId(room.code, playerId)
+    setLastPseudo(room.code, pseudo.trim())
 
     const dest = room.status === 'playing' ? `/room/${room.code}/game` : `/room/${room.code}/lobby`
     router.push(dest)
