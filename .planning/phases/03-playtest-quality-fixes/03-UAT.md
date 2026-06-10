@@ -88,7 +88,7 @@ blocked: 0
 
 - truth: "The Type C choice phase (volunteer / send-to-bûcher) advances when all players have acted, without a misapplied 30s vote timer"
   status: failed
-  reason: "Emergent UAT feedback (not in original success criteria): user says the Type C choice phase should not carry a vote timer the way the other voting phases do — the round should resolve once everyone has either volunteered or designated. Concern: with the timer, if not everyone acts, the round cannot advance. NEEDS A DESIGN DECISION: remove the timer on the choice phase, OR make timer expiry resolve the choice phase via the host/advancer force-path (as other phases do). Confirm intended behavior before implementing."
+  reason: "Emergent UAT feedback (not in original success criteria): the Type C choice phase should not carry a vote timer. DESIGN DECISION (user, 2026-06-10): REMOVE the 30s timer from the Type C choice phase entirely. The round resolves as soon as every present player has acted (volunteered or designated). The host's manual 'Passer sans attendre' force-button remains the only escape for AFK players (no automatic timer expiry on this phase). Implementation: do not render VoteTimer on the choice phase; ensure resolution triggers on actions == frozen player count; keep host force-path."
   severity: major
   test: 5b
   artifacts: []
