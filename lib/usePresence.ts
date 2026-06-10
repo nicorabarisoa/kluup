@@ -3,12 +3,12 @@
 import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
-// Wait this long after a disconnect before pruning a player — covers phone locks,
-// app backgrounding and brief network blips so we don't kick active players.
-const GRACE_MS = 60_000
+// 15s grace (D-04/D-06): covers a phone screen-lock + unlock within 15s without
+// pruning the player; a closed tab is pruned after 15s.
+const GRACE_MS = 15_000
 // The elected client refreshes the room's last_activity so the server sweep only
-// reclaims rooms that have NO connected clients.
-const HEARTBEAT_MS = 120_000
+// reclaims rooms that have NO connected clients. 30s keeps presence signal fresher.
+const HEARTBEAT_MS = 30_000
 
 /**
  * Realtime Presence for a room. Prunes "ghost" player rows when someone
@@ -47,7 +47,11 @@ export function useRoomPresence(roomId: string | null, myId: string | null) {
           pending.current.delete(key)
           if (channel.presenceState()[key]) return // reconnected within the grace period
           if (!isCleaner()) return                 // another client will handle it
-          try { await supabase.from('players').delete().eq('id', key) } catch { /* ignore */ }
+          try {
+            await supabase.from('players').delete().eq('id', key)
+            const { count } = await supabase.from('players').select('id', { count: 'exact', head: true }).eq('room_id', roomId)
+            if (count === 0) { await supabase.from('rooms').delete().eq('id', roomId) }
+          } catch { /* ignore */ }
         }, GRACE_MS)
         pending.current.set(key, t)
       })
