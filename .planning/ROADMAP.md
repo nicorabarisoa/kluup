@@ -6,7 +6,7 @@
 
 - [x] **Phase 1: Health Endpoint** - GET /api/health for load-balancer probes
 - [x] **Phase 2: Auth Infrastructure + Schema** - Lay auth plumbing and DB schema before any user-facing auth ships
-- [ ] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships
+- [x] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships (completed 2026-06-10)
 - [ ] **Phase 4: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows
 - [ ] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page
 
@@ -60,14 +60,14 @@
   8. A player joining mid-round does not distort the vote threshold or timer for the current question
   9. Landing page says "recommended 3–10 players" instead of "3 to 10 players"
 
-**Plans:** 4/5 plans executed (03-03 paused at DB apply checkpoint)
+**Plans:** 5/5 plans complete
 Plans:
 
 - [x] 03-01-PLAN.md — GameState fields (round_started_at, vote_round_player_count)
 - [x] 03-02-PLAN.md — i18n keys + landing copy + presence grace/heartbeat constants
 - [~] 03-03-PLAN.md — pseudo-uniqueness DB migration (SQL written; PENDING human apply to live DB)
 - [x] 03-04-PLAN.md — game page: refresh-safe timer, snapshot threshold, join toast, Type C 0-vol guard
-- [ ] 03-05-PLAN.md — join page (pseudo error + rejoin pre-populate) + lobby quit button
+- [x] 03-05-PLAN.md — join page (pseudo error + rejoin pre-populate) + lobby quit button
 
 **UI hint**: no
 
@@ -145,6 +145,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
-| 3. Playtest Quality Fixes | 4/5 (03-03 paused at checkpoint; 03-04 complete) | In Progress|  |
+| 3. Playtest Quality Fixes | 5/5 | Complete   | 2026-06-10 |
 | 4. Sign-in UX + Player Linking | 0/? | Not started | - |
 | 5. Stats Persistence + Profile | 0/? | Not started | - |

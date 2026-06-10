@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 current_phase: 03
-status: executing
-last_updated: "2026-06-10T16:30:00Z"
-last_activity: 2026-06-10 -- Phase 03 Plan 04 complete (game page: VoteTimer initialSecs, snapshot threshold, toast, Type C guard)
+status: completed
+last_updated: "2026-06-10T16:03:43.878Z"
+last_activity: 2026-06-10 -- Phase 03 Plan 04 complete
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 6
-  percent: 25
+  completed_plans: 8
+  percent: 40
 ---
 
 # Project State
@@ -51,6 +51,10 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase 03 P03]: Index scoped to (room_id, LOWER(pseudo)) — uniqueness is per room and case-insensitive; error code 23505 on violation (caught in join page Plan 05)
 - [Phase 03 P04]: VoteTimer initialSecs derived from round_started_at elapsed time, clamped [0,30] with NaN guard for pre-Phase3 in-flight games
 - [Phase 03 P04]: Vote resolution threshold uses vote_round_player_count || players.length fallback; 0 (factory default) correctly triggers fallback to live players.length
+- [Phase 03 P05]: inline pseudo-taken error uses pseudoError state + 23505 branch; reconnect path (getPlayerId + existing row reuse) unchanged
+- [Phase 03 P05]: storedPseudo pre-population via maybeSingle query on stored pid; hint hidden when user edits
+- [Phase 03 P05]: lobby onQuit — no window.confirm; mirrors game onQuit; clearPlayerId + delete player + promote oldest or delete room (SC-3)
+- [Phase 03 P05]: startGame sets gs.round_started_at and gs.vote_round_player_count before DB write (not in makeInitialGameState)
 
 ## Notes
 
@@ -62,10 +66,10 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 
 ## Current Position
 
-Phase: 03 (playtest-quality-fixes) — EXECUTING
-Plan: 4 of 5 complete
-Status: Plan 04 complete; Plan 05 (join page UX) is next
-Last activity: 2026-06-10 -- Phase 03 Plan 04 complete
+Phase: 03 (playtest-quality-fixes) — COMPLETE
+Plan: 5 of 5 complete
+Status: All 5 plans complete
+Last activity: 2026-06-10 -- Phase 03 Plan 05 complete (join inline error, rejoin pre-pop, lobby Quitter, startGame fields)
 
 ## Performance Metrics
 
@@ -74,3 +78,4 @@ Last activity: 2026-06-10 -- Phase 03 Plan 04 complete
 | Phase 03 P02 | 7m | 3 tasks | 2 files |
 | Phase 03 P03 | 1m | 2/3 tasks (paused at human-verify checkpoint) | 2 files |
 | Phase 03 P04 | 15m | 3 tasks | 1 file |
+| Phase 03 P05 | 2min | 4 tasks | 2 files |
