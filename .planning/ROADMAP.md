@@ -60,7 +60,7 @@
   8. A player joining mid-round does not distort the vote threshold or timer for the current question
   9. Landing page says "recommended 3–10 players" instead of "3 to 10 players"
 
-**Plans:** 5/5 base plans complete + 3 gap-closure plans (from UAT)
+**Plans:** 7/8 plans executed
 Plans:
 
 - [x] 03-01-PLAN.md — GameState fields (round_started_at, vote_round_player_count)
@@ -69,7 +69,7 @@ Plans:
 - [x] 03-04-PLAN.md — game page: refresh-safe timer, snapshot threshold, join toast, Type C 0-vol guard
 - [x] 03-05-PLAN.md — join page (pseudo error + rejoin pre-populate) + lobby quit button
 - [x] 03-06-PLAN.md — [gap] game page: Type C choice frozen display denominator (SC-8) + remove choice-phase timer (5b) + SC-5 lazy-stamp (implemented)
-- [ ] 03-07-PLAN.md — [gap] rejoin pseudo persistence (lib/utils.ts kluup_pseudo_<CODE> + join page fallback) (SC-4)
+- [x] 03-07-PLAN.md — [gap] rejoin pseudo persistence (lib/utils.ts kluup_pseudo_<CODE> + join page fallback) (SC-4)
 - [ ] 03-08-PLAN.md — [gap] pg_cron server sweep for empty-room deletion (~1 min) + SC-3 acceptance relax (autonomous: false — DB checkpoint)
 
 **UI hint**: no
@@ -148,6 +148,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
-| 3. Playtest Quality Fixes | 5/5 base + 1/3 gap | Gap closure | - |
+| 3. Playtest Quality Fixes | 7/8 | In Progress|  |
 | 4. Sign-in UX + Player Linking | 0/? | Not started | - |
 | 5. Stats Persistence + Profile | 0/? | Not started | - |

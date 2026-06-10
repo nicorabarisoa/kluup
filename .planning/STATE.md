@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: milestone
 current_phase: 03
 status: executing
-last_updated: "2026-06-10T21:31:25Z"
-last_activity: 2026-06-10 -- Phase 03 Plan 06 complete
+last_updated: "2026-06-10T21:36:27.602Z"
+last_activity: 2026-06-10 -- Phase 03 Plan 07 complete (SC-4 pseudo pre-fill after quit)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 10
   percent: 20
 ---
 
@@ -58,6 +58,7 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase 03 P06]: ChoiceScreen display denominator frozen to gs.vote_round_player_count || players.length (SC-8)
 - [Phase 03 P06]: VoteTimer removed from Type C choice phase — HostSkipBtn is sole AFK fallback (5b locked decision 2026-06-10)
 - [Phase 03 P06]: SC-5 lazy-stamp implemented — advancer-elected one-shot effect stamps round_started_at for pre-Phase-3 in-flight rows
+- [Phase ?]: SC-4: kluup_pseudo_ key persists pseudo independently of clearPlayerId; pre-fill fallback in /join reads it when pid is null (post-quit)
 
 ## Notes
 
@@ -70,9 +71,9 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 ## Current Position
 
 Phase: 03 (playtest-quality-fixes) — EXECUTING
-Plan: 6 of 8 complete (Plan 07 next)
+Plan: 7 of 8 complete (Plan 08 next)
 Status: Executing Phase 03 — gap closure plans
-Last activity: 2026-06-10 -- Phase 03 Plan 06 complete (SC-8, 5b, SC-5 lazy-stamp)
+Last activity: 2026-06-10 -- Phase 03 Plan 07 complete (SC-4 pseudo pre-fill after quit)
 
 ## Performance Metrics
 
@@ -83,3 +84,4 @@ Last activity: 2026-06-10 -- Phase 03 Plan 06 complete (SC-8, 5b, SC-5 lazy-stam
 | Phase 03 P04 | 15m | 3 tasks | 1 file |
 | Phase 03 P05 | 2min | 4 tasks | 2 files |
 | Phase 03 P06 | 15min | 3 tasks | 1 file |
+| Phase 03 P07 | 7min | 2 tasks | 2 files |
