@@ -14,11 +14,14 @@ files_reviewed_list:
   - supabase/migrations/003-pseudo-unique.sql
   - supabase/schema.sql
 findings:
-  critical: 1
-  warning: 6
+  critical: 0
+  warning: 5
   info: 4
-  total: 11
+  total: 9
 status: issues_found
+resolved:
+  - CR-01 (fixed in 4f077d8)
+  - WR-01 (fixed in 4f077d8)
 ---
 
 # Phase 3: Code Review Report
@@ -37,6 +40,8 @@ The headline defect is a realtime broadcast emitted as a side effect *inside* a 
 ## Critical Issues
 
 ### CR-01: `player_joined` broadcast is a side effect inside a `setState` updater and fans out to every client
+
+> ✅ **RESOLVED** (commit `4f077d8`): broadcast moved out of the `setPlayers` updater; single-sender election (smallest id present, via `getPlayerId(code)`) added.
 
 **File:** `app/room/[code]/game/page.tsx:1599-1612`
 **Issue:** The realtime broadcast `voteChannelRef.current?.send(...)` is executed *inside* the `setPlayers((prev) => { ... })` updater. Two distinct problems:
@@ -72,6 +77,8 @@ The headline defect is a realtime broadcast emitted as a side effect *inside* a 
 ## Warnings
 
 ### WR-01: Confession percentage divides by current roster, not the round snapshot
+
+> ✅ **RESOLVED** (commit `4f077d8`): `%` now divides by `gs.vote_round_player_count || players.length` with a zero-denominator guard.
 
 **File:** `app/room/[code]/game/page.tsx:1747`
 **Issue:** `const pct = Math.round((yesVotes.length / players.length) * 100)`. This phase introduced `vote_round_player_count` precisely so the round's participant set is frozen, and the resolve threshold (line 1782/1711/1900) now uses that snapshot. But the confession `%` still divides by the live `players.length`. If a player joins mid-confession (excluded from the threshold but counted in `players.length`) or a ghost is pruned between vote and resolve, the denominator no longer matches the population that actually voted — producing a wrong "X % se sont reconnus" figure, and potentially a `pct` that can never reach the 100 % sheep case.
