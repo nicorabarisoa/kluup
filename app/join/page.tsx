@@ -12,11 +12,24 @@ function JoinForm() {
   const [code, setCode] = useState('')
   const [pseudo, setPseudo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pseudoError, setPseudoError] = useState<string | null>(null)
+  const [storedPseudo, setStoredPseudo] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     const c = searchParams.get('code')
-    if (c) setCode(c.toUpperCase())
+    if (!c) return
+    const upperCode = c.toUpperCase()
+    setCode(upperCode)
+    const pid = getPlayerId(upperCode)
+    if (!pid) return
+    supabase.from('players').select('pseudo').eq('id', pid).maybeSingle()
+      .then(({ data }) => {
+        if (data?.pseudo) {
+          setStoredPseudo(data.pseudo)
+          setPseudo(data.pseudo)
+        }
+      })
   }, [searchParams])
 
   async function joinRoom() {
@@ -64,12 +77,17 @@ function JoinForm() {
         .select()
         .single()
 
-      if (playerError || !player) {
-        console.error('[joinRoom] player insert failed:', playerError)
-        alert(fr.join.join_error)
+      if (playerError) {
+        if (playerError.code === '23505') {
+          setPseudoError(fr.join.pseudo_taken)
+        } else {
+          console.error('[joinRoom] player insert failed:', playerError)
+          alert(fr.join.join_error)
+        }
         setLoading(false)
         return
       }
+      if (!player) { setLoading(false); return }
       playerId = player.id
     }
 
@@ -108,7 +126,7 @@ function JoinForm() {
             type="text"
             placeholder={fr.join.code_placeholder}
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onChange={(e) => { setCode(e.target.value.toUpperCase()); setPseudoError(null) }}
             maxLength={6}
             className="rounded-2xl px-4 py-4 text-white text-xl font-bold outline-none text-center tracking-widest"
             style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
@@ -117,11 +135,17 @@ function JoinForm() {
             type="text"
             placeholder={fr.common.pseudo_placeholder}
             value={pseudo}
-            onChange={(e) => setPseudo(e.target.value)}
+            onChange={(e) => { setPseudo(e.target.value); setPseudoError(null) }}
             maxLength={20}
             className="rounded-2xl px-4 py-4 text-white text-base outline-none"
             style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
           />
+          {storedPseudo && pseudo === storedPseudo && (
+            <p className="text-xs" style={{ color: '#888', fontFamily: 'var(--font-body)' }}>{fr.join.pseudo_prefilled_hint}</p>
+          )}
+          {pseudoError && (
+            <p className="text-xs text-center" style={{ color: 'rgba(255,60,111,0.85)', fontFamily: 'var(--font-body)' }}>{pseudoError}</p>
+          )}
           <button
             type="button"
             onClick={joinRoom}
