@@ -1669,6 +1669,29 @@ export default function GamePage() {
     prevPlayerLenRef.current = players.length
   }, [players.length])
 
+  // SC-5 robustness: lazily stamp round_started_at for pre-Phase-3 in-flight rows
+  // whose game_state was written before the round_started_at field was introduced.
+  // Only the elected advancer (smallest player id present) writes, at most once per mount.
+  const lazyStampedRef = useRef(false)
+  const gs_phase = room?.game_state?.phase
+  const gs_started_at = room?.game_state?.round_started_at
+  useEffect(() => {
+    if (lazyStampedRef.current) return
+    const r = roomRef.current
+    const gs = r?.game_state
+    if (!gs || !r) return
+    const timerPhases = ['voting_question', 'round_a_vote', 'round_b_vote', 'round_c_choice']
+    if (!timerPhases.includes(gs.phase)) return
+    if (gs.round_started_at) return // already stamped
+    // Only the advancer writes to avoid simultaneous writes.
+    const sortedIds = [...playersRef.current].map((p) => p.id).sort()
+    const advancerId = sortedIds[0] ?? null
+    if (!myId || advancerId !== myId) return
+    lazyStampedRef.current = true
+    updateRoomGameState(r.id, { ...gs, round_started_at: new Date().toISOString() })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gs_phase, gs_started_at])
+
   if (!room || !myId) return <LoadingScreen />
   const gs = room.game_state
   if (!gs) return <LoadingScreen />
