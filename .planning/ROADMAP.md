@@ -68,7 +68,7 @@ Plans:
 - [x] 03-03-PLAN.md — pseudo-uniqueness DB migration (SQL written + applied to live DB 2026-06-10)
 - [x] 03-04-PLAN.md — game page: refresh-safe timer, snapshot threshold, join toast, Type C 0-vol guard
 - [x] 03-05-PLAN.md — join page (pseudo error + rejoin pre-populate) + lobby quit button
-- [ ] 03-06-PLAN.md — [gap] game page: Type C choice frozen display denominator (SC-8) + remove choice-phase timer (5b) + optional SC-5 lazy-stamp
+- [x] 03-06-PLAN.md — [gap] game page: Type C choice frozen display denominator (SC-8) + remove choice-phase timer (5b) + SC-5 lazy-stamp (implemented)
 - [ ] 03-07-PLAN.md — [gap] rejoin pseudo persistence (lib/utils.ts kluup_pseudo_<CODE> + join page fallback) (SC-4)
 - [ ] 03-08-PLAN.md — [gap] pg_cron server sweep for empty-room deletion (~1 min) + SC-3 acceptance relax (autonomous: false — DB checkpoint)
 
@@ -148,6 +148,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
-| 3. Playtest Quality Fixes | 5/5 base + 0/3 gap | Gap closure | - |
+| 3. Playtest Quality Fixes | 5/5 base + 1/3 gap | Gap closure | - |
 | 4. Sign-in UX + Player Linking | 0/? | Not started | - |
 | 5. Stats Persistence + Profile | 0/? | Not started | - |

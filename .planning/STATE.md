@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 current_phase: 03
-status: awaiting_uat
-last_updated: "2026-06-10T16:03:43.878Z"
-last_activity: 2026-06-10 -- Phase 03 all 5 plans built; verification human_needed (6 UAT items)
+status: executing
+last_updated: "2026-06-10T21:31:25Z"
+last_activity: 2026-06-10 -- Phase 03 Plan 06 complete
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 8
+  completed_phases: 1
+  total_plans: 11
   completed_plans: 8
-  percent: 40
+  percent: 20
 ---
 
 # Project State
@@ -55,6 +55,9 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase 03 P05]: storedPseudo pre-population via maybeSingle query on stored pid; hint hidden when user edits
 - [Phase 03 P05]: lobby onQuit — no window.confirm; mirrors game onQuit; clearPlayerId + delete player + promote oldest or delete room (SC-3)
 - [Phase 03 P05]: startGame sets gs.round_started_at and gs.vote_round_player_count before DB write (not in makeInitialGameState)
+- [Phase 03 P06]: ChoiceScreen display denominator frozen to gs.vote_round_player_count || players.length (SC-8)
+- [Phase 03 P06]: VoteTimer removed from Type C choice phase — HostSkipBtn is sole AFK fallback (5b locked decision 2026-06-10)
+- [Phase 03 P06]: SC-5 lazy-stamp implemented — advancer-elected one-shot effect stamps round_started_at for pre-Phase-3 in-flight rows
 
 ## Notes
 
@@ -66,10 +69,10 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 
 ## Current Position
 
-Phase: 03 (playtest-quality-fixes) — COMPLETE
-Plan: 5 of 5 complete
-Status: All 5 plans complete
-Last activity: 2026-06-10 -- Phase 03 Plan 05 complete (join inline error, rejoin pre-pop, lobby Quitter, startGame fields)
+Phase: 03 (playtest-quality-fixes) — EXECUTING
+Plan: 6 of 8 complete (Plan 07 next)
+Status: Executing Phase 03 — gap closure plans
+Last activity: 2026-06-10 -- Phase 03 Plan 06 complete (SC-8, 5b, SC-5 lazy-stamp)
 
 ## Performance Metrics
 
@@ -79,3 +82,4 @@ Last activity: 2026-06-10 -- Phase 03 Plan 05 complete (join inline error, rejoi
 | Phase 03 P03 | 2m | 3/3 tasks (migration applied to live DB) | 2 files |
 | Phase 03 P04 | 15m | 3 tasks | 1 file |
 | Phase 03 P05 | 2min | 4 tasks | 2 files |
+| Phase 03 P06 | 15min | 3 tasks | 1 file |
