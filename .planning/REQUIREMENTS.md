@@ -22,7 +22,7 @@
 ### Player Identity
 
 - [ ] **IDEN-01**: `players` table has a nullable `user_id` FK — anonymous players have null, signed-in players reference their account
-- [ ] **IDEN-02**: A signed-in user joining a room on a new device (no localStorage entry) is recognized via `user_id` lookup and reuses their account identity without creating a duplicate row
+- [x] **IDEN-02**: A signed-in user joining a room on a new device (no localStorage entry) is recognized via `user_id` lookup and reuses their account identity without creating a duplicate row
 
 ### Stats Persistence
 
@@ -119,7 +119,7 @@
 | AUTH-03 | Phase 3: Sign-in UX + Player Linking | Complete |
 | AUTH-04 | Phase 2: Auth Infrastructure + Schema | Pending |
 | IDEN-01 | Phase 2: Auth Infrastructure + Schema | Pending |
-| IDEN-02 | Phase 3: Sign-in UX + Player Linking | Pending |
+| IDEN-02 | Phase 3: Sign-in UX + Player Linking | Complete |
 | STAT-01 | Phase 4: Stats Persistence + Profile | Pending |
 | STAT-02 | Phase 4: Stats Persistence + Profile | Pending |
 | STAT-03 | Phase 4: Stats Persistence + Profile | Pending |

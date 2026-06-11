@@ -87,7 +87,7 @@ Plans:
   4. An anonymous player can still join and play a full game without ever being prompted to sign in during the game
   5. Auth session survives browser refresh and page navigation without the user needing to re-authenticate
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 **Wave 1**
 
 - [x] 04-01-PLAN.md — i18n auth namespace (sign_in/sign_out/pseudo_prefilled_hint) in fr/en/es/de
@@ -95,7 +95,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-03-PLAN.md — join page: auth pill + IDEN-02 user_id reconnect + user_id insert + Google-name pre-fill
+- [x] 04-03-PLAN.md — join page: auth pill + IDEN-02 user_id reconnect + user_id insert + Google-name pre-fill
 - [ ] 04-04-PLAN.md — landing page: auth pill + user_id on host insert + Google-name pre-fill
 
 **UI hint**: yes
@@ -159,5 +159,5 @@ Plans:
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
 | 3. Playtest Quality Fixes | 8/8 | Complete   | 2026-06-10 |
-| 4. Sign-in UX + Player Linking | 2/4 | In Progress|  |
+| 4. Sign-in UX + Player Linking | 3/4 | In Progress|  |
 | 5. Stats Persistence + Profile | 0/? | Not started | - |
