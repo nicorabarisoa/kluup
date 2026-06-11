@@ -893,9 +893,9 @@ function B2RouletteScreen({
 // ---- Type C choice (volunteer OR send someone) ----
 
 function ChoiceScreen({
-  gs, players, myId, isHost, hasVoted, voteCount, onVolunteer, onDesignate, onForce,
+  gs, players, myId, isHost, isAdvancer, hasVoted, voteCount, onVolunteer, onDesignate, onForce,
 }: {
-  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void
+  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -909,6 +909,11 @@ function ChoiceScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={gs.vote_round_player_count || players.length} voted={hasVoted} />
+          {(() => {
+            const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
+            const initialSecs = Math.max(0, 30 - elapsed)
+            return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
+          })()}
           <HostSkipBtn show={isHost && hasVoted && voteCount < (gs.vote_round_player_count || players.length)} onForce={onForce} />
         </>
       }
@@ -1495,6 +1500,9 @@ export default function GamePage() {
   // Kept in sync with the derived isAdvancer value so async closures (broadcast
   // handlers, timers) always see the current advancer status without stale captures.
   const isAdvancerRef = useRef(false)
+  // Guards resolveVotes / resolveTypeCChoice against concurrent double-calls
+  // (the advancer both calls directly in submitVote and receives its own broadcast).
+  const resolvingRef = useRef(false)
 
   useEffect(() => {
     const id = getPlayerId(code)
@@ -1710,7 +1718,7 @@ export default function GamePage() {
     const r = roomRef.current
     const gs = r?.game_state
     if (!gs || !r) return
-    const timerPhases = ['voting_question', 'round_a_vote', 'round_b_vote']
+    const timerPhases = ['voting_question', 'round_a_vote', 'round_b_vote', 'round_c_choice']
     if (!timerPhases.includes(gs.phase)) return
     if (gs.round_started_at) return // already stamped
     // Only the advancer writes to avoid simultaneous writes.
@@ -1774,52 +1782,58 @@ export default function GamePage() {
 
   async function resolveVotes(voteType: string) {
     if (!room || !gs) return
-    const votes = await fetchVotes(room.id, gs.round, voteType)
+    if (resolvingRef.current) return
+    resolvingRef.current = true
+    try {
+      const votes = await fetchVotes(room.id, gs.round, voteType)
 
-    if (voteType === 'question_selection') {
-      const winnerIndex = tallyQuestionSelection(votes)
-      const chosen = gs.candidates[winnerIndex] ?? gs.candidates[0]
-      const nextPhase = chosen.type === 'A' ? 'round_a_vote' : chosen.type === 'B' ? 'round_b_vote' : 'round_c_choice'
-      await advance({
-        ...gs, phase: nextPhase as GameState['phase'],
-        current_question: chosen, played_question_ids: [...gs.played_question_ids, chosen.id],
-        round_started_at: new Date().toISOString(), vote_round_player_count: playersRef.current.length,
-      })
-      return
-    }
+      if (voteType === 'question_selection') {
+        const winnerIndex = tallyQuestionSelection(votes)
+        const chosen = gs.candidates[winnerIndex] ?? gs.candidates[0]
+        const nextPhase = chosen.type === 'A' ? 'round_a_vote' : chosen.type === 'B' ? 'round_b_vote' : 'round_c_choice'
+        await advance({
+          ...gs, phase: nextPhase as GameState['phase'],
+          current_question: chosen, played_question_ids: [...gs.played_question_ids, chosen.id],
+          round_started_at: new Date().toISOString(), vote_round_player_count: playersRef.current.length,
+        })
+        return
+      }
 
-    if (voteType === 'designation') {
-      const frozenCount02 = gs.vote_round_player_count || players.length
-      const { topIds, tieAll } = tallyDesignation(votes, frozenCount02)
-      // 'designation' votes are Type A only now (Type C uses the choice phase).
-      await advance({
-        ...gs,
-        phase: 'round_a_reveal',
-        designated_player_ids: topIds,
-        designation_tie_all: tieAll,
-      })
-      return
-    }
+      if (voteType === 'designation') {
+        const frozenCount02 = gs.vote_round_player_count || players.length
+        const { topIds, tieAll } = tallyDesignation(votes, frozenCount02)
+        // 'designation' votes are Type A only now (Type C uses the choice phase).
+        await advance({
+          ...gs,
+          phase: 'round_a_reveal',
+          designated_player_ids: topIds,
+          designation_tie_all: tieAll,
+        })
+        return
+      }
 
-    if (voteType === 'confession') {
-      // Confession is ALWAYS a roulette now (B1/B2 sub-modes removed): show the
-      // group %, the wheel spins over everyone, and ONE "yes" is revealed.
-      const yesVotes = votes.filter((v) => v.answer === true)
-      // Divide by the round's frozen participant count (same denominator as the
-      // vote threshold), not the live roster — a mid-round join or ghost prune
-      // would otherwise skew the % and could block the 100% sheep case.
-      const denom = gs.vote_round_player_count || players.length
-      const pct = denom > 0 ? Math.round((yesVotes.length / denom) * 100) : 0
-      const yesIds = yesVotes.map((v) => v.player_id as string)
-      // 100% yes → nobody singled out (sheep). 0 yes → secret kept. Else pick one.
-      const winner = yesIds.length > 0 && pct < 100
-        ? yesIds[Math.floor(Math.random() * yesIds.length)]
-        : null
-      await advance({
-        ...gs, phase: 'round_b2_roulette', b_subtype: 'B2',
-        revealed_player_ids: yesIds,
-        designated_player_id: winner, yes_percentage: pct,
-      })
+      if (voteType === 'confession') {
+        // Confession is ALWAYS a roulette now (B1/B2 sub-modes removed): show the
+        // group %, the wheel spins over everyone, and ONE "yes" is revealed.
+        const yesVotes = votes.filter((v) => v.answer === true)
+        // Divide by the round's frozen participant count (same denominator as the
+        // vote threshold), not the live roster — a mid-round join or ghost prune
+        // would otherwise skew the % and could block the 100% sheep case.
+        const denom = gs.vote_round_player_count || players.length
+        const pct = denom > 0 ? Math.round((yesVotes.length / denom) * 100) : 0
+        const yesIds = yesVotes.map((v) => v.player_id as string)
+        // 100% yes → nobody singled out (sheep). 0 yes → secret kept. Else pick one.
+        const winner = yesIds.length > 0 && pct < 100
+          ? yesIds[Math.floor(Math.random() * yesIds.length)]
+          : null
+        await advance({
+          ...gs, phase: 'round_b2_roulette', b_subtype: 'B2',
+          revealed_player_ids: yesIds,
+          designated_player_id: winner, yes_percentage: pct,
+        })
+      }
+    } finally {
+      resolvingRef.current = false
     }
   }
 
@@ -1851,24 +1865,33 @@ export default function GamePage() {
 
   async function resolveTypeCChoice() {
     if (!room || !gs) return
-    const vols = await fetchVotes(room.id, gs.round, 'volunteer')
-    if (vols.length > 0) {
-      // Volunteers prime — they all answer.
+    if (resolvingRef.current) return
+    resolvingRef.current = true
+    try {
+      const vols = await fetchVotes(room.id, gs.round, 'volunteer')
+      if (vols.length > 0) {
+        // Volunteers prime — they all answer.
+        await advance({
+          ...gs, phase: 'round_c_volunteers_reveal',
+          volunteer_player_ids: vols.map((v) => v.player_id as string),
+        })
+        return
+      }
+      // No volunteer → the most-designated answers; roulette picks one on a tie.
+      // If nobody voted at all (e.g. timer expired with zero actions), pick a
+      // random player from the full roster so the roulette always lands on someone.
+      const desigs = await fetchVotes(room.id, gs.round, 'designation')
+      const frozenCountC = gs.vote_round_player_count || players.length
+      const { topIds } = tallyDesignation(desigs, frozenCountC)
+      const pool = topIds.length > 0 ? topIds : playersRef.current.map((p) => p.id)
+      const winner = pool[Math.floor(Math.random() * pool.length)] ?? null
       await advance({
-        ...gs, phase: 'round_c_volunteers_reveal',
-        volunteer_player_ids: vols.map((v) => v.player_id as string),
+        ...gs, phase: 'round_c_roulette',
+        designated_player_ids: pool, designated_player_id: winner,
       })
-      return
+    } finally {
+      resolvingRef.current = false
     }
-    // No volunteer → the most-designated answers; roulette picks one on a tie.
-    const desigs = await fetchVotes(room.id, gs.round, 'designation')
-    const frozenCountC = gs.vote_round_player_count || players.length
-    const { topIds } = tallyDesignation(desigs, frozenCountC)
-    const winner = topIds.length > 0 ? topIds[Math.floor(Math.random() * topIds.length)] : null
-    await advance({
-      ...gs, phase: 'round_c_roulette',
-      designated_player_ids: topIds, designated_player_id: winner,
-    })
   }
 
   // Pause / resume: use roomRef to get the freshest game_state and avoid stale
@@ -2005,7 +2028,7 @@ export default function GamePage() {
       case 'round_b2_roulette':
         return <B2RouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onReveal={onRevealB2} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_c_choice':
-        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} />
+        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} />
       case 'round_c_volunteers_reveal':
         return <VolunteersRevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_c_roulette':

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -152,14 +153,13 @@ export default function Home() {
           >
             {loading ? fr.home.creating : fr.home.create_btn}
           </button>
-          <button
-            type="button"
-            onClick={() => router.push('/join')}
-            className="font-medium py-4 rounded-2xl text-base"
+          <Link
+            href="/join"
+            className="font-medium py-4 rounded-2xl text-base text-center block"
             style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontFamily: 'var(--font-body)' }}
           >
             {fr.home.join_btn}
-          </button>
+          </Link>
         </div>
 
         {/* Trust badges */}
