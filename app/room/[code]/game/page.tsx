@@ -1677,6 +1677,15 @@ export default function GamePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.status])
 
+  // Visitor arrives at /game without a stored player ID (typed URL directly, or
+  // after clearing storage) — redirect to join so they can enter a pseudo.
+  useEffect(() => {
+    if (room && !myId) {
+      router.replace('/join?code=' + code)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room, myId])
+
   // Prune ghosts (closed tabs) and keep the room alive while anyone is here.
   useRoomPresence(room?.id ?? null, myId)
 
