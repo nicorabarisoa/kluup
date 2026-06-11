@@ -17,7 +17,7 @@ export const fr = {
   landing: {
     pitch: "Le party game qui brise la glace et révèle votre groupe. Sur vos téléphones, sans rien installer.",
     badge_free: "Gratuit",
-    badge_nosignup: "Sans inscription",
+    badge_nosignup: "Sans compte obligatoire",
     badge_browser: "Dans le navigateur",
     players_hint: "Conseillé entre 3 et 10 joueurs · 10–20 min",
     how_title: "Comment ça marche",
@@ -262,7 +262,7 @@ export const en: Dict = {
   landing: {
     pitch: "The party game that breaks the ice and reveals your group. On your phones, nothing to install.",
     badge_free: "Free",
-    badge_nosignup: "No sign-up",
+    badge_nosignup: "No account required",
     badge_browser: "In your browser",
     players_hint: "Recommended 3–10 players · 10–20 min",
     how_title: "How it works",
@@ -505,7 +505,7 @@ export const es: Dict = {
   landing: {
     pitch: "El party game que rompe el hielo y revela a tu grupo. En vuestros móviles, sin instalar nada.",
     badge_free: "Gratis",
-    badge_nosignup: "Sin registro",
+    badge_nosignup: "Sin cuenta obligatoria",
     badge_browser: "En el navegador",
     players_hint: "Recomendado entre 3 y 10 jugadores · 10–20 min",
     how_title: "Cómo funciona",
@@ -748,7 +748,7 @@ export const de: Dict = {
   landing: {
     pitch: "Das Party-Spiel, das das Eis bricht und eure Gruppe enthüllt. Auf euren Handys, ohne Installation.",
     badge_free: "Kostenlos",
-    badge_nosignup: "Ohne Anmeldung",
+    badge_nosignup: "Kein Konto nötig",
     badge_browser: "Im Browser",
     players_hint: "Empfohlen 3–10 Spieler · 10–20 Min",
     how_title: "So funktioniert's",
