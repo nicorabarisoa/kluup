@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: milestone
 current_phase: 04
 status: executing
-last_updated: "2026-06-11T11:30:42.056Z"
-last_activity: 2026-06-11 -- Phase 04 execution started
+last_updated: "2026-06-11T12:15:00.000Z"
+last_activity: 2026-06-11 -- Phase 04 Plan 02 complete
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 15
-  completed_plans: 12
-  percent: 40
+  completed_plans: 13
+  percent: 43
 ---
 
 # Project State
@@ -62,6 +62,9 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase 03 P08]: cleanup_dead_rooms() threshold lowered from 30 minutes to 60 seconds; pg_cron scheduled every minute ('* * * * *') via idempotent block in lifecycle.sql
 - [Phase 03 P08]: SC-3 acceptance window relaxed from >15s to ~1 min (server sweep interval); no pagehide/beforeunload handler this pass (locked decision 2026-06-10)
 - [Phase ?]: auth namespace i18n foundation
+- [Phase 04 P02]: isSignedIn prop threaded via each screen component (not a new context) — explicit, no indirection for a single boolean
+- [Phase 04 P02]: flexShrink:0 moved from button to wrapper div so relative-positioned wrapper preserves original layout
+- [Phase 04 P02]: getUser() called once at page root mount only (not inside RoundHeader) — satisfies T-04-04 no per-render network calls
 
 ## Notes
 
@@ -74,9 +77,9 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 ## Current Position
 
 Phase: 04 (signin-ux-player-linking) — EXECUTING
-Plan: 2 of 4
-Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 04 execution started
+Plan: 3 of 4
+Status: Plan 02 complete — ready for Plan 03
+Last activity: 2026-06-11 -- Phase 04 Plan 02 complete
 
 ## Performance Metrics
 
@@ -90,3 +93,4 @@ Last activity: 2026-06-11 -- Phase 04 execution started
 | Phase 03 P07 | 7min | 2 tasks | 2 files |
 | Phase 03 P08 | ~2m + human DB apply | 3/3 tasks (pg_cron live, jobid 6, every-minute sweep, 60s threshold) | 3 files |
 | Phase 04 P01 | 2min | 1 tasks | 1 files |
+| Phase 04 P02 | 15min | 2 tasks | 2 files |
