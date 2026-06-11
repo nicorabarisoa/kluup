@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerId, setPlayerId, getLastPseudo, setLastPseudo } from '@/lib/utils'
@@ -15,6 +16,39 @@ function JoinForm() {
   const [pseudoError, setPseudoError] = useState<string | null>(null)
   const [storedPseudo, setStoredPseudo] = useState<string | null>(null)
   const router = useRouter()
+
+  // Auth state — one network call on mount, result cached in component state.
+  const [user, setUser] = useState<User | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+      setAuthLoading(false)
+    })
+  }, [])
+
+  // Google first name for pseudo pre-fill (D-08). Truncate >12 chars (UI-SPEC).
+  function getFirstName(u: User): string {
+    const raw =
+      u.user_metadata?.full_name?.split(' ')[0] ||
+      u.user_metadata?.name?.split(' ')[0] ||
+      u.email?.split('@')[0] ||
+      '?'
+    return raw.length > 12 ? raw.slice(0, 11) + '…' : raw
+  }
+
+  async function handleSignIn() {
+    await supabase.auth.signInWithOAuth({ provider: 'google' })
+    // browser navigates to Google — no cleanup needed
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    setUser(null)
+    setAuthLoading(false)
+    router.push('/')
+  }
 
   useEffect(() => {
     const c = searchParams.get('code')
@@ -129,7 +163,29 @@ function JoinForm() {
         >
           {fr.join.back_home}
         </button>
-        <LangSwitch />
+        <div className="flex items-center gap-2">
+          {!authLoading && !user && (
+            <button
+              onClick={handleSignIn}
+              className="text-xs font-extrabold px-2.5 py-1.5 rounded-xl"
+              style={{ background: '#1A1A1A', border: '1px solid #252525', color: '#fff', fontFamily: 'var(--font-body)' }}
+            >
+              {fr.auth.sign_in}
+            </button>
+          )}
+          {!authLoading && user && (
+            <button
+              onClick={handleSignOut}
+              className="flex items-center text-xs px-2.5 py-1.5 rounded-xl max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap"
+              style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
+            >
+              <span style={{ color: '#fff', fontWeight: 800 }}>{getFirstName(user)}</span>
+              <span style={{ color: '#555555' }}> · </span>
+              <span style={{ color: '#888888' }}>{fr.auth.sign_out}</span>
+            </button>
+          )}
+          <LangSwitch />
+        </div>
       </div>
 
       {/* Title + form grouped and vertically centered. */}
