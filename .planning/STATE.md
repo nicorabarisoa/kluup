@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-current_phase: 03
-status: completed
-last_updated: "2026-06-11T11:26:38.855Z"
-last_activity: "2026-06-10 -- Phase 03 Plan 08 complete: pg_cron live (jobid 6, every-minute sweep), SC-3 done; Phase 03 all plans complete"
+current_phase: 04
+status: executing
+last_updated: "2026-06-11T11:30:42.056Z"
+last_activity: 2026-06-11 -- Phase 04 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 15
+  completed_plans: 12
   percent: 40
 ---
 
 # Project State
 
 **Last updated:** 2026-06-10
-**Current phase:** 03
+**Current phase:** 04
 **Overall status:** Executing — Plan 02-03 complete (Phase 2 all plans done)
 
 ## Phase Status
@@ -61,6 +61,7 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase ?]: SC-4: kluup_pseudo_ key persists pseudo independently of clearPlayerId; pre-fill fallback in /join reads it when pid is null (post-quit)
 - [Phase 03 P08]: cleanup_dead_rooms() threshold lowered from 30 minutes to 60 seconds; pg_cron scheduled every minute ('* * * * *') via idempotent block in lifecycle.sql
 - [Phase 03 P08]: SC-3 acceptance window relaxed from >15s to ~1 min (server sweep interval); no pagehide/beforeunload handler this pass (locked decision 2026-06-10)
+- [Phase ?]: auth namespace i18n foundation
 
 ## Notes
 
@@ -72,10 +73,10 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 
 ## Current Position
 
-Phase: 03 (playtest-quality-fixes) — COMPLETE
-Plan: 8 of 8 — all plans complete
-Status: Phase 03 fully complete — all 8 plans done, all 9 success criteria addressed
-Last activity: 2026-06-10 -- Phase 03 Plan 08 complete: pg_cron live (jobid 6, every-minute sweep), SC-3 done; Phase 03 all plans complete
+Phase: 04 (signin-ux-player-linking) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-06-11 -- Phase 04 execution started
 
 ## Performance Metrics
 
@@ -88,3 +89,4 @@ Last activity: 2026-06-10 -- Phase 03 Plan 08 complete: pg_cron live (jobid 6, e
 | Phase 03 P06 | 15min | 3 tasks | 1 file |
 | Phase 03 P07 | 7min | 2 tasks | 2 files |
 | Phase 03 P08 | ~2m + human DB apply | 3/3 tasks (pg_cron live, jobid 6, every-minute sweep, 60s threshold) | 3 files |
+| Phase 04 P01 | 2min | 1 tasks | 1 files |

@@ -14,9 +14,9 @@
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can sign in with Google via OAuth (optional — game is fully playable without an account)
+- [x] **AUTH-01**: User can sign in with Google via OAuth (optional — game is fully playable without an account)
 - [ ] **AUTH-02**: Auth session persists across browser refresh and page navigation
-- [ ] **AUTH-03**: Signed-in user can sign out from any page
+- [x] **AUTH-03**: Signed-in user can sign out from any page
 - [ ] **AUTH-04**: Full anonymous game flow (create room, join, all round types, end screen, replay) works without regression after every phase that touches RLS or auth configuration
 
 ### Player Identity
@@ -114,9 +114,9 @@
 |--------|-------|--------|
 | HLT-01 | Phase 1: Health Endpoint | ✓ Complete |
 | HLT-02 | Phase 1: Health Endpoint | ✓ Complete |
-| AUTH-01 | Phase 3: Sign-in UX + Player Linking | Pending |
+| AUTH-01 | Phase 3: Sign-in UX + Player Linking | Complete |
 | AUTH-02 | Phase 2: Auth Infrastructure + Schema | Pending |
-| AUTH-03 | Phase 3: Sign-in UX + Player Linking | Pending |
+| AUTH-03 | Phase 3: Sign-in UX + Player Linking | Complete |
 | AUTH-04 | Phase 2: Auth Infrastructure + Schema | Pending |
 | IDEN-01 | Phase 2: Auth Infrastructure + Schema | Pending |
 | IDEN-02 | Phase 3: Sign-in UX + Player Linking | Pending |
@@ -127,6 +127,7 @@
 | PROF-02 | Phase 4: Stats Persistence + Profile | Pending |
 
 **Coverage:**
+
 - v1 requirements: 2/2 complete ✓
 - v2 requirements: 11 total
 - Mapped to phases: 11 ✓
