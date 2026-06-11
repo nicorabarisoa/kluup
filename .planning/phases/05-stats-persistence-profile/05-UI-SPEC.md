@@ -335,6 +335,8 @@ No third-party component registries are used in this phase.
 
 ## Open Questions
 
+> **RESOLVED 2026-06-12** — user confirmed all three defaults (A-01: `max-w-md`, A-02: name chip navigates to `/profile`, A-03: display-only rows). These are now locked decisions, not assumptions.
+
 Items that could not be derived from the codebase or REQUIREMENTS.md and require human decision before implementation:
 
 ### A-01: Profile page layout width
