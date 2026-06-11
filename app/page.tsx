@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRef, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { genId, setPlayerId } from '@/lib/utils'
+import { genId, setPlayerId, getGoogleFirstName } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 import type { User } from '@supabase/supabase-js'
 
@@ -49,7 +49,7 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  // Auth state — one network call on mount, result cached in component state.
+  // Auth state — one network call on mount, then kept live via onAuthStateChange (WR-01).
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [googlePrefill, setGooglePrefill] = useState('')
@@ -59,38 +59,41 @@ export default function Home() {
       setUser(data.user)
       setAuthLoading(false)
     })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
-  // Google first name for pseudo pre-fill (D-08). Truncate >12 chars (UI-SPEC).
-  function getFirstName(u: User): string {
-    const raw =
-      u.user_metadata?.full_name?.split(' ')[0] ||
-      u.user_metadata?.name?.split(' ')[0] ||
-      u.email?.split('@')[0] ||
-      '?'
-    return raw.length > 12 ? raw.slice(0, 11) + '…' : raw
-  }
-
   // Pre-fill pseudo from Google name when user is signed in and field is empty.
+  // Uses getGoogleFirstName from lib/utils (WR-02: no duplicate).
   useEffect(() => {
     if (user && !pseudo) {
-      const firstName = getFirstName(user)
-      setPseudo(firstName)
-      setGooglePrefill(firstName)
+      const firstName = getGoogleFirstName(user)
+      if (firstName) {
+        setPseudo(firstName)
+        setGooglePrefill(firstName)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   async function handleSignIn() {
-    await supabase.auth.signInWithOAuth({ provider: 'google' })
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // Return user to the landing page after the OAuth round-trip (CR-03).
+        redirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
+      },
+    })
     // browser navigates to Google — no cleanup needed
   }
 
   async function handleSignOut() {
     await supabase.auth.signOut()
     setUser(null)
-    setAuthLoading(false)
-    router.push('/')
+    // Stay on the landing page — no redirect needed (WR-03: router.push('/') was a no-op here anyway).
   }
 
   async function createRoom() {
@@ -171,7 +174,7 @@ export default function Home() {
               className="flex items-center text-xs px-2.5 py-1.5 rounded-xl max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap"
               style={{ background: C.surface, border: `1px solid ${C.border}`, fontFamily: 'var(--font-body)' }}
             >
-              <span style={{ color: '#fff', fontWeight: 800 }}>{getFirstName(user)}</span>
+              <span style={{ color: '#fff', fontWeight: 800 }}>{getGoogleFirstName(user)}</span>
               <span style={{ color: C.faint }}> · </span>
               <span style={{ color: C.muted }}>{fr.auth.sign_out}</span>
             </button>
