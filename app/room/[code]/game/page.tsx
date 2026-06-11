@@ -108,17 +108,6 @@ function GameScreen({
 // Primitives
 // ---------------------------------------------------------------------------
 
-function TypeBadge({ label, accent }: { label: string; accent: string }) {
-  return (
-    <span
-      className="text-xs font-bold px-3 py-1 rounded-full"
-      style={{ background: `${accent}22`, color: accent, fontFamily: 'var(--font-body)' }}
-    >
-      {label}
-    </span>
-  )
-}
-
 function RoundHeader({ round, label, accent }: {
   round: number; label: string; accent: string
 }) {
@@ -358,8 +347,13 @@ function VoteTimer({ isAdvancer, onExpire, initialSecs = 30 }: { isAdvancer: boo
 // VoteTimer with elapsed-time correction — keyed by round at the call site so
 // it remounts (resetting internal state) each time the round changes.
 function RoundTimer({ gs, isAdvancer, onExpire }: { gs: GameState; isAdvancer: boolean; onExpire: () => void }) {
-  const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
-  return <VoteTimer isAdvancer={isAdvancer} onExpire={onExpire} initialSecs={Math.max(0, 30 - elapsed)} />
+  // Lazy initializer: VoteTimer only reads initialSecs at mount, and RoundTimer
+  // is keyed by round at every call site, so computing once is equivalent.
+  const [initialSecs] = useState(() => {
+    const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
+    return Math.max(0, 30 - elapsed)
+  })
+  return <VoteTimer isAdvancer={isAdvancer} onExpire={onExpire} initialSecs={initialSecs} />
 }
 
 // Shared footer for round-end (reveal) screens. Only the host can advance
@@ -1516,7 +1510,6 @@ function voteTypeForPhase(phase: string | undefined): string | null {
 
 export default function GamePage() {
   const fr = useT()
-  const { locale } = useLocale()
   const params = useParams<{ code: string }>()
   const code = params?.code ?? ''
   const router = useRouter()
@@ -1803,7 +1796,6 @@ export default function GamePage() {
 
   const me = players.find((p) => p.id === myId)
   const isHost = me?.is_host ?? false
-  const accent = accentForType(gs.current_question?.type)
   // Single deterministic advancer (smallest player id) fires the round-end timer.
   const advancerId = players.length ? [...players].map((p) => p.id).sort()[0] : null
   const isAdvancer = advancerId === myId
