@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getPlayerId, setPlayerId, getLastPseudo, setLastPseudo } from '@/lib/utils'
+import { getPlayerId, setPlayerId, getLastPseudo, setLastPseudo, getGoogleFirstName } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 
 function JoinForm() {
@@ -18,7 +18,7 @@ function JoinForm() {
   const [googlePrefill, setGooglePrefill] = useState<string | null>(null)
   const router = useRouter()
 
-  // Auth state — one network call on mount, result cached in component state.
+  // Auth state — one network call on mount, then kept live via onAuthStateChange (WR-01).
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
@@ -27,30 +27,32 @@ function JoinForm() {
       setUser(data.user)
       setAuthLoading(false)
     })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
-  // Google first name for pseudo pre-fill (D-08). Truncate >12 chars (UI-SPEC).
-  function getFirstName(u: User): string {
-    const raw =
-      u.user_metadata?.full_name?.split(' ')[0] ||
-      u.user_metadata?.name?.split(' ')[0] ||
-      u.email?.split('@')[0] ||
-      '?'
-    return raw.length > 12 ? raw.slice(0, 11) + '…' : raw
-  }
-
   async function handleSignIn() {
-    await supabase.auth.signInWithOAuth({ provider: 'google' })
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // Preserve the current URL (including ?code=XXXX) so the user lands
+        // back on this page after the OAuth round-trip (CR-03).
+        redirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
+      },
+    })
     // browser navigates to Google — no cleanup needed
   }
 
   async function handleSignOut() {
     await supabase.auth.signOut()
     setUser(null)
-    setAuthLoading(false)
-    router.push('/')
+    // Don't redirect — user can continue anonymously from the current page (WR-03).
   }
 
+  // searchParams effect: pre-fill code field and stored-pseudo from localStorage.
   useEffect(() => {
     const c = searchParams.get('code')
     if (!c) return
@@ -70,24 +72,7 @@ function JoinForm() {
     // still exists (reconnect path — browser closed without quitting), prefer
     // the DB value over the remembered pseudo.
     const pid = getPlayerId(upperCode)
-    if (!pid) {
-      // Google-name fallback (D-08, D-09): only when no stored pseudo and user is signed in.
-      // Priority: stored pseudo > Google first name > empty.
-      if (!remembered && user) {
-        const raw =
-          user.user_metadata?.full_name?.split(' ')[0] ||
-          user.user_metadata?.name?.split(' ')[0] ||
-          user.email?.split('@')[0] ||
-          ''
-        const firstName = raw.length > 12 ? raw.slice(0, 11) + '…' : raw
-        if (firstName) {
-          setPseudo(firstName)
-          setGooglePrefill(firstName)
-          // Do NOT set storedPseudo — this is Google pre-fill, not a remembered game pseudo.
-        }
-      }
-      return
-    }
+    if (!pid) return
     supabase.from('players').select('pseudo').eq('id', pid).maybeSingle()
       .then(({ data }) => {
         if (data?.pseudo) {
@@ -96,7 +81,24 @@ function JoinForm() {
         }
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, user])
+  }, [searchParams])
+
+  // Separate Google prefill effect (CR-01): runs whenever user or storedPseudo
+  // changes. By keeping this independent from the searchParams effect, the
+  // Google first-name is applied correctly even when auth resolves after the
+  // initial render (the common new-device scenario).
+  useEffect(() => {
+    if (storedPseudo) return       // stored/DB pseudo wins
+    if (pseudo && pseudo !== '') return  // user already typed something
+    if (!user) return
+    const firstName = getGoogleFirstName(user)
+    if (firstName) {
+      setPseudo(firstName)
+      setGooglePrefill(firstName)
+      // Do NOT set storedPseudo — this is Google pre-fill, not a remembered game pseudo.
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, storedPseudo])
 
   async function joinRoom() {
     if (!code.trim() || !pseudo.trim()) return
@@ -108,9 +110,6 @@ function JoinForm() {
       .select()
       .eq('code', normalizedCode)
       .maybeSingle()
-
-    // Log to help diagnose RLS / env issues: check browser console if join fails.
-    console.log('[join] lookup:', { code: normalizedCode, found: !!room, error: roomError?.message })
 
     if (roomError) {
       console.error('[joinRoom] room lookup failed:', roomError)
@@ -134,13 +133,17 @@ function JoinForm() {
     if (user && !stored) {
       const { data: existingByUid } = await supabase
         .from('players')
-        .select('id')
+        .select('id, pseudo')
         .eq('room_id', room.id)
         .eq('user_id', user.id)
         .maybeSingle()
 
       if (existingByUid) {
         setPlayerId(normalizedCode, existingByUid.id)
+        // WR-04: update the DB row if the user typed a different pseudo on this device.
+        if (existingByUid.pseudo !== pseudo.trim()) {
+          await supabase.from('players').update({ pseudo: pseudo.trim() }).eq('id', existingByUid.id)
+        }
         setLastPseudo(normalizedCode, pseudo.trim())
         router.push(
           room.status === 'playing'
@@ -223,7 +226,7 @@ function JoinForm() {
               className="flex items-center text-xs px-2.5 py-1.5 rounded-xl max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap"
               style={{ background: '#1A1A1A', border: '1px solid #252525', fontFamily: 'var(--font-body)' }}
             >
-              <span style={{ color: '#fff', fontWeight: 800 }}>{getFirstName(user)}</span>
+              <span style={{ color: '#fff', fontWeight: 800 }}>{getGoogleFirstName(user)}</span>
               <span style={{ color: '#555555' }}> · </span>
               <span style={{ color: '#888888' }}>{fr.auth.sign_out}</span>
             </button>
