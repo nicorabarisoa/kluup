@@ -74,13 +74,19 @@ function JoinForm() {
 
     // Reconnect: if we still hold an identity for this room and that row still
     // exists, reuse it instead of inserting a duplicate (browser was closed,
-    // the old row hasn't been pruned yet).
+    // the old row hasn't been pruned yet). If the player changed their pseudo,
+    // update the row so they appear with the new name.
     let playerId: string | null = null
     const stored = getPlayerId(normalizedCode)
     if (stored) {
       const { data: existing } = await supabase
-        .from('players').select('id').eq('room_id', room.id).eq('id', stored).maybeSingle()
-      if (existing) playerId = existing.id
+        .from('players').select('id, pseudo').eq('room_id', room.id).eq('id', stored).maybeSingle()
+      if (existing) {
+        playerId = existing.id
+        if (existing.pseudo !== pseudo.trim()) {
+          await supabase.from('players').update({ pseudo: pseudo.trim() }).eq('id', existing.id)
+        }
+      }
     }
 
     if (!playerId) {

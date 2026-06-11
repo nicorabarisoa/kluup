@@ -18,7 +18,7 @@ import { useT, useLocale } from '@/lib/locale'
 import { useRoomPresence } from '@/lib/usePresence'
 import { getPlayerId, clearPlayerId } from '@/lib/utils'
 import type { Dict } from '@/lib/i18n'
-import { GameState, Player, Room } from '@/lib/types'
+import { GameState, Player, Question, Room } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
 // Design tokens
@@ -410,6 +410,56 @@ function PausedScreen({ isHost, onResume, onStop }: { isHost: boolean; onResume:
           {fr.game.paused_title}
         </h2>
         <p style={{ color: C.muted }}>{fr.game.paused_body}</p>
+      </div>
+    </GameScreen>
+  )
+}
+
+// ---- Question reveal interstitial (2.5 s shown when voting_question resolves) ----
+
+function QuestionRevealScreen({ question, wasYours }: { question: Question; wasYours: boolean | null }) {
+  const fr = useT()
+  const { locale } = useLocale()
+  const [progress, setProgress] = useState(100)
+  useEffect(() => {
+    const start = Date.now()
+    const duration = 2500
+    const id = setInterval(() => {
+      const elapsed = Date.now() - start
+      setProgress(Math.max(0, 100 - (elapsed / duration) * 100))
+      if (elapsed >= duration) clearInterval(id)
+    }, 50)
+    return () => clearInterval(id)
+  }, [])
+  const badge = wasYours === true ? fr.voting_question.chosen_yours
+    : wasYours === false ? fr.voting_question.chosen_not_yours
+    : null
+  const badgeColor = wasYours === true ? '#00C896' : C.muted
+  return (
+    <GameScreen footer={null}>
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-2">
+        {badge && (
+          <span
+            className="text-sm font-bold px-4 py-1.5 rounded-full"
+            style={{ background: wasYours ? '#00C89622' : '#55555522', color: badgeColor, fontFamily: 'var(--font-body)' }}
+          >
+            {badge}
+          </span>
+        )}
+        <div
+          className="w-full rounded-2xl p-6 text-center"
+          style={{ background: C.surface, border: `1px solid ${C.border}` }}
+        >
+          <p className="text-lg font-semibold leading-snug" style={{ fontFamily: 'var(--font-body)' }}>
+            {question.question[locale] ?? question.question.fr}
+          </p>
+        </div>
+        <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: C.border }}>
+          <div
+            className="h-full rounded-full transition-none"
+            style={{ width: `${progress}%`, background: badgeColor }}
+          />
+        </div>
       </div>
     </GameScreen>
   )
@@ -1481,6 +1531,7 @@ function voteTypeForPhase(phase: string | undefined): string | null {
 
 export default function GamePage() {
   const fr = useT()
+  const { locale } = useLocale()
   const params = useParams<{ code: string }>()
   const code = params?.code ?? ''
   const router = useRouter()
@@ -1503,6 +1554,10 @@ export default function GamePage() {
   // Guards resolveVotes / resolveTypeCChoice against concurrent double-calls
   // (the advancer both calls directly in submitVote and receives its own broadcast).
   const resolvingRef = useRef(false)
+  // Question-reveal interstitial: shown 2.5s when voting_question resolves.
+  const [revealInfo, setRevealInfo] = useState<{ question: Question; wasYours: boolean | null } | null>(null)
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const myVoteIndexRef = useRef<number | null>(null)
 
   useEffect(() => {
     const id = getPlayerId(code)
@@ -1553,6 +1608,22 @@ export default function GamePage() {
       roomRef.current = updated
       const newPhase = updated.game_state?.phase
       if (newPhase !== prevPhaseRef.current) {
+        // Leaving voting_question → show the chosen question for 2.5s before the vote screen.
+        if (prevPhaseRef.current === 'voting_question' && newPhase && newPhase !== 'ended') {
+          const chosen = updated.game_state?.current_question
+          if (chosen) {
+            const idx = myVoteIndexRef.current
+            const wasYours = idx !== null
+              ? (updated.game_state?.candidates ?? [])[idx]?.id === chosen.id
+              : null
+            if (revealTimerRef.current) clearTimeout(revealTimerRef.current)
+            setRevealInfo({ question: chosen, wasYours })
+            revealTimerRef.current = setTimeout(() => {
+              setRevealInfo(null)
+              myVoteIndexRef.current = null
+            }, 2500)
+          }
+        }
         setHasVoted(false)
         setVoteCount(0)
         prevPhaseRef.current = newPhase ?? null
@@ -1646,11 +1717,18 @@ export default function GamePage() {
       .on('postgres_changes', {
         event: 'DELETE', schema: 'public', table: 'players',
       }, (payload) => {
+        const leaving = playersRef.current.find((p) => p.id === payload.old.id)
         setPlayers((prev) => {
           const next = prev.filter((p) => p.id !== payload.old.id)
           playersRef.current = next
           return next
         })
+        const currentGs = roomRef.current?.game_state
+        if (leaving && leaving.id !== getPlayerId(code) && currentGs && currentGs.phase !== 'ended') {
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+          setToastMessage(fr.game.player_left(leaving.pseudo))
+          toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500)
+        }
       })
       // Reflect role changes (e.g. host transfer when the host quits).
       .on('postgres_changes', {
@@ -2013,12 +2091,14 @@ export default function GamePage() {
 
   if (gs.paused) return <PausedScreen isHost={isHost} onResume={onResume} onStop={returnToLobby} />
 
+  if (revealInfo) return <QuestionRevealScreen question={revealInfo.question} wasYours={revealInfo.wasYours} />
+
   const nextLabel = gs.round >= MAX_ROUNDS ? fr.game.see_results : fr.game.next_round
 
   const screen = (() => {
     switch (gs.phase) {
       case 'voting_question':
-        return <QuestionSelectionScreen gs={gs} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} playerCount={players.length} onVote={(i) => submitVote({ question_index: i }, 'question_selection')} onForce={() => resolveVotes('question_selection')} />
+        return <QuestionSelectionScreen gs={gs} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} playerCount={players.length} onVote={(i) => { myVoteIndexRef.current = i; submitVote({ question_index: i }, 'question_selection') }} onForce={() => resolveVotes('question_selection')} />
       case 'round_a_vote':
         return <DesignationVoteScreen gs={gs} players={players} myId={myId} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} accent={C.a} onVote={(id) => submitVote({ target_player_id: id }, 'designation')} onForce={() => resolveVotes('designation')} />
       case 'round_a_reveal':
