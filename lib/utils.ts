@@ -98,3 +98,17 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * Extract the Google/OAuth first name from a Supabase User object for
+ * pseudo pre-fill. Truncates to 12 chars (UI-SPEC). Returns an empty string
+ * if no name can be determined (caller should skip the pre-fill in that case).
+ */
+export function getGoogleFirstName(user: { user_metadata?: { full_name?: string; name?: string }; email?: string }): string {
+  const raw =
+    user.user_metadata?.full_name?.split(' ')[0] ||
+    user.user_metadata?.name?.split(' ')[0] ||
+    user.email?.split('@')[0] ||
+    ''
+  return raw.length > 12 ? raw.slice(0, 11) + '…' : raw
+}
