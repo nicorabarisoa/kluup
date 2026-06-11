@@ -135,7 +135,17 @@ export default function LobbyPage() {
       await supabase.from('rooms').delete().eq('id', roomId)
     } else if (wasHost) {
       const next = [...remaining].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))[0]
-      await supabase.from('players').update({ is_host: true }).eq('id', next.id)
+      // TOCTOU guard: verify the intended next host still exists before the update.
+      const { data: updated } = await supabase.from('players').update({ is_host: true }).eq('id', next.id).select().single()
+      if (!updated) {
+        // next host was deleted between our read and our write — re-read and retry.
+        const { data: fresh } = await supabase.from('players').select().eq('room_id', roomId)
+        const freshRemaining = (fresh ?? []) as Player[]
+        if (freshRemaining.length > 0) {
+          const fallback = [...freshRemaining].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))[0]
+          await supabase.from('players').update({ is_host: true }).eq('id', fallback.id)
+        }
+      }
     }
 
     router.push('/')
