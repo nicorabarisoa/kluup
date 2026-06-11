@@ -80,7 +80,7 @@ function JoinForm() {
           setPseudo(data.pseudo)
         }
       })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [searchParams])
 
   // Separate Google prefill effect (CR-01): runs whenever user or storedPseudo

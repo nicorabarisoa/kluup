@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     // Per D-02: log server-side only — never expose OAuth error details to the client.
-    // eslint-disable-next-line no-console
+     
     console.error('[auth/callback] exchangeCodeForSession error:', error.message)
   }
 

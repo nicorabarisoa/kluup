@@ -6,7 +6,7 @@ import { cookies } from 'next/headers'
 // created with undefined values and every request fails. Warn loudly so the
 // cause is obvious in the console instead of failing silently.
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  // eslint-disable-next-line no-console
+   
   console.error(
     '[supabase/server] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. ' +
       'Set them in your hosting provider (Railway → Variables) and rebuild — ' +
