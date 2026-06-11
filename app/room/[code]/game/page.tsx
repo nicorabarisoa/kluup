@@ -353,6 +353,13 @@ function VoteTimer({ isAdvancer, onExpire, initialSecs = 30 }: { isAdvancer: boo
   )
 }
 
+// VoteTimer with elapsed-time correction — keyed by round at the call site so
+// it remounts (resetting internal state) each time the round changes.
+function RoundTimer({ gs, isAdvancer, onExpire }: { gs: GameState; isAdvancer: boolean; onExpire: () => void }) {
+  const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
+  return <VoteTimer isAdvancer={isAdvancer} onExpire={onExpire} initialSecs={Math.max(0, 30 - elapsed)} />
+}
+
 // Shared footer for round-end (reveal) screens. Only the host can advance
 // to the next round — prevents trolling or accidental skips.
 function RoundEndFooter({
@@ -528,11 +535,7 @@ function QuestionSelectionScreen({
         </div>
 
         <VoteProgress count={voteCount} total={playerCount} voted={hasVoted} />
-        {(() => {
-          const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
-          const initialSecs = Math.max(0, 30 - elapsed)
-          return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
-        })()}
+        <RoundTimer key={`vt-${gs.round}`} gs={gs} isAdvancer={isAdvancer} onExpire={onForce} />
         <HostSkipBtn show={isHost && hasVoted && voteCount < playerCount} onForce={onForce} />
       </div>
     </GameScreen>
@@ -560,11 +563,7 @@ function DesignationVoteScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
-          {(() => {
-            const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
-            const initialSecs = Math.max(0, 30 - elapsed)
-            return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
-          })()}
+          <RoundTimer key={`vt-${gs.round}`} gs={gs} isAdvancer={isAdvancer} onExpire={onForce} />
           <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
         </>
       }
@@ -765,11 +764,7 @@ function ConfessionVoteScreen({
           </p>
         )}
         <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
-        {(() => {
-          const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
-          const initialSecs = Math.max(0, 30 - elapsed)
-          return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
-        })()}
+        <RoundTimer key={`vt-${gs.round}`} gs={gs} isAdvancer={isAdvancer} onExpire={onForce} />
         <HostSkipBtn show={isHost && hasVoted && voteCount < players.length} onForce={onForce} />
       </div>
     </GameScreen>
@@ -959,11 +954,7 @@ function ChoiceScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={gs.vote_round_player_count || players.length} voted={hasVoted} />
-          {(() => {
-            const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
-            const initialSecs = Math.max(0, 30 - elapsed)
-            return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
-          })()}
+          <RoundTimer key={`vt-${gs.round}`} gs={gs} isAdvancer={isAdvancer} onExpire={onForce} />
           <HostSkipBtn show={isHost && hasVoted && voteCount < (gs.vote_round_player_count || players.length)} onForce={onForce} />
         </>
       }
