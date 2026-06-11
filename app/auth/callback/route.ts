@@ -18,6 +18,12 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const origin = getPublicOrigin(request)
 
+  // CR-03: pages pass ?next=<path> so the user lands back where they signed in
+  // from (e.g. /join?code=ABC123). Same-origin paths only — anything else
+  // (absolute URL, protocol-relative //host) falls back to home.
+  const rawNext = searchParams.get('next')
+  const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/'
+
   // Per D-02: no code → not a real OAuth callback → silent redirect to home.
   if (!code) {
     return NextResponse.redirect(new URL('/', origin))
@@ -54,6 +60,7 @@ export async function GET(request: NextRequest) {
     console.error('[auth/callback] exchangeCodeForSession error:', error.message)
   }
 
-  // Redirect to home on both success and error (D-02: silent redirect, no error surface).
-  return NextResponse.redirect(new URL('/', origin))
+  // Redirect to `next` on both success and error (D-02: silent redirect, no
+  // error surface — on error the user simply lands back unauthenticated).
+  return NextResponse.redirect(new URL(next, origin))
 }

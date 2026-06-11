@@ -7,6 +7,34 @@ import { supabase } from '@/lib/supabase'
 import { getPlayerId, setPlayerId, getLastPseudo, setLastPseudo, getGoogleFirstName } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 
+// Room codes: 6 chars from the no-ambiguity alphabet (no 0/O/1/I — cf landing
+// CODE_ALPHABET). Anything else in ?code= (e.g. a stray PKCE uuid) is ignored.
+const ROOM_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/
+
+// IDEN-02 guard: before silently reusing a player row matched by user_id, check
+// whether another device is actively using it (typical case: the joiner signed
+// in with the SAME Google account as the host). Joins the room's presence
+// channel as an observer and reads the synced state. On timeout (realtime
+// hiccup) assume offline, so the legit cross-device reconnect keeps working.
+function isPlayerOnline(roomId: string, playerId: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    let done = false
+    const channel = supabase.channel(`presence-${roomId}`)
+    const finish = (online: boolean) => {
+      if (done) return
+      done = true
+      supabase.removeChannel(channel)
+      resolve(online)
+    }
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        finish(playerId in channel.presenceState())
+      })
+      .subscribe()
+    setTimeout(() => finish(false), 2500)
+  })
+}
+
 function JoinForm() {
   const fr = useT()
   const searchParams = useSearchParams()
@@ -35,12 +63,15 @@ function JoinForm() {
   }, [])
 
   async function handleSignIn() {
+    // CR-03: route the round-trip through /auth/callback with ?next=<here>.
+    // NEVER redirectTo the current URL directly: the PKCE flow comes back with
+    // Supabase's own ?code=<uuid>, which collides with our ?code=<room code>
+    // and was shown in the code field (playtest bug).
+    const next = window.location.pathname + window.location.search
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // Preserve the current URL (including ?code=XXXX) so the user lands
-        // back on this page after the OAuth round-trip (CR-03).
-        redirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     })
     // browser navigates to Google — no cleanup needed
@@ -57,6 +88,7 @@ function JoinForm() {
     const c = searchParams.get('code')
     if (!c) return
     const upperCode = c.toUpperCase()
+    if (!ROOM_CODE_RE.test(upperCode)) return // not a room code (e.g. PKCE uuid)
     setCode(upperCode)
 
     // Baseline fallback: pre-fill from the id/row-independent pseudo key.
@@ -127,6 +159,10 @@ function JoinForm() {
     // Hoist stored lookup — shared by IDEN-02 guard and localStorage reconnect block.
     let playerId: string | null = null
     const stored = getPlayerId(normalizedCode)
+    // user_id written on insert — nulled out when the account's row is already
+    // live on another device, so a room never holds two rows with the same
+    // user_id (the IDEN-02 lookup below uses maybeSingle()).
+    let insertUserId: string | null = user?.id ?? null
 
     // IDEN-02: signed-in user on a new device — match existing player row by user_id.
     // Only attempted when signed in AND no localStorage entry for this room (D-14).
@@ -139,19 +175,27 @@ function JoinForm() {
         .maybeSingle()
 
       if (existingByUid) {
-        setPlayerId(normalizedCode, existingByUid.id)
-        // WR-04: update the DB row if the user typed a different pseudo on this device.
-        if (existingByUid.pseudo !== pseudo.trim()) {
-          await supabase.from('players').update({ pseudo: pseudo.trim() }).eq('id', existingByUid.id)
+        // Same-account guard: if that row is live on another device (typically
+        // the joiner signed in with the host's Google account), don't hijack
+        // it — fall through and join as a brand-new anonymous player.
+        const online = await isPlayerOnline(room.id, existingByUid.id)
+        if (online) {
+          insertUserId = null
+        } else {
+          setPlayerId(normalizedCode, existingByUid.id)
+          // WR-04: update the DB row if the user typed a different pseudo on this device.
+          if (existingByUid.pseudo !== pseudo.trim()) {
+            await supabase.from('players').update({ pseudo: pseudo.trim() }).eq('id', existingByUid.id)
+          }
+          setLastPseudo(normalizedCode, pseudo.trim())
+          router.push(
+            room.status === 'playing'
+              ? `/room/${room.code}/game`
+              : `/room/${room.code}/lobby`
+          )
+          setLoading(false)
+          return  // skip insert — reconnected silently (D-12)
         }
-        setLastPseudo(normalizedCode, pseudo.trim())
-        router.push(
-          room.status === 'playing'
-            ? `/room/${room.code}/game`
-            : `/room/${room.code}/lobby`
-        )
-        setLoading(false)
-        return  // skip insert — reconnected silently (D-12)
       }
     }
 
@@ -173,7 +217,7 @@ function JoinForm() {
     if (!playerId) {
       const { data: player, error: playerError } = await supabase
         .from('players')
-        .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: false, user_id: user?.id ?? null })
+        .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: false, user_id: insertUserId })
         .select()
         .single()
 
