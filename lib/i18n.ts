@@ -62,8 +62,8 @@ export const fr = {
     themes: {
       'hello-stranger': { name: "Hello Stranger", emoji: "👋", desc: "On se découvre — léger, safe" },
       'apero': { name: "Apéro", emoji: "🥂", desc: "On se détend — début de soirée" },
-      'no-filter': { name: "No Filter", emoji: "🔥", desc: "On se lâche — sans retenue" },
-      'unmasked': { name: "Unmasked", emoji: "🎭", desc: "On se révèle — confessions profondes" },
+      'no-filter': { name: "Sans filtre", emoji: "🔥", desc: "On se lâche — sans retenue" },
+      'unmasked': { name: "Sans masques", emoji: "🎭", desc: "On se révèle — confessions profondes" },
     } as Record<string, { name: string; emoji: string; desc: string }>,
   },
   game: {
@@ -301,7 +301,7 @@ export const en: Dict = {
     need_players: (n: number) => `${n} more player${n > 1 ? "s" : ""}…`,
     themes: {
       'hello-stranger': { name: "Hello Stranger", emoji: "👋", desc: "Getting to know each other — light, safe" },
-      'apero': { name: "Apéro", emoji: "🥂", desc: "Winding down — start of the night" },
+      'apero': { name: "Happy Hour", emoji: "🥂", desc: "Winding down — start of the night" },
       'no-filter': { name: "No Filter", emoji: "🔥", desc: "Letting loose — no holding back" },
       'unmasked': { name: "Unmasked", emoji: "🎭", desc: "Opening up — deep confessions" },
     },
@@ -539,9 +539,9 @@ export const es: Dict = {
     need_players: (n: number) => `${n} jugador${n > 1 ? "es" : ""} más…`,
     themes: {
       'hello-stranger': { name: "Hello Stranger", emoji: "👋", desc: "Conocerse — ligero, sin riesgo" },
-      'apero': { name: "Apéro", emoji: "🥂", desc: "Relajarse — inicio de noche" },
-      'no-filter': { name: "No Filter", emoji: "🔥", desc: "Sin filtros — sin contención" },
-      'unmasked': { name: "Unmasked", emoji: "🎭", desc: "Revelarse — confesiones profundas" },
+      'apero': { name: "Tardeo", emoji: "🥂", desc: "Relajarse — inicio de noche" },
+      'no-filter': { name: "Sin filtros", emoji: "🔥", desc: "Sin retención — sin contención" },
+      'unmasked': { name: "Sin máscaras", emoji: "🎭", desc: "Revelarse — confesiones profundas" },
     },
   },
   game: {
@@ -777,9 +777,9 @@ export const de: Dict = {
     need_players: (n: number) => `Noch ${n} Spieler…`,
     themes: {
       'hello-stranger': { name: "Hello Stranger", emoji: "👋", desc: "Kennenlernen — leicht, sicher" },
-      'apero': { name: "Apéro", emoji: "🥂", desc: "Entspannen — Abend beginnt" },
-      'no-filter': { name: "No Filter", emoji: "🔥", desc: "Loslegen — ohne Zurückhalten" },
-      'unmasked': { name: "Unmasked", emoji: "🎭", desc: "Sich öffnen — tiefe Geständnisse" },
+      'apero': { name: "Feierabend", emoji: "🥂", desc: "Entspannen — Abend beginnt" },
+      'no-filter': { name: "Kein Filter", emoji: "🔥", desc: "Loslegen — ohne Zurückhalten" },
+      'unmasked': { name: "Demaskiert", emoji: "🎭", desc: "Sich öffnen — tiefe Geständnisse" },
     },
   },
   game: {
