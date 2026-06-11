@@ -345,7 +345,7 @@ export default function Home() {
       {/* ===== Footer ===== */}
       <footer className="px-6 py-10 text-center" style={{ borderTop: `1px solid ${C.border}` }}>
         <span className="text-lg font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
-          Klu<span style={{ color: '#FF6B35' }}>up</span>
+          <span style={{ color: '#FFFFFF' }}>Klu</span><span style={{ color: '#39FF14' }}>up</span>
         </span>
         <p className="text-xs mt-1" style={{ color: C.faint }}>kluup.app</p>
       </footer>
