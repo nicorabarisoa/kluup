@@ -1755,7 +1755,8 @@ export default function GamePage() {
     }
 
     if (voteType === 'designation') {
-      const { topIds, tieAll } = tallyDesignation(votes, players.length)
+      const frozenCount02 = gs.vote_round_player_count || players.length
+      const { topIds, tieAll } = tallyDesignation(votes, frozenCount02)
       // 'designation' votes are Type A only now (Type C uses the choice phase).
       await advance({
         ...gs,
@@ -1826,7 +1827,8 @@ export default function GamePage() {
     }
     // No volunteer → the most-designated answers; roulette picks one on a tie.
     const desigs = await fetchVotes(room.id, gs.round, 'designation')
-    const { topIds } = tallyDesignation(desigs, players.length)
+    const frozenCountC = gs.vote_round_player_count || players.length
+    const { topIds } = tallyDesignation(desigs, frozenCountC)
     const winner = topIds.length > 0 ? topIds[Math.floor(Math.random() * topIds.length)] : null
     await advance({
       ...gs, phase: 'round_c_roulette',
