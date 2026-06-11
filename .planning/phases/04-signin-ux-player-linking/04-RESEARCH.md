@@ -582,17 +582,19 @@ Note: The `Dict` type in `lib/i18n.ts` enforces key exhaustiveness — all 4 loc
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should sign-out also call `setUser(null)` explicitly?**
    - What we know: `supabase.auth.signOut()` clears the server session cookie. `router.push('/')` triggers a navigation.
    - What's unclear: In Next.js App Router, does `router.push('/')` to the current page remount the component (clearing `user` state), or does it skip remount since it's the same route?
    - Recommendation: Defensively add `setUser(null); setAuthLoading(false)` immediately after `signOut()` call, before `router.push('/')`. This guarantees UI clears immediately regardless of remount behaviour. [ASSUMED: remount depends on router implementation]
+   - **RESOLVED: add `setUser(null); setAuthLoading(false)` defensively before `router.push('/')` — implemented in plan 04-03 and 04-04 handleSignOut actions.**
 
 2. **Google OAuth redirect URL for local dev vs prod**
    - What we know: `app/auth/callback/route.ts` uses `RAILWAY_PUBLIC_DOMAIN` or `X-Forwarded-Host` for prod, falls back to `request.nextUrl.origin` for local dev.
    - What's unclear: Does the Supabase Dashboard have both `http://localhost:3000/auth/callback` and the prod URL registered?
    - Recommendation: Verify in Supabase Dashboard → Authentication → URL Configuration that both URLs are in the "Redirect URLs" list. This is a manual pre-condition for Phase 4, confirmed done in Phase 2 D-02.
+   - **RESOLVED: confirmed registered in Phase 2 D-02 — pre-condition satisfied.**
 
 ---
 
