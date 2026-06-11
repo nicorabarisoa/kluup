@@ -1493,6 +1493,9 @@ export default function GamePage() {
   const playersRef = useRef<Player[]>([])
   const voteChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Kept in sync with the derived isAdvancer value so async closures (broadcast
+  // handlers, timers) always see the current advancer status without stale captures.
+  const isAdvancerRef = useRef(false)
 
   useEffect(() => {
     const id = getPlayerId(code)
@@ -1568,7 +1571,21 @@ export default function GamePage() {
         .on('broadcast', { event: 'vote_count' }, ({ payload }) => {
           const gs = roomRef.current?.game_state
           if (!gs) return
-          if (payload.round === gs.round) setVoteCount(payload.count as number)
+          if (payload.round !== gs.round) return
+          setVoteCount(payload.count as number)
+          // If this client is the elected advancer and the broadcast indicates
+          // the threshold has been reached, trigger resolution. This covers the
+          // case where the last voter is NOT the advancer (they already sent the
+          // broadcast but skipped resolution because !isAdvancer in submitVote).
+          if (!isAdvancerRef.current) return
+          const threshold = gs.vote_round_player_count || playersRef.current.length
+          if (payload.count < threshold) return
+          if (gs.phase === 'round_c_choice') {
+            void resolveTypeCChoice()
+          } else {
+            const vt = voteTypeForPhase(gs.phase)
+            if (vt) void resolveVotes(vt)
+          }
         })
         .on('broadcast', { event: 'phase_changed' }, () => {
           // Someone advanced the game — pull the fresh state from the DB.
@@ -1707,6 +1724,8 @@ export default function GamePage() {
   // Single deterministic advancer (smallest player id) fires the round-end timer.
   const advancerId = players.length ? [...players].map((p) => p.id).sort()[0] : null
   const isAdvancer = advancerId === myId
+  // Keep the ref in sync so broadcast handlers always see the current value.
+  isAdvancerRef.current = isAdvancer
 
   // Write the new game state, then broadcast so every client re-fetches it —
   // this is the reliable convergence path, independent of postgres_changes.
@@ -1740,7 +1759,9 @@ export default function GamePage() {
     })
 
     const threshold = gs!.vote_round_player_count || players.length
-    if (count >= threshold) await resolveVotes(voteType)
+    // Only the elected advancer resolves — prevents every client that sees the
+    // threshold being met from racing to call resolveVotes with independent Math.random().
+    if (count >= threshold && isAdvancer) await resolveVotes(voteType)
   }
 
   async function resolveVotes(voteType: string) {
@@ -1816,7 +1837,8 @@ export default function GamePage() {
     })
 
     const threshold = gs!.vote_round_player_count || players.length
-    if (count >= threshold) await resolveTypeCChoice()
+    // Only the elected advancer resolves (same guard as submitVote).
+    if (count >= threshold && isAdvancer) await resolveTypeCChoice()
   }
 
   async function resolveTypeCChoice() {
