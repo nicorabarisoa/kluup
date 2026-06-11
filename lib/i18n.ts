@@ -234,6 +234,11 @@ export const fr = {
     target_no: (cible: string) => `${cible} est clean — pas de confession de son côté.`,
     reveal_announce: (pseudo: string) => `💥 ${pseudo} joue la carte Révélation — une âme sort de l'ombre…`,
   },
+  auth: {
+    sign_in: "Se connecter",
+    sign_out: "Se déconnecter",
+    pseudo_prefilled_hint: "Nom Google pré-rempli — modifiable",
+  },
 }
 
 export type Dict = typeof fr
@@ -474,6 +479,11 @@ export const en: Dict = {
     target_no: (cible: string) => `${cible} is clean — no confession on their end.`,
     reveal_announce: (pseudo: string) => `💥 ${pseudo} plays the Reveal card — another soul steps into the light…`,
   },
+  auth: {
+    sign_in: "Sign in",
+    sign_out: "Sign out",
+    pseudo_prefilled_hint: "Pre-filled from Google — you can change it",
+  },
 }
 
 export const es: Dict = {
@@ -712,6 +722,11 @@ export const es: Dict = {
     target_no: (cible: string) => `${cible} está limpio/a — sin confesión por su parte.`,
     reveal_announce: (pseudo: string) => `💥 ${pseudo} juega la carta Revelación — un alma sale de las sombras…`,
   },
+  auth: {
+    sign_in: "Iniciar sesión",
+    sign_out: "Cerrar sesión",
+    pseudo_prefilled_hint: "Nombre de Google completado — puedes cambiarlo",
+  },
 }
 
 export const de: Dict = {
@@ -949,6 +964,11 @@ export const de: Dict = {
     target_yes: (cible: string) => `${cible} war im Verborgenen — ja, er/sie hat gestanden.`,
     target_no: (cible: string) => `${cible} ist clean — kein Geständnis von seiner/ihrer Seite.`,
     reveal_announce: (pseudo: string) => `💥 ${pseudo} spielt die Enthüllungs-Karte — eine Seele tritt aus dem Schatten…`,
+  },
+  auth: {
+    sign_in: "Anmelden",
+    sign_out: "Abmelden",
+    pseudo_prefilled_hint: "Google-Name vorausgefüllt — änderbar",
   },
 }
 
