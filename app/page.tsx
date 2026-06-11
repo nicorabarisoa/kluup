@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { genId, setPlayerId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
+import type { User } from '@supabase/supabase-js'
 
 // ---------------------------------------------------------------------------
 // Design tokens (match the app)
@@ -47,6 +48,50 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+
+  // Auth state — one network call on mount, result cached in component state.
+  const [user, setUser] = useState<User | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [googlePrefill, setGooglePrefill] = useState('')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+      setAuthLoading(false)
+    })
+  }, [])
+
+  // Google first name for pseudo pre-fill (D-08). Truncate >12 chars (UI-SPEC).
+  function getFirstName(u: User): string {
+    const raw =
+      u.user_metadata?.full_name?.split(' ')[0] ||
+      u.user_metadata?.name?.split(' ')[0] ||
+      u.email?.split('@')[0] ||
+      '?'
+    return raw.length > 12 ? raw.slice(0, 11) + '…' : raw
+  }
+
+  // Pre-fill pseudo from Google name when user is signed in and field is empty.
+  useEffect(() => {
+    if (user && !pseudo) {
+      const firstName = getFirstName(user)
+      setPseudo(firstName)
+      setGooglePrefill(firstName)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  async function handleSignIn() {
+    await supabase.auth.signInWithOAuth({ provider: 'google' })
+    // browser navigates to Google — no cleanup needed
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    setUser(null)
+    setAuthLoading(false)
+    router.push('/')
+  }
 
   async function createRoom() {
     if (!pseudo.trim()) { inputRef.current?.focus(); return }
@@ -110,7 +155,29 @@ export default function Home() {
         <span className="text-xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
           <span style={{ color: '#FFFFFF' }}>Klu</span><span style={{ color: '#39FF14' }}>up</span>
         </span>
-        <LangSwitch />
+        <div className="flex items-center gap-2">
+          {!authLoading && !user && (
+            <button
+              onClick={handleSignIn}
+              className="text-xs font-extrabold px-2.5 py-1.5 rounded-xl"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, color: '#fff', fontFamily: 'var(--font-body)' }}
+            >
+              {fr.auth.sign_in}
+            </button>
+          )}
+          {!authLoading && user && (
+            <button
+              onClick={handleSignOut}
+              className="flex items-center text-xs px-2.5 py-1.5 rounded-xl max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, fontFamily: 'var(--font-body)' }}
+            >
+              <span style={{ color: '#fff', fontWeight: 800 }}>{getFirstName(user)}</span>
+              <span style={{ color: C.faint }}> · </span>
+              <span style={{ color: C.muted }}>{fr.auth.sign_out}</span>
+            </button>
+          )}
+          <LangSwitch />
+        </div>
       </div>
 
       {/* ===== Hero ===== */}
@@ -144,6 +211,11 @@ export default function Home() {
             className="rounded-2xl px-4 py-4 text-base outline-none text-center"
             style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontFamily: 'var(--font-body)' }}
           />
+          {googlePrefill && pseudo === googlePrefill && (
+            <p className="text-center -mt-1" style={{ fontSize: 12, color: C.muted, fontFamily: 'var(--font-body)' }}>
+              {fr.auth.pseudo_prefilled_hint}
+            </p>
+          )}
           <button
             type="button"
             onClick={createRoom}
