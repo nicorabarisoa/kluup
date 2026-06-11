@@ -741,8 +741,12 @@ function B2RouletteScreen({
   const idx = designated ? players.indexOf(designated) : 0
   const pct = gs.yes_percentage ?? 0
   const yesCount = gs.revealed_player_ids?.length ?? 0
-  const nobody = yesCount === 0
-  const allYes = pct === 100 && yesCount > 0
+  // Use pct as the canonical source of truth for nobody/allYes — pct is set
+  // from the frozen vote snapshot at resolution, so it does not change if the
+  // roster later shifts. revealed_player_ids has dual semantics (all yes-ids at
+  // resolution; just the winner after roulette) which makes yesCount === 0 fragile.
+  const nobody = pct === 0
+  const allYes = pct === 100
   // Everyone who said yes except the one the roulette picked stays anonymous.
   const othersCount = Math.max(0, yesCount - 1)
 
