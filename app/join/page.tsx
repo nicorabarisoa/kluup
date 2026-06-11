@@ -15,6 +15,7 @@ function JoinForm() {
   const [loading, setLoading] = useState(false)
   const [pseudoError, setPseudoError] = useState<string | null>(null)
   const [storedPseudo, setStoredPseudo] = useState<string | null>(null)
+  const [googlePrefill, setGooglePrefill] = useState<string | null>(null)
   const router = useRouter()
 
   // Auth state — one network call on mount, result cached in component state.
@@ -69,7 +70,24 @@ function JoinForm() {
     // still exists (reconnect path — browser closed without quitting), prefer
     // the DB value over the remembered pseudo.
     const pid = getPlayerId(upperCode)
-    if (!pid) return
+    if (!pid) {
+      // Google-name fallback (D-08, D-09): only when no stored pseudo and user is signed in.
+      // Priority: stored pseudo > Google first name > empty.
+      if (!remembered && user) {
+        const raw =
+          user.user_metadata?.full_name?.split(' ')[0] ||
+          user.user_metadata?.name?.split(' ')[0] ||
+          user.email?.split('@')[0] ||
+          ''
+        const firstName = raw.length > 12 ? raw.slice(0, 11) + '…' : raw
+        if (firstName) {
+          setPseudo(firstName)
+          setGooglePrefill(firstName)
+          // Do NOT set storedPseudo — this is Google pre-fill, not a remembered game pseudo.
+        }
+      }
+      return
+    }
     supabase.from('players').select('pseudo').eq('id', pid).maybeSingle()
       .then(({ data }) => {
         if (data?.pseudo) {
@@ -77,7 +95,8 @@ function JoinForm() {
           setPseudo(data.pseudo)
         }
       })
-  }, [searchParams])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, user])
 
   async function joinRoom() {
     if (!code.trim() || !pseudo.trim()) return
@@ -106,12 +125,37 @@ function JoinForm() {
       return
     }
 
+    // Hoist stored lookup — shared by IDEN-02 guard and localStorage reconnect block.
+    let playerId: string | null = null
+    const stored = getPlayerId(normalizedCode)
+
+    // IDEN-02: signed-in user on a new device — match existing player row by user_id.
+    // Only attempted when signed in AND no localStorage entry for this room (D-14).
+    if (user && !stored) {
+      const { data: existingByUid } = await supabase
+        .from('players')
+        .select('id')
+        .eq('room_id', room.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (existingByUid) {
+        setPlayerId(normalizedCode, existingByUid.id)
+        setLastPseudo(normalizedCode, pseudo.trim())
+        router.push(
+          room.status === 'playing'
+            ? `/room/${room.code}/game`
+            : `/room/${room.code}/lobby`
+        )
+        setLoading(false)
+        return  // skip insert — reconnected silently (D-12)
+      }
+    }
+
     // Reconnect: if we still hold an identity for this room and that row still
     // exists, reuse it instead of inserting a duplicate (browser was closed,
     // the old row hasn't been pruned yet). If the player changed their pseudo,
     // update the row so they appear with the new name.
-    let playerId: string | null = null
-    const stored = getPlayerId(normalizedCode)
     if (stored) {
       const { data: existing } = await supabase
         .from('players').select('id, pseudo').eq('room_id', room.id).eq('id', stored).maybeSingle()
@@ -126,7 +170,7 @@ function JoinForm() {
     if (!playerId) {
       const { data: player, error: playerError } = await supabase
         .from('players')
-        .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: false })
+        .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: false, user_id: user?.id ?? null })
         .select()
         .single()
 
@@ -218,6 +262,9 @@ function JoinForm() {
           />
           {storedPseudo && pseudo === storedPseudo && (
             <p className="text-xs" style={{ color: '#888', fontFamily: 'var(--font-body)' }}>{fr.join.pseudo_prefilled_hint}</p>
+          )}
+          {!storedPseudo && googlePrefill && pseudo === googlePrefill && (
+            <p className="text-xs" style={{ color: '#888', fontFamily: 'var(--font-body)' }}>{fr.auth.pseudo_prefilled_hint}</p>
           )}
           {pseudoError && (
             <p className="text-xs text-center" style={{ color: 'rgba(255,60,111,0.85)', fontFamily: 'var(--font-body)' }}>{pseudoError}</p>
