@@ -39,11 +39,11 @@ CREATE TRIGGER trg_rooms_bump_activity
   FOR EACH ROW EXECUTE FUNCTION rooms_bump_activity();
 
 -- === Block 3 ================================================================
--- Sweep: delete rooms with no connected client for ~60 seconds. players + votes
+-- Sweep: delete rooms with no connected client for ~90 seconds. players + votes
 -- cascade away. Connected clients refresh last_activity via the presence
--- heartbeat (HEARTBEAT_MS = 30s in lib/usePresence.ts), which keeps active
--- rooms comfortably under the 60s threshold — so live rooms are never swept
--- mid-session. Only truly-empty abandoned rooms age past the threshold.
+-- heartbeat (HEARTBEAT_MS = 30s in lib/usePresence.ts); 90s = 3× the heartbeat
+-- interval, giving a safe 60s margin against delayed heartbeats. Active rooms
+-- are never swept mid-session; only truly-abandoned rooms age past the threshold.
 -- Returns how many rooms were removed.
 --
 -- NOTE: The ~60s threshold means SC-3 ("room auto-deleted") has an acceptance
@@ -56,7 +56,7 @@ DECLARE
 BEGIN
   WITH dead AS (
     DELETE FROM rooms
-    WHERE COALESCE(last_activity, created_at) < now() - interval '60 seconds'
+    WHERE COALESCE(last_activity, created_at) < now() - interval '90 seconds'
     RETURNING id
   )
   SELECT count(*) INTO n FROM dead;
