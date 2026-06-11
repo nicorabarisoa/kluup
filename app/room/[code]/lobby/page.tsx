@@ -104,6 +104,14 @@ export default function LobbyPage() {
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
+        table: 'players',
+      }, (payload) => {
+        if (payload.new.room_id !== roomIdRef.current) return
+        setPlayers((prev) => prev.map((p) => p.id === payload.new.id ? { ...p, ...payload.new } as Player : p))
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
         table: 'rooms',
         filter: `code=eq.${code}`,
       }, (payload) => {
