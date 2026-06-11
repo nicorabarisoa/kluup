@@ -4,8 +4,16 @@ import { GameState, GroupTitleKey, Question, SessionStats } from './types'
 // Confession (Type B) is always a roulette now — the B1/B2 sub-mode split was
 // removed after playtest. b_subtype stays 'B2' for stats continuity.
 
+// Fisher-Yates (Knuth) shuffle — produces a uniformly random permutation.
+// Array.sort with a random comparator is biased (V8 TimSort caches comparator
+// results, so certain permutations are statistically impossible).
 function shuffle<T>(arr: T[]): T[] {
-  return [...arr].sort(() => Math.random() - 0.5)
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
 }
 
 // Type dominance per theme (cf. CLAUDE.md). Higher weight = more frequent rounds.
