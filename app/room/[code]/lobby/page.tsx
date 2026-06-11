@@ -28,6 +28,13 @@ export default function LobbyPage() {
   const [roomId, setRoomId] = useState<string | null>(null)
   const [selectedTheme, setSelectedTheme] = useState('hello-stranger')
   const [starting, setStarting] = useState(false)
+  const [isSignedIn, setIsSignedIn] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsSignedIn(!!data.user)
+    })
+  }, [])
   const navigatedRef = useRef(false)
   const roomIdRef = useRef<string | null>(null)
 
@@ -208,14 +215,27 @@ export default function LobbyPage() {
      {/* Centered column so the lobby doesn't stretch edge-to-edge on desktop. */}
      <div className="w-full max-w-md mx-auto flex flex-col flex-1 pb-8">
       <div className="w-full flex justify-between items-center px-5 pt-4">
-        <button
-          type="button"
-          onClick={onQuit}
-          className="text-xs font-medium px-3 h-8 rounded-xl"
-          style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: 'var(--font-body)' }}
-        >
-          {fr.game.quit}
-        </button>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            type="button"
+            onClick={onQuit}
+            className="text-xs font-medium px-3 h-8 rounded-xl"
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: 'var(--font-body)' }}
+          >
+            {fr.game.quit}
+          </button>
+          {isSignedIn && (
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute', top: -2, right: -2,
+                width: 6, height: 6, borderRadius: '50%',
+                background: '#22c55e',
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+        </div>
         <LangSwitch />
       </div>
       {/* Header */}
