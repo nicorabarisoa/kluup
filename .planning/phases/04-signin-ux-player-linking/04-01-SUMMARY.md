@@ -82,6 +82,12 @@ None - no external service configuration required.
 - Plans 04-02 through 04-04 can safely reference `t.auth.sign_in` etc. without compiler errors
 - No blockers
 
+## Self-Check: PASSED
+
+- lib/i18n.ts: FOUND
+- 04-01-SUMMARY.md: FOUND
+- Task commit 3327e42: FOUND
+
 ---
 *Phase: 04-signin-ux-player-linking*
 *Completed: 2026-06-11*
