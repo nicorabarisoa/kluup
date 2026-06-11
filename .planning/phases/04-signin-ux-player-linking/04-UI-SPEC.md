@@ -44,11 +44,13 @@ Declared values (multiples of 4 only):
 | 2xl | 48px | Major section separators |
 | 3xl | 64px | Page-level spacing |
 
-Exceptions:
+Exceptions (formal named exceptions — executor must not treat these as errors):
 
-- Green dot indicator on Quit button: **6px diameter** — falls between xs (4px) and sm (8px). This is a presentational affordance, not a layout spacing token. Implemented as a positioned `<span>` with `width: 6px; height: 6px`.
-- Touch targets: Quit button is `h-8` (32px height). This is below the 44px WCAG guideline — intentional for the compact header layout; preserved from existing implementation.
-- LangSwitch pill: `px-2.5 py-1.5` (10px / 6px) — existing, preserved.
+| Exception name | Value | Rationale |
+|----------------|-------|-----------|
+| `dot-indicator` | 6px diameter | Green dot on Quit button — presentational affordance between xs (4px) and sm (8px). Not a layout spacing token. Implemented as `width:6px; height:6px` positioned `<span>`. |
+| `touch-target-compact` | 32px height (`h-8`) | Quit button — below WCAG 44px. Intentional for compact header layout; preserved from existing implementation. |
+| `pill-padding` | 10px / 6px (`px-2.5 py-1.5`) | Sign-in button + signed-in chip + LangSwitch pill. LangSwitch-inherited padding; visual pairing rationale — all three controls sit in the same top-bar row and must feel identical. Non-4px values are intentional and consistent across all peer pill elements. |
 
 ---
 
@@ -56,17 +58,25 @@ Exceptions:
 
 All inherited from the existing design system. Phase 4 adds no new type sizes.
 
+Exactly 4 sizes, exactly 2 weights.
+
 | Role | Size | Weight | Line Height | Font var |
 |------|------|--------|-------------|----------|
+| Caption / hint | 12px | 400 (regular) | 1.4 | `var(--font-body)` |
 | Body | 16px | 400 (regular) | 1.5 | `var(--font-body)` |
-| Label / button | 14px | 700 (bold) | 1 | `var(--font-body)` |
-| Caption / hint | 12px | 400–500 | 1.4 | `var(--font-body)` |
-| Heading | 20–28px | 800 (extrabold) | 1.2 | `var(--font-display)` |
+| Heading (sub) | 20px | 800 (extrabold) | 1.2 | `var(--font-display)` |
+| Heading (display) | 28px | 800 (extrabold) | 1.2 | `var(--font-display)` |
+
+**Weight notes:**
+- **400 (regular)** — all body text, hints, secondary labels, muted/faint copy, separator dots
+- **800 (extrabold)** — all headings, display text, labels, buttons, sign-in/sign-out pill text. Bricolage Grotesque extrabold is the brand non-negotiable per CLAUDE.md. Former 500 and 700 usages are merged into 800.
+
+Previous 14px label/button row is removed. Those usages reassigned to **12px** (compact controls that pair with LangSwitch) since they live in the top-bar row alongside other 12px pill elements.
 
 **Specific to Phase 4 elements:**
 
-- **Sign-in button (signed-out state):** 12px, weight 700, `var(--font-body)`. Matches LangSwitch pill typography exactly — they sit in the same row and must feel like peer controls.
-- **Signed-in chip "[Prénom] · Se déconnecter" (signed-in state):** "[Prénom]" at 12px weight 700 in `#FFFFFF`; " · " separator at 12px weight 400 in `#555555` (faint); "Se déconnecter" at 12px weight 500 in `#888888` (muted). Total chip rendered as one inline element — no separate DOM nodes required for the separator.
+- **Sign-in button (signed-out state):** 12px, weight 800, `var(--font-body)`. Matches LangSwitch pill typography exactly — they sit in the same row and must feel like peer controls.
+- **Signed-in chip "[Prénom] · Se déconnecter" (signed-in state):** "[Prénom]" at 12px weight 800 in `#FFFFFF`; " · " separator at 12px weight 400 in `#555555` (faint); "Se déconnecter" at 12px weight 400 in `#888888` (muted). Total chip rendered as one inline element — no separate DOM nodes required for the separator.
 - **Pseudo pre-fill hint:** 12px, weight 400, `#888888` — same as existing `storedPseudo` hint in join page.
 
 ---
@@ -109,7 +119,7 @@ background: #1A1A1A
 border: 1px solid #252525
 border-radius: 12px (rounded-xl)
 padding: 6px 10px (py-1.5 px-2.5) — matches LangSwitch pill
-font: 12px / weight 700 / var(--font-body)
+font: 12px / weight 800 / var(--font-body)
 color: #FFFFFF
 ```
 
@@ -145,7 +155,7 @@ Preferred pattern — single `<button>` (simpler, entire chip is the sign-out ac
 ```
 "[Prénom] · Se déconnecter"
          ↑            ↑
-     #FFF / 700    #888 / 400
+     #FFF / 800    #888 / 400
 ```
 
 The " · " separator uses `color: #555555` as a visual divider, not a functional element.
@@ -167,7 +177,7 @@ border-radius: rounded-xl (12px)
 background: #1A1A1A
 border: 1px solid #252525
 color: #888888 (muted)
-font: 12px / weight 500 / var(--font-body)
+font: 12px / weight 400 / var(--font-body)
 ```
 
 **Green dot addition:**
