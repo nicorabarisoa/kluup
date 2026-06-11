@@ -127,7 +127,7 @@ export default function Home() {
 
     const { data: player, error: playerError } = await supabase
       .from('players')
-      .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: true })
+      .insert({ room_id: room.id, pseudo: pseudo.trim(), is_host: true, user_id: user?.id ?? null })
       .select()
       .single()
 
