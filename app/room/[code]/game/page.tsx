@@ -889,9 +889,9 @@ function B2RouletteScreen({
 // ---- Type C choice (volunteer OR send someone) ----
 
 function ChoiceScreen({
-  gs, players, myId, isHost, hasVoted, voteCount, onVolunteer, onDesignate, onForce,
+  gs, players, myId, isHost, isAdvancer, hasVoted, voteCount, onVolunteer, onDesignate, onForce,
 }: {
-  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void
+  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -905,6 +905,11 @@ function ChoiceScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={gs.vote_round_player_count || players.length} voted={hasVoted} />
+          {(() => {
+            const elapsed = gs.round_started_at ? Math.floor((Date.now() - new Date(gs.round_started_at).getTime()) / 1000) : 0
+            const initialSecs = Math.max(0, 30 - elapsed)
+            return <VoteTimer key={`vt-${gs.round}`} isAdvancer={isAdvancer} onExpire={onForce} initialSecs={initialSecs} />
+          })()}
           <HostSkipBtn show={isHost && hasVoted && voteCount < (gs.vote_round_player_count || players.length)} onForce={onForce} />
         </>
       }
@@ -1958,7 +1963,7 @@ export default function GamePage() {
       case 'round_b2_roulette':
         return <B2RouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onReveal={onRevealB2} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_c_choice':
-        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} />
+        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} />
       case 'round_c_volunteers_reveal':
         return <VolunteersRevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_c_roulette':
