@@ -1224,7 +1224,7 @@ const ShareCard = forwardRef<HTMLDivElement, {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <span style={{ color: meta.color, fontSize: 16, fontWeight: 700 }}>{meta.name}</span>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: '#fff' }}>
-            Klu<span style={{ color: C.a }}>up</span>
+            Klu<span style={{ color: meta.color }}>up</span>
           </span>
         </div>
 

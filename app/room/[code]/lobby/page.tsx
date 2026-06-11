@@ -10,6 +10,12 @@ import { useT, LangSwitch } from '@/lib/locale'
 import { useRoomPresence } from '@/lib/usePresence'
 
 const THEME_IDS = ['hello-stranger', 'apero', 'no-filter', 'unmasked']
+const THEME_COLORS: Record<string, string> = {
+  'hello-stranger': '#00C896',
+  'apero': '#FFB800',
+  'no-filter': '#FF3C6F',
+  'unmasked': '#7B2FFF',
+}
 
 export default function LobbyPage() {
   const fr = useT()
@@ -210,7 +216,7 @@ export default function LobbyPage() {
           className="text-4xl font-extrabold mb-4"
           style={{ fontFamily: 'var(--font-display)' }}
         >
-          Klu<span style={{ color: C.a }}>up</span>
+          Klu<span style={{ color: THEME_COLORS[selectedTheme] ?? '#FF6B35' }}>up</span>
         </h1>
         <div className="flex items-center gap-3">
           <span

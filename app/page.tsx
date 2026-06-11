@@ -108,7 +108,7 @@ export default function Home() {
       {/* Top bar */}
       <div className="w-full max-w-5xl mx-auto flex items-center justify-between px-6 pt-5">
         <span className="text-xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
-          Klu<span style={{ color: C.a }}>up</span>
+          Klu<span style={{ color: '#FF6B35' }}>up</span>
         </span>
         <LangSwitch />
       </div>
@@ -122,7 +122,7 @@ export default function Home() {
           className="font-extrabold tracking-tight leading-none text-7xl sm:text-8xl"
           style={{ fontFamily: 'var(--font-display)' }}
         >
-          Klu<span style={{ color: C.a }}>up</span>
+          Klu<span style={{ color: '#FF6B35' }}>up</span>
         </h1>
         <p className="mt-4 font-bold text-xl sm:text-2xl" style={{ fontFamily: 'var(--font-display)' }}>
           {fr.home.tagline}
@@ -270,7 +270,7 @@ export default function Home() {
       {/* ===== Footer ===== */}
       <footer className="px-6 py-10 text-center" style={{ borderTop: `1px solid ${C.border}` }}>
         <span className="text-lg font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
-          Klu<span style={{ color: C.a }}>up</span>
+          Klu<span style={{ color: '#FF6B35' }}>up</span>
         </span>
         <p className="text-xs mt-1" style={{ color: C.faint }}>kluup.app</p>
       </footer>
