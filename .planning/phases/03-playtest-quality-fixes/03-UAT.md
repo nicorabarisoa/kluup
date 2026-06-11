@@ -3,7 +3,8 @@ status: diagnosed
 phase: 03-playtest-quality-fixes
 source: [03-VERIFICATION.md]
 started: "2026-06-10T00:00:00Z"
-updated: "2026-06-10T00:00:00Z"
+updated: "2026-06-11T00:00:00Z"
+code_review_note: "CR-03 regression (added VoteTimer to ChoiceScreen) reverted via commit d88bfbf. SC-4 (pseudo prefill) and SC-8 (display denominator) confirmed fixed by earlier code-review commits. Remaining open items: SC-3 requires human Supabase checkpoint (pg_cron), SC-5 requires deploy."
 ---
 
 ## Current Test
