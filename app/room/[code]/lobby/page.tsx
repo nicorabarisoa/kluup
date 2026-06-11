@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { makeInitialGameState, pickCandidates } from '@/lib/game'
 import { Player } from '@/lib/types'
-import { copyToClipboard, getPlayerId, clearPlayerId } from '@/lib/utils'
+import { copyToClipboard, genId, getPlayerId, clearPlayerId } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 import { useRoomPresence } from '@/lib/usePresence'
 
@@ -161,7 +161,7 @@ export default function LobbyPage() {
 
     const candidates = await pickCandidates(selectedTheme, 1, [])
     const gs = makeInitialGameState(candidates)
-    gs.session_uuid = crypto.randomUUID() // fresh UUID per session; also on replay
+    gs.session_uuid = genId() // fresh ID per session; also on replay (genId is safe on HTTP/LAN)
     gs.round_started_at = new Date().toISOString()
     gs.vote_round_player_count = players.length
 
