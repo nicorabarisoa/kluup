@@ -929,9 +929,9 @@ function B2RouletteScreen({
 // ---- Type C choice (volunteer OR send someone) ----
 
 function ChoiceScreen({
-  gs, players, myId, isHost, isAdvancer, hasVoted, voteCount, onVolunteer, onDesignate, onForce,
+  gs, players, myId, isHost, hasVoted, voteCount, onVolunteer, onDesignate, onForce,
 }: {
-  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void}) {
+  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void}) {
   const fr = useT()
   const { locale } = useLocale()
   const q = gs.current_question!
@@ -944,7 +944,9 @@ function ChoiceScreen({
       footer={
         <>
           <VoteProgress count={voteCount} total={gs.vote_round_player_count || players.length} voted={hasVoted} />
-          <RoundTimer key={`vt-${gs.round}`} gs={gs} isAdvancer={isAdvancer} onExpire={onForce} />
+          {/* SC-7 / playtest #4: NO countdown on the choice phase — the round
+              must not advance until everyone has acted. Host skip is the only
+              manual escape hatch. */}
           <HostSkipBtn show={isHost && hasVoted && voteCount < (gs.vote_round_player_count || players.length)} onForce={onForce} />
         </>
       }
@@ -1778,7 +1780,8 @@ export default function GamePage() {
     const r = roomRef.current
     const gs = r?.game_state
     if (!gs || !r) return
-    const timerPhases = ['voting_question', 'round_a_vote', 'round_b_vote', 'round_c_choice']
+    // round_c_choice excluded: the choice phase has no countdown (SC-7).
+    const timerPhases = ['voting_question', 'round_a_vote', 'round_b_vote']
     if (!timerPhases.includes(gs.phase)) return
     if (gs.round_started_at) return // already stamped
     // Only the advancer writes to avoid simultaneous writes.
@@ -2093,7 +2096,7 @@ export default function GamePage() {
       case 'round_b2_roulette':
         return <B2RouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onReveal={onRevealB2} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_c_choice':
-        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} />
+        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} />
       case 'round_c_volunteers_reveal':
         return <VolunteersRevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'round_c_roulette':
