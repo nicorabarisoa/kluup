@@ -7,7 +7,7 @@
 - [x] **Phase 1: Health Endpoint** - GET /api/health for load-balancer probes
 - [x] **Phase 2: Auth Infrastructure + Schema** - Lay auth plumbing and DB schema before any user-facing auth ships
 - [x] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships (8/8 plans complete, all SCs addressed)
-- [ ] **Phase 4: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows
+- [x] **Phase 4: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows (completed 2026-06-11)
 - [ ] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page
 
 ---
@@ -87,7 +87,7 @@ Plans:
   4. An anonymous player can still join and play a full game without ever being prompted to sign in during the game
   5. Auth session survives browser refresh and page navigation without the user needing to re-authenticate
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 **Wave 1**
 
 - [x] 04-01-PLAN.md — i18n auth namespace (sign_in/sign_out/pseudo_prefilled_hint) in fr/en/es/de
@@ -96,7 +96,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 04-03-PLAN.md — join page: auth pill + IDEN-02 user_id reconnect + user_id insert + Google-name pre-fill
-- [ ] 04-04-PLAN.md — landing page: auth pill + user_id on host insert + Google-name pre-fill
+- [x] 04-04-PLAN.md — landing page: auth pill + user_id on host insert + Google-name pre-fill
 
 **UI hint**: yes
 
@@ -159,5 +159,5 @@ Plans:
 | 1. Health Endpoint | 1/1 | Complete | 2026-06-07 |
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
 | 3. Playtest Quality Fixes | 8/8 | Complete   | 2026-06-10 |
-| 4. Sign-in UX + Player Linking | 3/4 | In Progress|  |
+| 4. Sign-in UX + Player Linking | 4/4 | Complete   | 2026-06-11 |
 | 5. Stats Persistence + Profile | 0/? | Not started | - |

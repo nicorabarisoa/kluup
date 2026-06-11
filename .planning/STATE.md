@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: milestone
 current_phase: 04
 status: completed
-last_updated: "2026-06-11T11:42:33.850Z"
-last_activity: 2026-06-11 -- Phase 04 Plan 02 complete
+last_updated: "2026-06-11T11:47:00.290Z"
+last_activity: 2026-06-11 -- Phase 04 Plan 04 complete (all 4 plans done)
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 15
-  completed_plans: 14
-  percent: 40
+  completed_plans: 15
+  percent: 60
 ---
 
 # Project State
@@ -67,6 +67,8 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase 04 P02]: getUser() called once at page root mount only (not inside RoundHeader) — satisfies T-04-04 no per-render network calls
 - [Phase ?]: [Phase 04 P03]: googlePrefill state tracks Google-origin pre-fill separately from storedPseudo (different hint keys: auth.pseudo_prefilled_hint vs join.pseudo_prefilled_hint)
 - [Phase ?]: [Phase 04 P03]: IDEN-02 guard is user && !stored — localStorage entry takes precedence over cross-device lookup
+- [Phase ?]: [Phase 04 P04]: googlePrefill state on landing page mirrors join page pattern — hint shown only when pseudo === googlePrefill
+- [Phase ?]: [Phase 04 P04]: user_id added only to players insert (host row), not to rooms insert — host_id: genId() unchanged (NOT NULL in prod)
 
 ## Notes
 
@@ -78,10 +80,10 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 
 ## Current Position
 
-Phase: 04 (signin-ux-player-linking) — EXECUTING
+Phase: 04 (signin-ux-player-linking) — COMPLETE (4/4 plans done)
 Plan: 4 of 4
-Status: Plan 02 complete — ready for Plan 03
-Last activity: 2026-06-11 -- Phase 04 Plan 02 complete
+Status: All plans complete — Phase 04 done
+Last activity: 2026-06-11 -- Phase 04 Plan 04 complete
 
 ## Performance Metrics
 
@@ -97,3 +99,4 @@ Last activity: 2026-06-11 -- Phase 04 Plan 02 complete
 | Phase 04 P01 | 2min | 1 tasks | 1 files |
 | Phase 04 P02 | 15min | 2 tasks | 2 files |
 | Phase 04 P03 | 10min | 2 tasks | 1 files |
+| Phase 04 P04 | 10min | 2 tasks | 1 files |
