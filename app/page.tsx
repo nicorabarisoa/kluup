@@ -108,7 +108,7 @@ export default function Home() {
       {/* Top bar */}
       <div className="w-full max-w-5xl mx-auto flex items-center justify-between px-6 pt-5">
         <span className="text-xl font-extrabold" style={{ fontFamily: 'var(--font-display)' }}>
-          Klu<span style={{ color: '#FF6B35' }}>up</span>
+          <span style={{ color: '#FFFFFF' }}>Klu</span><span style={{ color: '#39FF14' }}>up</span>
         </span>
         <LangSwitch />
       </div>
@@ -122,7 +122,7 @@ export default function Home() {
           className="font-extrabold tracking-tight leading-none text-7xl sm:text-8xl"
           style={{ fontFamily: 'var(--font-display)' }}
         >
-          Klu<span style={{ color: '#FF6B35' }}>up</span>
+          <span style={{ color: '#FFFFFF' }}>Klu</span><span style={{ color: '#39FF14' }}>up</span>
         </h1>
         <p className="mt-4 font-bold text-xl sm:text-2xl" style={{ fontFamily: 'var(--font-display)' }}>
           {fr.home.tagline}
