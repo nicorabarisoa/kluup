@@ -119,7 +119,9 @@ function TypeBadge({ label, accent }: { label: string; accent: string }) {
   )
 }
 
-function RoundHeader({ round, label, accent }: { round: number; label: string; accent: string }) {
+function RoundHeader({ round, label, accent, isSignedIn }: {
+  round: number; label: string; accent: string; isSignedIn?: boolean
+}) {
   const fr = useT()
   const controls = useContext(GameControlsCtx)
   return (
@@ -129,13 +131,26 @@ function RoundHeader({ round, label, accent }: { round: number; label: string; a
       {/* Action row: quit · type indicator · round counter · pause — all inline */}
       <div className="flex items-center gap-2">
         {controls && (
-          <button
-            onClick={controls.onQuit}
-            className="px-3 h-8 rounded-xl text-xs font-medium flex-shrink-0"
-            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: 'var(--font-body)' }}
-          >
-            {fr.game.quit}
-          </button>
+          <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+            <button
+              onClick={controls.onQuit}
+              className="px-3 h-8 rounded-xl text-xs font-medium"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: 'var(--font-body)' }}
+            >
+              {fr.game.quit}
+            </button>
+            {isSignedIn && (
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', top: -2, right: -2,
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: '#22c55e',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+          </div>
         )}
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: accent }} />
         <span
@@ -475,9 +490,9 @@ function QuestionRevealScreen({ question, wasYours }: { question: Question; wasY
 // ---- Question selection ----
 
 function QuestionSelectionScreen({
-  gs, isHost, isAdvancer, hasVoted, voteCount, playerCount, onVote, onForce,
+  gs, isHost, isAdvancer, hasVoted, voteCount, playerCount, onVote, onForce, isSignedIn,
 }: {
-  gs: GameState; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; playerCount: number; onVote: (i: number) => void; onForce: () => void
+  gs: GameState; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; playerCount: number; onVote: (i: number) => void; onForce: () => void; isSignedIn?: boolean
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -494,7 +509,7 @@ function QuestionSelectionScreen({
   }
 
   return (
-    <GameScreen header={<RoundHeader round={gs.round} label={typeLabel} accent={accent} />}>
+    <GameScreen header={<RoundHeader round={gs.round} label={typeLabel} accent={accent} isSignedIn={isSignedIn} />}>
       <div className="w-full max-w-md pt-4">
         <p style={{ color: C.muted, fontSize: 13, fontFamily: 'var(--font-body)', textAlign: 'center' }}>
           {fr.voting_question.instruction}
@@ -545,9 +560,9 @@ function QuestionSelectionScreen({
 // ---- Designation vote (Type A + Type C vote) ----
 
 function DesignationVoteScreen({
-  gs, players, myId, isHost, isAdvancer, hasVoted, voteCount, accent, onVote, onForce,
+  gs, players, myId, isHost, isAdvancer, hasVoted, voteCount, accent, onVote, onForce, isSignedIn,
 }: {
-  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; accent: string; onVote: (id: string) => void; onForce: () => void
+  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; accent: string; onVote: (id: string) => void; onForce: () => void; isSignedIn?: boolean
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -559,7 +574,7 @@ function DesignationVoteScreen({
 
   return (
     <GameScreen
-      header={<RoundHeader round={gs.round} label={label} accent={accent} />}
+      header={<RoundHeader round={gs.round} label={label} accent={accent} isSignedIn={isSignedIn} />}
       footer={
         <>
           <VoteProgress count={voteCount} total={players.length} voted={hasVoted} />
@@ -609,9 +624,9 @@ function DesignationVoteScreen({
 // ---- Designation reveal (Type A + Type C vote) ----
 
 function DesignationRevealScreen({
-  gs, players, isHost, accent, nextLabel, onNext, onEnd,
+  gs, players, isHost, accent, nextLabel, onNext, onEnd, isSignedIn,
 }: {
-  gs: GameState; players: Player[]; isHost: boolean; accent: string; nextLabel: string; onNext: () => void; onEnd: () => void
+  gs: GameState; players: Player[]; isHost: boolean; accent: string; nextLabel: string; onNext: () => void; onEnd: () => void; isSignedIn?: boolean
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -634,7 +649,7 @@ function DesignationRevealScreen({
 
   return (
     <GameScreen
-      header={<RoundHeader round={gs.round} label={label} accent={accent} />}
+      header={<RoundHeader round={gs.round} label={label} accent={accent} isSignedIn={isSignedIn} />}
       footer={<RoundEndFooter ready={shown} isHost={isHost} nextLabel={nextLabel} accent={accent} onNext={onNext} onEnd={onEnd} />}
     >
       <div className="w-full max-w-md flex flex-col items-center">
@@ -720,9 +735,9 @@ function DesignationRevealScreen({
 // ---- Confession vote (Type B) ----
 
 function ConfessionVoteScreen({
-  gs, players, isHost, isAdvancer, hasVoted, voteCount, onVote, onForce,
+  gs, players, isHost, isAdvancer, hasVoted, voteCount, onVote, onForce, isSignedIn,
 }: {
-  gs: GameState; players: Player[]; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; onVote: (a: boolean) => void; onForce: () => void
+  gs: GameState; players: Player[]; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; onVote: (a: boolean) => void; onForce: () => void; isSignedIn?: boolean
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -730,7 +745,7 @@ function ConfessionVoteScreen({
 
   return (
     <GameScreen
-      header={<RoundHeader round={gs.round} label={fr.confession.label} accent={C.b} />}
+      header={<RoundHeader round={gs.round} label={fr.confession.label} accent={C.b} isSignedIn={isSignedIn} />}
       footer={
         hasVoted ? undefined : (
           <div className="flex gap-3">
@@ -774,9 +789,9 @@ function ConfessionVoteScreen({
 // ---- Confession roulette (ex-B2 ; seul mode de confession désormais) ----
 
 function B2RouletteScreen({
-  gs, players, isHost, nextLabel, onReveal, onNext, onEnd,
+  gs, players, isHost, nextLabel, onReveal, onNext, onEnd, isSignedIn,
 }: {
-  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onReveal: () => void; onNext: () => void; onEnd: () => void
+  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onReveal: () => void; onNext: () => void; onEnd: () => void; isSignedIn?: boolean
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -836,7 +851,7 @@ function B2RouletteScreen({
 
   return (
     <GameScreen
-      header={<RoundHeader round={gs.round} label={fr.confession.label} accent={C.b} />}
+      header={<RoundHeader round={gs.round} label={fr.confession.label} accent={C.b} isSignedIn={isSignedIn} />}
       footer={
         nobody || allYes ? (
           <RoundEndFooter ready isHost={isHost} nextLabel={nextLabel} accent={C.b} onNext={onNext} onEnd={onEnd} />
@@ -938,9 +953,9 @@ function B2RouletteScreen({
 // ---- Type C choice (volunteer OR send someone) ----
 
 function ChoiceScreen({
-  gs, players, myId, isHost, isAdvancer, hasVoted, voteCount, onVolunteer, onDesignate, onForce,
+  gs, players, myId, isHost, isAdvancer, hasVoted, voteCount, onVolunteer, onDesignate, onForce, isSignedIn,
 }: {
-  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void
+  gs: GameState; players: Player[]; myId: string | null; isHost: boolean; isAdvancer: boolean; hasVoted: boolean; voteCount: number; onVolunteer: () => void; onDesignate: (id: string) => void; onForce: () => void; isSignedIn?: boolean
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -950,7 +965,7 @@ function ChoiceScreen({
 
   return (
     <GameScreen
-      header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
+      header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} isSignedIn={isSignedIn} />}
       footer={
         <>
           <VoteProgress count={voteCount} total={gs.vote_round_player_count || players.length} voted={hasVoted} />
@@ -1007,9 +1022,9 @@ function ChoiceScreen({
 // ---- Type C — volunteers reveal (they all answer) ----
 
 function VolunteersRevealScreen({
-  gs, players, isHost, nextLabel, onNext, onEnd,
+  gs, players, isHost, nextLabel, onNext, onEnd, isSignedIn,
 }: {
-  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void
+  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void; isSignedIn?: boolean
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -1030,7 +1045,7 @@ function VolunteersRevealScreen({
   if (vols.length === 0) {
     return (
       <GameScreen
-        header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
+        header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} isSignedIn={isSignedIn} />}
         footer={<RoundEndFooter ready isHost={isHost} nextLabel={nextLabel} accent={C.c} textDark onNext={onNext} onEnd={onEnd} />}
       >
         <div className="w-full max-w-md flex flex-col items-center">
@@ -1042,7 +1057,7 @@ function VolunteersRevealScreen({
 
   return (
     <GameScreen
-      header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
+      header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} isSignedIn={isSignedIn} />}
       footer={<RoundEndFooter ready={shown} isHost={isHost} nextLabel={nextLabel} accent={C.c} textDark onNext={onNext} onEnd={onEnd} />}
     >
       <div className="w-full max-w-md flex flex-col items-center">
@@ -1075,9 +1090,9 @@ function VolunteersRevealScreen({
 // ---- Type C — designation roulette (no volunteers) ----
 
 function CRouletteScreen({
-  gs, players, isHost, nextLabel, onNext, onEnd,
+  gs, players, isHost, nextLabel, onNext, onEnd, isSignedIn,
 }: {
-  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void
+  gs: GameState; players: Player[]; isHost: boolean; nextLabel: string; onNext: () => void; onEnd: () => void; isSignedIn?: boolean
 }) {
   const fr = useT()
   const { locale } = useLocale()
@@ -1120,7 +1135,7 @@ function CRouletteScreen({
 
   return (
     <GameScreen
-      header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
+      header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} isSignedIn={isSignedIn} />}
       footer={<RoundEndFooter ready={done} isHost={isHost} nextLabel={nextLabel} accent={C.c} textDark onNext={onNext} onEnd={onEnd} />}
     >
       <div className="w-full max-w-md flex flex-col items-center">
@@ -1533,6 +1548,13 @@ export default function GamePage() {
   const [hasVoted, setHasVoted] = useState(false)
   const [voteCount, setVoteCount] = useState(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [isSignedIn, setIsSignedIn] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsSignedIn(!!data.user)
+    })
+  }, [])
 
   const prevPhaseRef = useRef<string | null>(null)
   const roomRef = useRef<Room | null>(null)
@@ -2097,21 +2119,21 @@ export default function GamePage() {
   const screen = (() => {
     switch (gs.phase) {
       case 'voting_question':
-        return <QuestionSelectionScreen gs={gs} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} playerCount={players.length} onVote={(i) => { myVoteIndexRef.current = i; submitVote({ question_index: i }, 'question_selection') }} onForce={() => resolveVotes('question_selection')} />
+        return <QuestionSelectionScreen gs={gs} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} playerCount={players.length} onVote={(i) => { myVoteIndexRef.current = i; submitVote({ question_index: i }, 'question_selection') }} onForce={() => resolveVotes('question_selection')} isSignedIn={isSignedIn} />
       case 'round_a_vote':
-        return <DesignationVoteScreen gs={gs} players={players} myId={myId} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} accent={C.a} onVote={(id) => submitVote({ target_player_id: id }, 'designation')} onForce={() => resolveVotes('designation')} />
+        return <DesignationVoteScreen gs={gs} players={players} myId={myId} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} accent={C.a} onVote={(id) => submitVote({ target_player_id: id }, 'designation')} onForce={() => resolveVotes('designation')} isSignedIn={isSignedIn} />
       case 'round_a_reveal':
-        return <DesignationRevealScreen gs={gs} players={players} isHost={isHost} accent={C.a} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
+        return <DesignationRevealScreen gs={gs} players={players} isHost={isHost} accent={C.a} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} isSignedIn={isSignedIn} />
       case 'round_b_vote':
-        return <ConfessionVoteScreen gs={gs} players={players} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} onVote={(a) => submitVote({ answer: a }, 'confession')} onForce={() => resolveVotes('confession')} />
+        return <ConfessionVoteScreen gs={gs} players={players} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} onVote={(a) => submitVote({ answer: a }, 'confession')} onForce={() => resolveVotes('confession')} isSignedIn={isSignedIn} />
       case 'round_b2_roulette':
-        return <B2RouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onReveal={onRevealB2} onNext={onNextRound} onEnd={onEndGame} />
+        return <B2RouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onReveal={onRevealB2} onNext={onNextRound} onEnd={onEndGame} isSignedIn={isSignedIn} />
       case 'round_c_choice':
-        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} />
+        return <ChoiceScreen gs={gs} players={players} myId={myId} isHost={isHost} isAdvancer={isAdvancer} hasVoted={hasVoted} voteCount={voteCount} onVolunteer={() => submitChoice({}, 'volunteer')} onDesignate={(id) => submitChoice({ target_player_id: id }, 'designation')} onForce={resolveTypeCChoice} isSignedIn={isSignedIn} />
       case 'round_c_volunteers_reveal':
-        return <VolunteersRevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
+        return <VolunteersRevealScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} isSignedIn={isSignedIn} />
       case 'round_c_roulette':
-        return <CRouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
+        return <CRouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} isSignedIn={isSignedIn} />
       case 'ended':
         return <EndScreen gs={gs} players={players} myId={myId} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={onQuit} />
       default:
