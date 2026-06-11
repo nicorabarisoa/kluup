@@ -134,6 +134,9 @@ L'hôte ne sert qu'à **créer la room, choisir le thème, lancer la partie**. E
 ### Fait récemment (session 4)
 Landing page responsive (`/`) · stats perso (écran de fin + carte de partage) · i18n ES/DE complet + LangSwitch déroulant · Quitter/Pause intégrés au `RoundHeader` · adaptation desktop (colonnes centrées) · **fix régression `host_id` NOT NULL** · 78 questions adultes (`seed_cut.sql`) · **confession = roulette unique** (B1/B2 supprimés) · **fix replay : purge des votes au lancement** · moutons 🐑 à 100 %.
 
+### Fait récemment (session 5)
+**Logo landing** : orange → blanc + vert électrique (`#39FF14`). **Fix transfert d'hôte au lobby** : le lobby n'avait pas de listener `UPDATE` sur `players` — le nouveau host ne voyait pas le sélecteur de thème ni le bouton "Lancer" sans refresh (le jeu avait ce listener, pas le lobby). **i18n noms de thèmes localisés** : FR `Sans filtre` / `Sans masques` · EN `Happy Hour` · ES `Tardeo` / `Sin filtros` / `Sin máscaras` · DE `Feierabend` / `Kein Filter` / `Demaskiert`. "Hello Stranger" reste identique toutes langues (nom de marque universel).
+
 ### Reste à faire / idées
 stats perso détaillées (diversité des votes) · thèmes premium / paywall · plus de questions par thème · analytics questions · polish/juice · pg_cron si cleanup 100 % auto voulu · **session de test réel à 3-4 joueurs** (priorité avant nouvelles features). *(Écran "hôte joue ou pas" : abandonné — l'hôte est toujours joueur.)*
 
