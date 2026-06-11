@@ -83,10 +83,13 @@ export const fr = {
     quit_confirm: "Quitter la partie ? Les autres continueront sans toi.",
     waiting_host_advance: "L'hôte lance la manche suivante…",
     player_joined: (pseudo: string) => `${pseudo} a rejoint la partie`,
+    player_left: (pseudo: string) => `${pseudo} a quitté`,
   },
   voting_question: {
     title: "Choisissez votre question",
     instruction: "Vote pour la question que tu veux jouer.",
+    chosen_yours: "Ta question !",
+    chosen_not_yours: "Pas ta question…",
   },
   designation: {
     label: "Désignation",
@@ -320,10 +323,13 @@ export const en: Dict = {
     quit_confirm: "Leave the game? The others will continue without you.",
     waiting_host_advance: "Waiting for the host…",
     player_joined: (pseudo: string) => `${pseudo} joined the game`,
+    player_left: (pseudo: string) => `${pseudo} left`,
   },
   voting_question: {
     title: "Choose your question",
     instruction: "Vote for the question you want to play.",
+    chosen_yours: "Your question!",
+    chosen_not_yours: "Not your question…",
   },
   designation: {
     label: "Designation",
@@ -555,10 +561,13 @@ export const es: Dict = {
     quit_confirm: "¿Salir del juego? Los demás continuarán sin ti.",
     waiting_host_advance: "El anfitrión lanza la siguiente ronda…",
     player_joined: (pseudo: string) => `${pseudo} se unió a la partida`,
+    player_left: (pseudo: string) => `${pseudo} salió`,
   },
   voting_question: {
     title: "Elige tu pregunta",
     instruction: "Vota por la pregunta que quieres jugar.",
+    chosen_yours: "¡Tu pregunta!",
+    chosen_not_yours: "No era tu pregunta…",
   },
   designation: {
     label: "Designación",
@@ -790,10 +799,13 @@ export const de: Dict = {
     quit_confirm: "Spiel verlassen? Die anderen spielen ohne dich weiter.",
     waiting_host_advance: "Der Gastgeber startet die nächste Runde…",
     player_joined: (pseudo: string) => `${pseudo} ist beigetreten`,
+    player_left: (pseudo: string) => `${pseudo} hat verlassen`,
   },
   voting_question: {
     title: "Wähle deine Frage",
     instruction: "Stimme für die Frage, die du spielen möchtest.",
+    chosen_yours: "Deine Frage!",
+    chosen_not_yours: "Nicht deine Frage…",
   },
   designation: {
     label: "Designation",
