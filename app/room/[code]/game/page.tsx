@@ -1554,6 +1554,10 @@ export default function GamePage() {
   // Guards resolveVotes / resolveTypeCChoice against concurrent double-calls
   // (the advancer both calls directly in submitVote and receives its own broadcast).
   const resolvingRef = useRef(false)
+  // Live refs so the broadcast handler (registered once at mount) always calls
+  // the current-render version of these functions — not the stale mount closure.
+  const resolveVotesRef = useRef<(voteType: string) => Promise<void>>(async () => {})
+  const resolveTypeCChoiceRef = useRef<() => Promise<void>>(async () => {})
   // Question-reveal interstitial: shown 2.5s when voting_question resolves.
   const [revealInfo, setRevealInfo] = useState<{ question: Question; wasYours: boolean | null } | null>(null)
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1659,10 +1663,10 @@ export default function GamePage() {
           const threshold = gs.vote_round_player_count || playersRef.current.length
           if (payload.count < threshold) return
           if (gs.phase === 'round_c_choice') {
-            void resolveTypeCChoice()
+            void resolveTypeCChoiceRef.current()
           } else {
             const vt = voteTypeForPhase(gs.phase)
-            if (vt) void resolveVotes(vt)
+            if (vt) void resolveVotesRef.current(vt)
           }
         })
         .on('broadcast', { event: 'phase_changed' }, () => {
@@ -1823,9 +1827,13 @@ export default function GamePage() {
 
   // Write the new game state, then broadcast so every client re-fetches it —
   // this is the reliable convergence path, independent of postgres_changes.
+  // Reads roomRef (not closed-over 'room') so it is safe to call from the
+  // broadcast handler, which captures this function from the first render
+  // where 'room' state was still null.
   async function advance(next: GameState) {
-    if (!room) return
-    await updateRoomGameState(room.id, next)
+    const r = roomRef.current
+    if (!r) return
+    await updateRoomGameState(r.id, next)
     await voteChannelRef.current?.send({
       type: 'broadcast', event: 'phase_changed', payload: { phase: next.phase },
     })
@@ -1859,30 +1867,34 @@ export default function GamePage() {
   }
 
   async function resolveVotes(voteType: string) {
-    if (!room || !gs) return
+    // Read from ref so this is safe when called from the broadcast handler,
+    // which closes over this function from the first render where 'room'/'gs'
+    // state were still null (stale closure / temporal dead zone problem).
+    const r = roomRef.current
+    const rgs = r?.game_state
+    if (!r || !rgs) return
     if (resolvingRef.current) return
     resolvingRef.current = true
     try {
-      const votes = await fetchVotes(room.id, gs.round, voteType)
+      const votes = await fetchVotes(r.id, rgs.round, voteType)
 
       if (voteType === 'question_selection') {
         const winnerIndex = tallyQuestionSelection(votes)
-        const chosen = gs.candidates[winnerIndex] ?? gs.candidates[0]
+        const chosen = rgs.candidates[winnerIndex] ?? rgs.candidates[0]
         const nextPhase = chosen.type === 'A' ? 'round_a_vote' : chosen.type === 'B' ? 'round_b_vote' : 'round_c_choice'
         await advance({
-          ...gs, phase: nextPhase as GameState['phase'],
-          current_question: chosen, played_question_ids: [...gs.played_question_ids, chosen.id],
+          ...rgs, phase: nextPhase as GameState['phase'],
+          current_question: chosen, played_question_ids: [...rgs.played_question_ids, chosen.id],
           round_started_at: new Date().toISOString(), vote_round_player_count: playersRef.current.length,
         })
         return
       }
 
       if (voteType === 'designation') {
-        const frozenCount02 = gs.vote_round_player_count || players.length
+        const frozenCount02 = rgs.vote_round_player_count || playersRef.current.length
         const { topIds, tieAll } = tallyDesignation(votes, frozenCount02)
-        // 'designation' votes are Type A only now (Type C uses the choice phase).
         await advance({
-          ...gs,
+          ...rgs,
           phase: 'round_a_reveal',
           designated_player_ids: topIds,
           designation_tie_all: tieAll,
@@ -1891,21 +1903,15 @@ export default function GamePage() {
       }
 
       if (voteType === 'confession') {
-        // Confession is ALWAYS a roulette now (B1/B2 sub-modes removed): show the
-        // group %, the wheel spins over everyone, and ONE "yes" is revealed.
         const yesVotes = votes.filter((v) => v.answer === true)
-        // Divide by the round's frozen participant count (same denominator as the
-        // vote threshold), not the live roster — a mid-round join or ghost prune
-        // would otherwise skew the % and could block the 100% sheep case.
-        const denom = gs.vote_round_player_count || players.length
+        const denom = rgs.vote_round_player_count || playersRef.current.length
         const pct = denom > 0 ? Math.round((yesVotes.length / denom) * 100) : 0
         const yesIds = yesVotes.map((v) => v.player_id as string)
-        // 100% yes → nobody singled out (sheep). 0 yes → secret kept. Else pick one.
         const winner = yesIds.length > 0 && pct < 100
           ? yesIds[Math.floor(Math.random() * yesIds.length)]
           : null
         await advance({
-          ...gs, phase: 'round_b2_roulette', b_subtype: 'B2',
+          ...rgs, phase: 'round_b2_roulette', b_subtype: 'B2',
           revealed_player_ids: yesIds,
           designated_player_id: winner, yes_percentage: pct,
         })
@@ -1942,35 +1948,37 @@ export default function GamePage() {
   }
 
   async function resolveTypeCChoice() {
-    if (!room || !gs) return
+    const r = roomRef.current
+    const rgs = r?.game_state
+    if (!r || !rgs) return
     if (resolvingRef.current) return
     resolvingRef.current = true
     try {
-      const vols = await fetchVotes(room.id, gs.round, 'volunteer')
+      const vols = await fetchVotes(r.id, rgs.round, 'volunteer')
       if (vols.length > 0) {
-        // Volunteers prime — they all answer.
         await advance({
-          ...gs, phase: 'round_c_volunteers_reveal',
+          ...rgs, phase: 'round_c_volunteers_reveal',
           volunteer_player_ids: vols.map((v) => v.player_id as string),
         })
         return
       }
-      // No volunteer → the most-designated answers; roulette picks one on a tie.
-      // If nobody voted at all (e.g. timer expired with zero actions), pick a
-      // random player from the full roster so the roulette always lands on someone.
-      const desigs = await fetchVotes(room.id, gs.round, 'designation')
-      const frozenCountC = gs.vote_round_player_count || players.length
+      const desigs = await fetchVotes(r.id, rgs.round, 'designation')
+      const frozenCountC = rgs.vote_round_player_count || playersRef.current.length
       const { topIds } = tallyDesignation(desigs, frozenCountC)
       const pool = topIds.length > 0 ? topIds : playersRef.current.map((p) => p.id)
       const winner = pool[Math.floor(Math.random() * pool.length)] ?? null
       await advance({
-        ...gs, phase: 'round_c_roulette',
+        ...rgs, phase: 'round_c_roulette',
         designated_player_ids: pool, designated_player_id: winner,
       })
     } finally {
       resolvingRef.current = false
     }
   }
+
+  // Keep the broadcast handler's resolve calls pointing at the current render.
+  resolveVotesRef.current = resolveVotes
+  resolveTypeCChoiceRef.current = resolveTypeCChoice
 
   // Pause / resume: use roomRef to get the freshest game_state and avoid stale
   // closure issues when the DB was updated between renders.
