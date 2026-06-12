@@ -108,8 +108,7 @@ export default function Home() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // Return user to the landing page after the OAuth round-trip (CR-03).
-        redirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
+        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback?next=${encodeURIComponent('/')}` : undefined,
       },
     })
     // browser navigates to Google — no cleanup needed

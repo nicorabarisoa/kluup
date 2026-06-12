@@ -127,6 +127,16 @@ export default function LobbyPage() {
   // Prune ghosts (closed tabs) and keep the room alive while anyone is here.
   useRoomPresence(roomId, myId)
 
+  // Keep Realtime channels alive for signed-in users in long lobby sessions (>1h).
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED' && session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
   function navigate() {
     if (navigatedRef.current) return
     navigatedRef.current = true
