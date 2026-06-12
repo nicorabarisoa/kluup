@@ -49,8 +49,21 @@ export function useRoomPresence(roomId: string | null, myId: string | null) {
           if (!isCleaner()) return                 // another client will handle it
           try {
             await supabase.from('players').delete().eq('id', key)
-            const { count } = await supabase.from('players').select('id', { count: 'exact', head: true }).eq('room_id', roomId)
-            if (count === 0) { await supabase.from('rooms').delete().eq('id', roomId) }
+            const { data: rest } = await supabase
+              .from('players')
+              .select('id, is_host, created_at')
+              .eq('room_id', roomId)
+            const remaining = rest ?? []
+            if (remaining.length === 0) {
+              await supabase.from('rooms').delete().eq('id', roomId)
+            } else if (!remaining.some((p) => p.is_host)) {
+              // The pruned ghost was the host (closed tab — onQuit's transfer never
+              // ran). Promote the oldest remaining player so the room keeps a host:
+              // the lobby's theme selector + "Lancer" (and in-game host-only actions)
+              // stay reachable. The players UPDATE sub propagates is_host to everyone.
+              const next = [...remaining].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))[0]
+              await supabase.from('players').update({ is_host: true }).eq('id', next.id)
+            }
           } catch { /* ignore */ }
         }, GRACE_MS)
         pending.current.set(key, t)
