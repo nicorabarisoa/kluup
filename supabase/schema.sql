@@ -73,9 +73,20 @@ CREATE TABLE IF NOT EXISTS user_session_stats (
   confessed_count   int         NOT NULL DEFAULT 0,
   volunteered_count int         NOT NULL DEFAULT 0,
   group_title       text,
+  theme             text,
+  rounds_played     int,
+  tag_scores        jsonb,
   played_at         timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT user_session_stats_unique UNIQUE (user_id, session_id)
 );
+
+-- Phase 5: additive columns for stats persistence + profile (mirrors migrations/005-stats-columns.sql)
+-- CREATE TABLE IF NOT EXISTS is a no-op on an already-provisioned DB — this ALTER ensures the
+-- columns are added even when the table already exists (same reasoning as the host_id NOT NULL gotcha).
+ALTER TABLE user_session_stats
+  ADD COLUMN IF NOT EXISTS theme         text,
+  ADD COLUMN IF NOT EXISTS rounds_played int,
+  ADD COLUMN IF NOT EXISTS tag_scores    jsonb;
 
 -- === Contraintes / defaults (réparation d'une base existante) ==============
 
