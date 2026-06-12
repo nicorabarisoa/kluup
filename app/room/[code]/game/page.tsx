@@ -943,11 +943,11 @@ function ChoiceScreen({
       header={<RoundHeader round={gs.round} label={fr.question_ouverte.label} accent={C.c} />}
       footer={
         <>
-          <VoteProgress count={voteCount} total={gs.vote_round_player_count || players.length} voted={hasVoted} />
+          <VoteProgress count={voteCount} total={Math.min(gs.vote_round_player_count || players.length, players.length)} voted={hasVoted} />
           {/* SC-7 / playtest #4: NO countdown on the choice phase — the round
               must not advance until everyone has acted. Host skip is the only
               manual escape hatch. */}
-          <HostSkipBtn show={isHost && hasVoted && voteCount < (gs.vote_round_player_count || players.length)} onForce={onForce} />
+          <HostSkipBtn show={isHost && hasVoted && voteCount < Math.min(gs.vote_round_player_count || players.length, players.length)} onForce={onForce} />
         </>
       }
     >
@@ -1805,6 +1805,14 @@ export default function GamePage() {
   // Keep the ref in sync so broadcast handlers always see the current value.
   isAdvancerRef.current = isAdvancer
 
+  // Resolution threshold = the round-start snapshot CAPPED by the live roster.
+  // The snapshot (vote_round_player_count) keeps a mid-round joiner from being
+  // required to vote, but a player who DISCONNECTS must lower the bar — otherwise
+  // a pruned ghost leaves the round waiting on a vote that will never come (the
+  // round would hang "à vie"). min() satisfies both: a joiner can't drop it,
+  // a leaver does.
+  const voteThreshold = Math.min(gs.vote_round_player_count || players.length, players.length)
+
   // Write the new game state, then broadcast so every client re-fetches it —
   // this is the reliable convergence path, independent of postgres_changes.
   // Reads roomRef (not closed-over 'room') so it is safe to call from the
@@ -1840,10 +1848,9 @@ export default function GamePage() {
       type: 'broadcast', event: 'vote_count', payload: { count, round: gs!.round },
     })
 
-    const threshold = gs!.vote_round_player_count || players.length
     // Only the elected advancer resolves — prevents every client that sees the
     // threshold being met from racing to call resolveVotes with independent Math.random().
-    if (count >= threshold && isAdvancer) await resolveVotes(voteType)
+    if (count >= voteThreshold && isAdvancer) await resolveVotes(voteType)
   }
 
   async function resolveVotes(voteType: string) {
@@ -1922,9 +1929,8 @@ export default function GamePage() {
       type: 'broadcast', event: 'vote_count', payload: { count, round: gs.round },
     })
 
-    const threshold = gs!.vote_round_player_count || players.length
     // Only the elected advancer resolves (same guard as submitVote).
-    if (count >= threshold && isAdvancer) await resolveTypeCChoice()
+    if (count >= voteThreshold && isAdvancer) await resolveTypeCChoice()
   }
 
   async function resolveTypeCChoice() {
@@ -2055,9 +2061,13 @@ export default function GamePage() {
     router.push('/')
   }
 
-  // Host-only: re-evaluate resolution after the roster shrinks (ghost pruned).
+  // Advancer-only: re-evaluate resolution after the roster shrinks (ghost pruned).
+  // Gated on isAdvancer (smallest present id), not isHost: the advancer is
+  // recomputed synchronously from the live roster, so it stays valid even when
+  // the player who disconnected WAS the host (host transfer is async and would
+  // race). Single deterministic caller avoids divergent Math.random tie-breaks.
   resolveOnShrinkRef.current = () => {
-    if (!isHost || !room) return
+    if (!isAdvancer || !room) return
     const isChoice = gs.phase === 'round_c_choice'
     const vt = voteTypeForPhase(gs.phase)
     if ((!vt && !isChoice) || players.length === 0) return
@@ -2065,7 +2075,7 @@ export default function GamePage() {
       const count = isChoice
         ? await countChoiceVotes(room.id, gs.round)
         : await countVotes(room.id, gs.round, vt as string)
-      if (count >= (gs.vote_round_player_count || players.length)) {
+      if (count >= voteThreshold) {
         if (isChoice) await resolveTypeCChoice()
         else await resolveVotes(vt as string)
       }
