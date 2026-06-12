@@ -22,6 +22,19 @@ Creating genuine human moments through structured social questions — the app t
 
 **Stack:** Next.js 16 (App Router, client-only), React 19, TypeScript, Tailwind v4, Supabase (Postgres + Realtime + Auth), Railway hosting.
 
+## Current Milestone: v3.0 Superpowers
+
+**Goal:** Turn raw game behaviour into personal social identity — archetypes, named pair awards, adaptive follow-ups, and theatrical power cards.
+
+**Target features:**
+- Social archetypes — 6 trait scores from question tags → 21 named archetypes on the share card
+- Duo awards — 4 named pair awards on a 2-faced share card
+- Contextual questions — adaptive follow-ups between rounds, triggered by in-game events
+- Power cards — secret Target/Reveal cards to volunteers during Type B roulette
+- Bipolar trait sliders on `/profile` — MBTI-style visual, accuracy grows with sessions played (gated on cross-session `tag_scores`)
+
+**Key context:** DB groundwork already staged (`questions.tags` curated, `contextual_questions` seeded, `tag_scores` declared) — milestone is mostly application wiring + content, no new tables/packages. Phases continue from Phase 5 → start at Phase 6.
+
 ## Requirements
 
 ### Validated
@@ -51,6 +64,7 @@ Creating genuine human moments through structured social questions — the app t
 - [ ] Duo awards: 4 named awards for most notable player pairs, 2-faced share card
 - [ ] Contextual questions: adaptive follow-ups between rounds triggered by in-game events
 - [ ] Power cards: secret cards to volunteers, usable during Type B roulette for extra reveals
+- [ ] Bipolar trait sliders on `/profile`: MBTI-style visual, accuracy grows with sessions played
 
 ### Out of Scope
 
@@ -80,4 +94,4 @@ Creating genuine human moments through structured social questions — the app t
 | `status='ended'` 30-min TTL in `cleanup_dead_rooms()` | Defense-in-depth: OAuth round-trip can take minutes; primary mechanism is localStorage stash | ✓ Locked |
 
 ---
-*Last updated: 2026-06-12 after v2.0 milestone*
+*Last updated: 2026-06-12 — v3.0 Superpowers milestone started*
