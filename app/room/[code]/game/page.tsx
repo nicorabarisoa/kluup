@@ -1728,7 +1728,12 @@ export default function GamePage() {
           // case where the last voter is NOT the advancer (they already sent the
           // broadcast but skipped resolution because !isAdvancer in submitVote).
           if (!isAdvancerRef.current) return
-          const threshold = gs.vote_round_player_count || playersRef.current.length
+          // Same live-roster cap as voteThreshold (CR-01): without min(), a
+          // mid-round leaver leaves this handler comparing against the stale
+          // snapshot while the render-path threshold already dropped — the last
+          // actor's broadcast then never resolves and the round hangs.
+          const snapshot = gs.vote_round_player_count || playersRef.current.length
+          const threshold = Math.min(snapshot, playersRef.current.length)
           if (payload.count < threshold) return
           if (gs.phase === 'round_c_choice') {
             void resolveTypeCChoiceRef.current()
