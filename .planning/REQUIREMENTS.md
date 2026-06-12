@@ -26,14 +26,14 @@
 
 ### Stats Persistence
 
-- [ ] **STAT-01**: At game end, each signed-in player's stats for that session are written to their account (designation count, confession reveals, volunteer count, group title earned)
-- [ ] **STAT-02**: Each session is stored as a separate history row (per-session records, not only cumulative counters)
-- [ ] **STAT-03**: Stats writes are idempotent — a `UNIQUE(user_id, session_id)` constraint prevents duplicate entries on replay
+- [x] **STAT-01**: At game end, each signed-in player's stats for that session are written to their account (designation count, confession reveals, volunteer count, group title earned)
+- [x] **STAT-02**: Each session is stored as a separate history row (per-session records, not only cumulative counters)
+- [x] **STAT-03**: Stats writes are idempotent — a `UNIQUE(user_id, session_id)` constraint prevents duplicate entries on replay
 
 ### Stats Profile
 
-- [ ] **PROF-01**: Signed-in user can view their stats history on a `/profile` page (designation count, confession reveals, volunteer count, sessions played, group titles earned)
-- [ ] **PROF-02**: Anonymous users see a "sign in to save your stats" CTA on the end screen, shown after session stats are displayed
+- [x] **PROF-01**: Signed-in user can view their stats history on a `/profile` page (designation count, confession reveals, volunteer count, sessions played, group titles earned)
+- [x] **PROF-02**: Anonymous users see a "sign in to save your stats" CTA on the end screen, shown after session stats are displayed
 
 ## v3.0 Requirements (Superpowers / Future Milestone)
 
@@ -120,11 +120,11 @@
 | AUTH-04 | Phase 2: Auth Infrastructure + Schema | Pending |
 | IDEN-01 | Phase 2: Auth Infrastructure + Schema | Pending |
 | IDEN-02 | Phase 3: Sign-in UX + Player Linking | Complete |
-| STAT-01 | Phase 4: Stats Persistence + Profile | Pending |
-| STAT-02 | Phase 4: Stats Persistence + Profile | Pending |
-| STAT-03 | Phase 4: Stats Persistence + Profile | Pending |
-| PROF-01 | Phase 4: Stats Persistence + Profile | Pending |
-| PROF-02 | Phase 4: Stats Persistence + Profile | Pending |
+| STAT-01 | Phase 4: Stats Persistence + Profile | Complete |
+| STAT-02 | Phase 4: Stats Persistence + Profile | Complete |
+| STAT-03 | Phase 4: Stats Persistence + Profile | Complete |
+| PROF-01 | Phase 4: Stats Persistence + Profile | Complete |
+| PROF-02 | Phase 4: Stats Persistence + Profile | Complete |
 
 **Coverage:**
 
