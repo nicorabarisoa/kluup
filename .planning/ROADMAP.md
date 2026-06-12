@@ -8,7 +8,7 @@
 - [x] **Phase 2: Auth Infrastructure + Schema** - Lay auth plumbing and DB schema before any user-facing auth ships
 - [x] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships (8/8 plans complete, all SCs addressed)
 - [x] **Phase 4: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows (completed 2026-06-11)
-- [ ] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page
+- [x] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page (completed 2026-06-12)
 
 ---
 
@@ -114,7 +114,7 @@ Plans:
   5. A long game (>1 hour) does not lose Realtime channel sync for authenticated users after JWT expiry
   6. `user_session_stats` includes a `tag_scores jsonb` field (per-trait scores for that session) — accumulated into a global archetype on the profile page
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 **Wave 1**
 
@@ -127,7 +127,7 @@ Plans:
 **Wave 3** *(blocked on Waves 1-2; plans 03 and 04 run in parallel — no file overlap)*
 
 - [x] 05-03-PLAN.md — game page: root auth state + idempotent stats upsert on ended + retroactive save + Realtime setAuth (>1h) + anonymous sign-in CTA + "✓ saved" line
-- [ ] 05-04-PLAN.md — /profile page (auth guard, RLS-scoped fetch, cumulative grid, last-20 history, dormant archetype block) + landing name-chip → /profile entry
+- [x] 05-04-PLAN.md — /profile page (auth guard, RLS-scoped fetch, cumulative grid, last-20 history, dormant archetype block) + landing name-chip → /profile entry
 
 **UI hint**: yes
 
@@ -174,4 +174,4 @@ Plans:
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
 | 3. Playtest Quality Fixes | 8/8 | Complete   | 2026-06-10 |
 | 4. Sign-in UX + Player Linking | 4/4 | Complete   | 2026-06-11 |
-| 5. Stats Persistence + Profile | 3/4 | In Progress|  |
+| 5. Stats Persistence + Profile | 4/4 | Complete   | 2026-06-12 |
