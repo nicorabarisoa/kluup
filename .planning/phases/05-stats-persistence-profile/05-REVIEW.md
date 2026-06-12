@@ -1,172 +1,228 @@
 ---
 phase: 05-stats-persistence-profile
-reviewed: 2026-06-12T00:00:00Z
+reviewed: 2026-06-12T10:00:00Z
 depth: standard
-files_reviewed: 8
+files_reviewed: 6
 files_reviewed_list:
-  - app/room/[code]/game/page.tsx
-  - app/profile/page.tsx
-  - app/page.tsx
-  - lib/i18n.ts
   - lib/utils.ts
-  - lib/usePresence.ts
-  - supabase/migrations/005-stats-columns.sql
-  - supabase/schema.sql
+  - lib/i18n.ts
+  - app/layout.tsx
+  - app/room/[code]/game/page.tsx
+  - app/PendingStatsFlusher.tsx
+  - supabase/lifecycle.sql
 findings:
-  critical: 1
-  warning: 11
-  info: 5
-  total: 17
+  critical: 0
+  warning: 5
+  info: 3
+  total: 8
 status: issues_found
 ---
 
-# Phase 5: Code Review Report
+# Phase 05: Code Review Report (gap-closure pass)
 
-**Reviewed:** 2026-06-12
+**Reviewed:** 2026-06-12T10:00:00Z
 **Depth:** standard
-**Files Reviewed:** 8
+**Files Reviewed:** 6
 **Status:** issues_found
 
 ## Summary
 
-Phase 5 (stats persistence + profile + session fixes) was reviewed at standard depth, with cross-references into `app/join/page.tsx`, `app/room/[code]/lobby/page.tsx` and `lib/game.ts` where the reviewed code depends on them. The stats write path (`EndScreen` upsert, RLS scoping, idempotency via `UNIQUE(user_id, session_id)` + `ignoreDuplicates`) is fundamentally sound, the migration is correctly additive, and the i18n `Dict` typing does enforce key parity across the four languages.
+This gap-closure review covers the six files changed for the Phase 05 pending-stats stash feature:
+localStorage stash helpers (`lib/utils.ts`), the `save_prompt.flushed` i18n key (`lib/i18n.ts`), the global flusher mount (`app/layout.tsx`), the OAuth CTA and not-found deferred redirect in the game page (`app/room/[code]/game/page.tsx`), the new `PendingStatsFlusher` component (`app/PendingStatsFlusher.tsx`), and the status-aware TTL for `cleanup_dead_rooms()` (`supabase/lifecycle.sql`).
 
-However, the review found **one game-freezing logic divergence** in the new vote-threshold capping (the `min()` cap was applied in 2 of the 3 resolution trigger paths but not in the broadcast handler — which can permanently hang a Type C round with the host's escape hatch also hidden), plus a cluster of warnings: a documented OAuth-redirect rule violated on the landing page, a new `user_id`-linking path that bypasses the IDEN-02 same-account guard, a latent uuid type mismatch on `session_uuid`, and several hardcoded-text violations of project rule #1 in the profile page.
+The OAuth redirect rule is correctly preserved: `handleCTASignIn` routes through `/auth/callback?next=…` per the CLAUDE.md gotcha. The `flushingRef` guard is sound for the JavaScript single-threaded execution model (the flag is set synchronously before the first `await`, so neither concurrent call can pass the guard simultaneously). The `ignoreDuplicates: true` idempotency on both the flusher and the `EndScreen` upsert is correct. The lifecycle SQL status-aware TTL logic is predicate-correct.
 
-## Critical Issues
-
-### CR-01: Broadcast `vote_count` handler uses uncapped threshold — Type C round can hang forever with no escape hatch
-
-**File:** `app/room/[code]/game/page.tsx:1731`
-**Issue:** The phase introduces `voteThreshold = Math.min(gs.vote_round_player_count || players.length, players.length)` (line 1934) precisely so a disconnected player lowers the bar. `submitVote` (line 1973), `submitChoice` (line 2053), and `resolveOnShrink` (line 2198) all use this capped value. But the `vote_count` broadcast handler — the path that resolves the round **when the last voter is not the advancer** — uses the raw, uncapped snapshot:
-
-```ts
-const threshold = gs.vote_round_player_count || playersRef.current.length   // line 1731 — no min() cap
-if (payload.count < threshold) return
-```
-
-Failure sequence (Type C, no timer per SC-7):
-1. Round starts with 4 players → `vote_round_player_count = 4`.
-2. One player disconnects before acting and is pruned (roster = 3). `resolveOnShrink` fires but count (2) < 3 → correctly waits.
-3. The 3rd player acts last and is **not** the advancer → their client broadcasts `count = 3` but skips resolution.
-4. On the advancer's client, the handler computes `threshold = 4` → `3 < 4` → returns. Nobody resolves.
-5. The host cannot rescue: `ChoiceScreen`'s `HostSkipBtn` is gated on `voteCount < Math.min(snapshot, players.length)` (line 951) → `3 < 3` is false → **the skip button is hidden**.
-
-`round_c_choice` has no countdown (SC-7 decision), and `resolveOnShrink` only fires on a further roster decrease — so the room is stuck until someone quits or the 30-min TTL reaps it. On timer phases (`voting_question`, `round_a_vote`, `round_b_vote`) the same divergence causes an unnecessary 30 s stall until `onForce` fires, masking the bug.
-
-**Fix:**
-```ts
-// line 1731 — same capping as voteThreshold (line 1934)
-const live = playersRef.current.length
-const threshold = Math.min(gs.vote_round_player_count || live, live)
-```
-(See also WR-10: this divergence exists because the threshold formula is duplicated in four places.)
+No BLOCKER (game-freezing or data-loss) issues are introduced by these specific six files in isolation. However, five warnings were found: a trust model gap in the localStorage stash, a leaked timeout in `PendingStatsFlusher`, a race between the deferred redirect and the toast confirmation timing, an unchecked `JSON.parse` cast in `getPendingStats`, and an operational fragility in the pg_cron Block 5 steps.
 
 ## Warnings
 
-### WR-01: Landing-page OAuth `redirectTo` violates the documented "always `/auth/callback?next=`" rule
+### WR-01: localStorage stash payload is trusted without field validation — arbitrary stat values can be injected
 
-**File:** `app/page.tsx:112`
-**Issue:** `handleSignIn` uses `redirectTo: window.location.href`. CLAUDE.md is explicit: *"OAuth `redirectTo` : TOUJOURS pointer sur `/auth/callback?next=<path>` — jamais sur l'URL courante."* The EndScreen CTA in the same phase does it correctly (`game/page.tsx:1417-1425`); the landing page does not. Risks: the PKCE `?code=<uuid>` lands on `/` and depends on client-side `detectSessionInUrl` instead of the hardened server-side callback; the raw origin URL may not be covered by Supabase's Redirect URLs allow-list (CLAUDE.md only guarantees `/auth/callback` is whitelisted), in which case Supabase silently falls back to the Site URL — breaking sign-in from preview/staging origins.
-**Fix:**
+**File:** `app/PendingStatsFlusher.tsx:36-57` / `lib/utils.ts:173-185`
+**Issue:** `getPendingStats()` parses the raw JSON and casts directly to `PendingStats` with no field-level validation. Any code running on the same origin (XSS, malicious browser extension) can overwrite `kluup_pending_stats` with an arbitrary payload — including inflated `designated_count`, `confessed_count`, `volunteered_count` — and the flusher will write those values verbatim to `user_session_stats` on the next sign-in. Critically, the `session_id` is also taken verbatim from localStorage, so an attacker can fabricate a new UUID to bypass the `UNIQUE(user_id, session_id)` deduplification guard and insert unlimited fake rows. The current MVP has no premium gating on stats, so the practical impact is low today. But this pattern is load-bearing for archetype scores and any future leaderboard/reward — if those features ship without server-side validation of the payload, the trust model cannot be fixed retroactively.
+
+Additionally, a malformed stash (e.g., written by an older code version where the `PendingStats` type had different fields) is cast blindly; if any numeric field is `undefined`, the upsert sends `undefined` to Supabase, which serializes as `null` or errors depending on the column's NOT NULL constraint.
+
+**Fix (short-term):** Add a type guard in `getPendingStats` that validates each required field:
 ```ts
-redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/')}`
+function isValidPendingStats(p: unknown): p is PendingStats {
+  if (!p || typeof p !== 'object') return false
+  const o = p as Record<string, unknown>
+  return (
+    typeof o.session_id === 'string' && o.session_id.length > 0 &&
+    typeof o.designated_count === 'number' &&
+    typeof o.confessed_count === 'number' &&
+    typeof o.volunteered_count === 'number' &&
+    typeof o.group_title === 'string' &&
+    typeof o.theme === 'string' &&
+    typeof o.rounds_played === 'number' &&
+    typeof o.code === 'string' &&
+    typeof o.stashed_at === 'number'
+  )
+}
+// in getPendingStats:
+const p = JSON.parse(raw)
+if (!isValidPendingStats(p)) { clearPendingStats(); return null }
 ```
 
-### WR-02: Silent `user_id` link on SIGNED_IN bypasses the IDEN-02 same-account guard
-
-**File:** `app/room/[code]/game/page.tsx:1846-1852`
-**Issue:** On `SIGNED_IN`, the game page unconditionally runs `players.update({ user_id }).eq('id', pid)`. It never checks whether **another row in the same room already carries that `user_id`**. `/join` goes to great lengths to preserve the invariant "jamais 2 lignes même `user_id` dans une room" (presence check, `user_id: null` fallback — playtest #4 decision), because its IDEN-02 lookup uses `.maybeSingle()` on `eq('user_id', ...)` (`app/join/page.tsx:170-175`). The exact scenario from playtest #4 re-enters through this new path: a player taps the end-screen "save your stats" CTA and signs in with the host's Google account → two rows share one `user_id` → the next `/join` IDEN-02 lookup gets multiple rows, `maybeSingle()` errors, the guard is skipped, and a third row with the same `user_id` is inserted. Note `SIGNED_IN` also re-fires on tab focus in supabase-js v2, so the update runs repeatedly (harmless once linked, but widens the race window).
-**Fix:** Before the update, query `players` for an existing row with this `user_id` in `roomRef.current.id`; skip the link (leave `user_id` null) if one exists and it isn't `pid` — mirroring the `/join` guard.
-
-### WR-03: `session_uuid` from `genId()` can be a non-UUID, but `user_session_stats.session_id` is `uuid` — stats write silently fails
-
-**File:** `app/room/[code]/game/page.tsx:1327` (write), `supabase/schema.sql:71` (column), `app/room/[code]/lobby/page.tsx:189` (generation)
-**Issue:** `genId()` explicitly documents a non-UUID fallback (`${Date.now()}-${rand}-${rand}`, `lib/utils.ts:14-23`) for non-secure contexts (HTTP on LAN — the project's standard phone-testing setup, which is exactly why `rooms.host_id` was made `text` per the schema comment on line 23). `user_session_stats.session_id` is `uuid NOT NULL`. A game started over HTTP/LAN produces a non-UUID `session_uuid`; every signed-in player's end-of-game upsert then fails with `22P02 invalid input syntax for type uuid`, logged to console only — stats silently lost and the "saved ✓" receipt never shows. The lobby comment "genId is safe on HTTP/LAN" is true for generation but false for this consumer.
-**Fix:** Either change `session_id` to `text` (additive migration, consistent with the `host_id` precedent), or guard the upsert: skip + warn when `gs.session_uuid` doesn't match a UUID regex.
-
-### WR-04: Hardcoded UI text in profile history — violates project rule #1 (zéro texte hardcodé)
-
-**File:** `app/profile/page.tsx:439, 349`
-**Issue:** Two violations of the absolute "zero hardcoded text" rule:
-- Line 439: `` `· ${row.rounds_played} manches` `` — French "manches" shown to EN/ES/DE users. (Also cosmetic: when `themeCaption` is null the caption renders with a leading "· ".)
-- Line 349: `...replace(/^\d+\s*/, '') || 'sessions'` — hardcoded English fallback `'sessions'`, plus a regex that strips the leading number from a localized sentence; it only works while all four languages happen to lead with the digit.
-**Fix:** Add dedicated keys, e.g. `profile.rounds_count: (n) => ...` (or reuse a variant of `game.round_of`) and `profile.stat_sessions_total: "Sessions"`, in all four dictionaries.
-
-### WR-05: Retry button label built by string-splitting the error message
-
-**File:** `app/profile/page.tsx:271`
-**Issue:** `<GhostBtn ...>{fr.profile.error_load.split('.')[0] + '…'}</GhostBtn>` renders "Impossible de charger ton profil…" as the **retry button label** — error text presented as an action, and a fragile manipulation of an i18n string (breaks if a translation reorders its sentences).
-**Fix:** Add `profile.retry` to all dictionaries and use it directly.
-
-### WR-06: `fetchStats(uid)` ignores its `uid` parameter — no explicit `user_id` filter, RLS-only scoping
-
-**File:** `app/profile/page.tsx:139-153`
-**Issue:** The function signature takes `uid?: string` and both call sites pass `user.id`, but the body never uses it — the query has no `.eq('user_id', uid)`. The dead parameter strongly suggests the filter was intended and dropped. Today RLS (`stats_select_own`) scopes the rows, but this project has a documented history of RLS policies being the thing that breaks (`schema.sql` exists largely to repair them); a future policy regression here would expose every user's stats to every signed-in user with zero client-side defense.
-**Fix:** `.eq('user_id', uid)` (and make `uid` required), keeping RLS as the second layer.
-
-### WR-07: Pause does not freeze the vote timer — a >30 s pause force-resolves the vote immediately on resume
-
-**File:** `app/room/[code]/game/page.tsx:350-358` (`RoundTimer`), `2097-2101` (`onResume`)
-**Issue:** `RoundTimer` computes remaining time from `gs.round_started_at` wall-clock elapsed. During pause the vote screen (and timer) unmounts; `onResume` does not adjust `round_started_at` for the paused duration. Pausing a vote phase for more than the remaining seconds → on resume `initialSecs = 0` → the advancer's `VoteTimer` fires `onExpire` on mount → the round is force-resolved with partial votes the instant the group resumes. This contradicts the documented pause spec ("En pause : les timers se figent").
-**Fix:** In `onPause`, store `paused_at`; in `onResume`, shift `round_started_at` forward by the pause duration (`round_started_at += now - paused_at`) before writing the resumed state.
-
-### WR-08: 20 s presence grace regresses the documented 60 s anti-phone-lock decision; CLAUDE.md not updated
-
-**File:** `lib/usePresence.ts:11`
-**Issue:** `GRACE_MS = 20_000` replaces the 60 s grace that CLAUDE.md records as a playtest decision explicitly motivated by phone locks ("après 60 s de grâce (anti phone-lock)"). A guest who locks their phone for ~30 s mid-game (extremely common at a table) now gets their player row deleted — which cascades **their already-cast votes** away and drops the threshold, then forces a re-join. The phase scope lists 20 s as intentional, but (a) the regression risk against the playtest decision is real and should be revalidated at the next playtest, and (b) CLAUDE.md still states 60 s grace and 2 min heartbeat (now 30 s, line 14) — the "source de vérité" is now wrong on both numbers.
-**Fix:** Re-validate 20 s against the phone-lock scenario (mobile browsers drop the websocket within seconds of locking); update CLAUDE.md's "Cycle de vie des rooms" section either way.
-
-### WR-09: `createRoom` has no in-flight guard — Enter key can double-create rooms
-
-**File:** `app/page.tsx:124-125, 261`
-**Issue:** The create **button** is disabled while `loading`, but the input's `onKeyDown={(e) => e.key === 'Enter' && createRoom()}` is not gated, and `createRoom` itself never checks `loading`. Two quick Enter presses run two concurrent `createRoom` calls → two rooms + two host player rows inserted, `setPlayerId` written twice (second wins), and two racing `router.push` calls; one orphan room lingers until the 30-min sweep.
-**Fix:** First line of `createRoom`: `if (loading) return`.
-
-### WR-10: Vote-threshold formula duplicated in four places with three variants
-
-**File:** `app/room/[code]/game/page.tsx:947, 951, 1731, 1934` (+ `533, 535, 560-562, 759-761` using `players.length`)
-**Issue:** The resolution threshold is computed independently in: the parent (`voteThreshold`, min-capped, line 1934), `ChoiceScreen` (inline min, duplicated twice at 947/951), the broadcast handler (raw snapshot, line 1731 — the CR-01 bug), while `QuestionSelectionScreen` / `DesignationVoteScreen` / `ConfessionVoteScreen` use plain `players.length` for `VoteProgress` totals and `HostSkipBtn` visibility. The display total can therefore disagree with the actual resolution threshold (e.g. "3 / 5 ont voté" when the round resolves at 4), and any future tweak must be replicated in four spots — which is exactly how CR-01 happened.
-**Fix:** Compute `voteThreshold` once in the parent and pass it as a prop to all vote screens (replacing both the inline `Math.min` expressions and the `players.length` totals); reuse it in the broadcast handler via a ref or by recomputing from `playersRef`.
-
-### WR-11: Profile archetype card renders the same fallback string twice (title and body), in v2.0 for every user
-
-**File:** `app/profile/page.tsx:328-337` (and `295`)
-**Issue:** In the dormant path (all users in v2.0, since `tag_scores` is always `{}`), both the archetype name and the descriptive paragraph under it render `fr.archetypes.archetype_fallback` — the card shows "Une simple personne" twice in a row. The body line was clearly meant to be an explanatory string (e.g. "play more games to reveal your archetype"). Additionally, in the future `hasTraits` path (line 295) the archetype **name** is also hardcoded to `archetype_fallback` — the 21 archetype keys present in `lib/i18n.ts:195-215` are never selected, so when v3.0 tags light up, every user will still be "Une simple personne" above real trait bars, contradicting the "lights up without redeploy (D-08)" comment.
-**Fix:** Add a dedicated `archetypes.dormant_body` key for the description; either implement the archetype selection (simple/hybrid rules from the spec) now behind the `hasTraits` gate, or remove the misleading "lights up without redeploy" claim.
-
-## Info
-
-### IN-01: Trait "percentages" are relative to the top trait and floored at 4%
-
-**File:** `app/profile/page.tsx:200, 312, 318`
-**Issue:** `pct = Math.max(4, Math.round((t.score / maxTraitScore) * 100))` — the top trait always reads 100%, and the visual minimum-width floor (4) leaks into the **displayed** number (a 1% trait shows "4%"). The spec defines % over the trait total. Dormant in v2.0 but will surface wrong numbers in v3.0.
-**Fix:** Divide by `totalTagScore` for the label; apply the 4% floor only to the bar width.
-
-### IN-02: `computeTraitTotals` doesn't floor negative trait totals at 0
-
-**File:** `app/profile/page.tsx:102-111`
-**Issue:** The spec says "Floor à 0 par trait" (tags can carry negative points). Raw sums can go negative, skewing `totalTagScore` and the `hasTraits` gate. Dormant until v3.0.
-**Fix:** `totals[key] = Math.max(0, totals[key])` after accumulation.
-
-### IN-03: Join/leave toasts capture the locale dictionary at mount
-
-**File:** `app/room/[code]/game/page.tsx:1746, 1801`
-**Issue:** The realtime handlers (registered once in the `[code]` effect) close over `fr`; switching language mid-game leaves toasts in the old language.
-**Fix:** Read the dictionary via a ref kept in sync each render, or store a message key + payload in state and translate at render time.
-
-### IN-04: Resume-banner query selects `status` but never uses it
-
-**File:** `app/page.tsx:71`
-**Issue:** `select('id, status')` — `status` is dead. (Routing to the lobby is correct: the lobby forwards `playing`/`ended` rooms to `/game` on load.) Either drop the field or use it to route directly.
-
-### IN-05: Profile fetch relies on PostgREST's implicit 1000-row cap
-
-**File:** `app/profile/page.tsx:142-145`
-**Issue:** D-07 requires cumulative stats over **all** rows, but the unbounded `select('*')` is silently truncated at the PostgREST default (1000). Cumulative totals would quietly undercount for very heavy users. Low urgency; note for when an aggregate RPC becomes worthwhile. Also pre-existing: the `confession.b1_*` keys in `lib/i18n.ts:117-120` are dead (B1 was removed in playtest #3) across all four dictionaries.
+**Fix (long-term, before premium):** Move the upsert to a `SECURITY DEFINER` RPC that validates the `session_id` against `rooms` (or `game_state.session_uuid`) server-side, so the client cannot fabricate a session the server doesn't know about. CLAUDE.md's "Gating OBLIGATOIREMENT côté serveur" guidance for the premium build applies here.
 
 ---
 
-_Reviewed: 2026-06-12_
+### WR-02: `setTimeout` in `PendingStatsFlusher.flush` is never cancelled on unmount — stale state update
+
+**File:** `app/PendingStatsFlusher.tsx:62-63`
+**Issue:** `setTimeout(() => setShowToast(false), 4000)` is created inside the async `flush()` function, which is called from within the `useEffect`. The effect's cleanup only cancels the auth subscription:
+```ts
+return () => { subscription.unsubscribe() }
+```
+If the component unmounts (e.g., fast navigation away from the page) while the 4-second timeout is pending, `setShowToast(false)` is called on an unmounted component. React 18 silently discards this, but if the component re-mounts quickly, the timer from the first mount now races with a fresh mount's state — producing an unexpected flicker (toast appears, immediately hidden by the stale timer from the previous mount).
+
+**Fix:** Hoist the timeout ref, store the handle in the effect, and cancel it in the cleanup:
+```ts
+const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+// inside flush, replace the setTimeout:
+if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+toastTimerRef.current = setTimeout(() => setShowToast(false), 4000)
+
+// in the cleanup:
+return () => {
+  subscription.unsubscribe()
+  if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+}
+```
+
+---
+
+### WR-03: Deferred redirect (3500 ms) fires before the flush toast can appear or complete — user never sees confirmation
+
+**File:** `app/room/[code]/game/page.tsx:1678`
+**Issue:** When `init()` finds no room and there is a pending stash for this room code, the code defers navigation:
+```ts
+setTimeout(() => router.push('/'), 3500)
+```
+The comment says "give it ~4s to fire and show its toast." The actual timing is unsafe:
+
+1. `PendingStatsFlusher` fires `flush()` only after `getUser()` resolves OR `SIGNED_IN` fires. Neither is guaranteed to happen within 3500ms of this component mounting — `getUser()` is a network round-trip and `SIGNED_IN` may have already fired before this page mounted (in which case `getUser()` is the only path, and it must resolve, call `flush()`, the upsert must complete, *then* `setShowToast(true)` must render before 3500ms elapses).
+2. If the Supabase upsert itself is slow (e.g., >1s on a cold connection), the toast appears after the navigation has already occurred.
+3. The redirect fires at 3500ms while `PendingStatsFlusher`'s toast auto-hides at 4000ms — the user navigates away 500ms before the toast would disappear normally anyway, giving a jarring cut.
+
+A 3500ms magic number was chosen to approximate `PendingStatsFlusher`'s 4000ms toast, but the flush is asynchronous and the timing is not guaranteed.
+
+**Fix:** Emit a custom event from `PendingStatsFlusher` on flush success, or use a cross-component signal (e.g., a shared Zustand atom, or a `BroadcastChannel` message), so `init()` can navigate *after confirmation* rather than after a guessed timeout:
+```ts
+// In PendingStatsFlusher, after clearPendingStats():
+window.dispatchEvent(new CustomEvent('kluup:stats-flushed'))
+
+// In init() not-found branch, replace setTimeout with:
+const onFlushed = () => { router.push('/') }
+window.addEventListener('kluup:stats-flushed', onFlushed, { once: true })
+// Safety fallback: if flush never fires (no pending stash, or flush errors):
+const fallback = setTimeout(() => {
+  window.removeEventListener('kluup:stats-flushed', onFlushed)
+  router.push('/')
+}, 6000) // generous deadline
+// Store fallback handle to clear on flush
+```
+
+---
+
+### WR-04: `cleanup_dead_rooms()` 90-second TTL for non-ended rooms may delete rooms with active presence on poor connections
+
+**File:** `supabase/lifecycle.sql:70-74`
+**Issue:** The new TTL for `status != 'ended'` is 90 seconds. The presence heartbeat interval from `lib/usePresence.ts` is 30 seconds (confirmed by earlier review; CLAUDE.md still documents 2 min). This gives a margin of 3× the heartbeat before deletion, which is the stated intent.
+
+However, the `rooms_bump_activity` trigger bumps `last_activity` on any rooms UPDATE — so game state writes also keep rooms alive. The risk scenario is a game in a `playing` state where:
+- All players are simultaneously on a bad mobile connection (heartbeat drops),
+- No game state writes have occurred for >90s (e.g., everyone is in the middle of a 30s vote timer but the host's client lost connectivity after setting up the vote),
+- The pg_cron sweep fires.
+
+In that scenario, an active room with live votes in-flight would be deleted, cascade-deleting votes and players, leaving reconnecting players in a broken state with no room to return to. The previous CLAUDE.md-documented TTL was 30 minutes (non-ended rooms). A 97% reduction in TTL significantly narrows the safety margin.
+
+The intent (SC-3: "empty room auto-deleted within ~1 min") applies to **abandoned** rooms, not active ones. Active rooms should be protected by the trigger. But the protection relies entirely on game-state writes happening within 90s — silence in a paused game or a slow vote phase breaks it.
+
+**Fix:** Increase the non-ended TTL to at least 5 minutes to cover a paused game where nobody writes state, or add an explicit guard: `AND status != 'playing'` for the 90s bucket, keeping only `status IN ('waiting', 'lobby')` at 90s and `status = 'playing'` at a longer interval (e.g., 5 min).
+
+```sql
+WHERE COALESCE(last_activity, created_at) < now() - (
+  CASE
+    WHEN status = 'ended'  THEN interval '30 minutes'
+    WHEN status = 'playing' THEN interval '5 minutes'
+    ELSE interval '90 seconds'   -- waiting / lobby / null
+  END
+)
+```
+
+---
+
+### WR-05: pg_cron Block 5 Step 2 errors if pg_cron is not yet installed — breaks idempotent re-run claim
+
+**File:** `supabase/lifecycle.sql:106`
+**Issue:** The comment on Block 5 says "This block is idempotent." Step 2 is:
+```sql
+SELECT cron.unschedule('cleanup-dead-rooms')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'cleanup-dead-rooms');
+```
+If someone runs this statement before Step 1 (`CREATE EXTENSION IF NOT EXISTS pg_cron`), the `cron.job` table does not exist and the `EXISTS` subquery throws `ERROR: relation "cron.job" does not exist`, aborting the statement. The block is only idempotent *when run in the correct order*, but the instructions say "Run each statement ONE AT A TIME" without enforcing the order, and the `IF NOT EXISTS` guard on Step 1 creates a false sense of safety (Step 1 succeeds idempotently, but Step 2 still fails).
+
+Additionally, the Step 2 form `SELECT fn() WHERE condition` relies on PostgreSQL evaluating the function call only when the condition is true. This is correct behavior but non-obvious and fragile — if the planner decides to evaluate `cron.unschedule()` before the `WHERE` (which it does not currently do, but is theoretically permitted for side-effect-free functions), it would error when the job doesn't exist. The explicit, unambiguous pattern used elsewhere in the Supabase ecosystem is:
+```sql
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'cleanup-dead-rooms') THEN
+    PERFORM cron.unschedule('cleanup-dead-rooms');
+  END IF;
+END $$;
+```
+
+**Fix:** Replace Step 2 with the `DO $$ ... $$` form, and add a note that Step 1 must be confirmed installed before Step 2 is run.
+
+---
+
+## Info
+
+### IN-01: `save_prompt.flushed` key duplicates `end.stats_saved` — same string, different keys
+
+**File:** `lib/i18n.ts:236` (fr), `502` (en), `766` (es), `1030` (de)
+**Issue:** All four locales have `save_prompt.flushed` and `end.stats_saved` with identical translations (FR: "Stats sauvegardées ✓", EN: "Stats saved ✓", etc.). This is not a bug — the contexts differ (global toast vs. in-game receipt) — but it creates a maintenance hazard: if a future copywriter updates one, they must remember to update the other. A shared key (e.g., `common.stats_saved`) would eliminate the duplication.
+
+---
+
+### IN-02: `myId ?? ''` in `handleCTASignIn` writes a zero-stat row when `myId` is null
+
+**File:** `app/room/[code]/game/page.tsx:1426-1429`
+**Issue:** If `myId` is null (a player who arrived at `/game` without a player identity — possible if localStorage was cleared after game ended), all three stat lookups return 0. The stash is written with zero stats. `PendingStatsFlusher` then upserts a `user_session_stats` row with all-zero personal counts. The row is not harmful (it's correct — no verifiable personal stats) but it pollutes the history with an entry the player might not recognize as meaningful.
+
+The stash guard `if (gs.session_uuid)` is correct — it prevents stashing when there is nothing to save — but it does not gate on `myId` being non-null.
+
+**Fix:** Add `&& myId` to the stash guard:
+```ts
+if (gs.session_uuid && myId) {
+  setPendingStats({ ... })
+}
+```
+
+---
+
+### IN-03: `app/layout.tsx` renders `PendingStatsFlusher` and `children` as adjacent siblings without a fragment wrapper — minor JSX style
+
+**File:** `app/layout.tsx:50`
+**Issue:**
+```tsx
+<LocaleProvider><PendingStatsFlusher />{children}</LocaleProvider>
+```
+`PendingStatsFlusher` and `{children}` are adjacent JSX children inside `LocaleProvider` on the same line. This is valid React (multiple children are fine), but it means any future addition of another global component must be inserted carefully into this single line. A fragment or a wrapping element would make the intent explicit and the structure easier to maintain.
+
+**Fix (optional, style):**
+```tsx
+<LocaleProvider>
+  <PendingStatsFlusher />
+  {children}
+</LocaleProvider>
+```
+
+---
+
+_Reviewed: 2026-06-12T10:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
