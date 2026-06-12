@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google"
 import "./globals.css"
 import { LocaleProvider } from "@/lib/locale"
+import PendingStatsFlusher from "@/app/PendingStatsFlusher"
 
 // Display : Bricolage Grotesque — caractériel/trendy mais bien plus lisible que Syne.
 const display = Bricolage_Grotesque({
@@ -46,7 +47,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body className="min-h-full flex flex-col bg-kluup-bg text-white antialiased">
-        <LocaleProvider>{children}</LocaleProvider>
+        <LocaleProvider><PendingStatsFlusher />{children}</LocaleProvider>
       </body>
     </html>
   )

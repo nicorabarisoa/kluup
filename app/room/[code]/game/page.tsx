@@ -17,7 +17,7 @@ import {
 import { useT, useLocale } from '@/lib/locale'
 import { useRoomPresence } from '@/lib/usePresence'
 import type { User } from '@supabase/supabase-js'
-import { getPlayerId, clearPlayerId } from '@/lib/utils'
+import { getPlayerId, clearPlayerId, setPendingStats, getPendingStats } from '@/lib/utils'
 import type { Dict } from '@/lib/i18n'
 import { GameState, Player, Question, Room } from '@/lib/types'
 
@@ -1414,7 +1414,25 @@ function EndScreen({
   // CTA sign-in: D-04 + CLAUDE.md "OAuth redirectTo" gotcha.
   // redirectTo MUST route through /auth/callback?next=<path> — NEVER the raw game URL
   // (the PKCE flow returns with ?code=<uuid> which would collide with ?code=<room>).
+  //
+  // Stash the save payload BEFORE the redirect so the globally-mounted
+  // PendingStatsFlusher can upsert it on SIGNED_IN regardless of room lifetime.
+  // See .planning/debug/oauth-return-lands-on-home.md for root cause details.
   async function handleCTASignIn() {
+    // Stash payload only when we have a valid session_uuid (otherwise nothing to save).
+    if (gs.session_uuid) {
+      setPendingStats({
+        session_id:        gs.session_uuid,
+        designated_count:  (gs.stats.designated  ?? {})[myId ?? ''] ?? 0,
+        confessed_count:   (gs.stats.confessed   ?? {})[myId ?? ''] ?? 0,
+        volunteered_count: (gs.stats.volunteered ?? {})[myId ?? ''] ?? 0,
+        group_title:       titleKey,
+        theme,
+        rounds_played:     totalRounds,
+        code,
+        stashed_at:        Date.now(),
+      })
+    }
     const next = `/room/${code}/game`
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -1639,7 +1657,30 @@ export default function GamePage() {
       const { data: roomData } = await supabase
         .from('rooms').select().eq('code', code).single()
 
-      if (!roomData) { router.push('/'); return }
+      if (!roomData) {
+        // Gap fix — see .planning/debug/oauth-return-lands-on-home.md:
+        // When a solo room is swept by the pg_cron cleanup during a slow OAuth
+        // sign-in, the callback correctly redirects back to this page, but the
+        // room row no longer exists. If a pending-stats stash for THIS room
+        // exists, the globally-mounted PendingStatsFlusher will flush it on
+        // SIGNED_IN. Delay the push so the user sees the "Stats sauvegardées ✓"
+        // confirmation before being navigated away, rather than a silent bounce.
+        //
+        // KNOWN RESIDUAL (multi-player variant): in a multi-player room where
+        // only the signing-in player's presence drops, the players row may be
+        // pruned while the room survives — that path differs from the solo-room
+        // sweep handled here, but the localStorage stash still saves the stats
+        // regardless. No blocking fix required; tracked in 05-05-SUMMARY.md.
+        const pending = getPendingStats()
+        if (pending && pending.code === code) {
+          // Stash is for this room — the flusher owns the actual save.
+          // Defer navigation to give it ~4s to fire and show its toast.
+          setTimeout(() => router.push('/'), 3500)
+        } else {
+          router.push('/')
+        }
+        return
+      }
       setRoom(roomData as Room)
       roomRef.current = roomData as Room
 
