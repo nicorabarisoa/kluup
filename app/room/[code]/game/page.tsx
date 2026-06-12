@@ -16,6 +16,7 @@ import {
 } from '@/lib/game'
 import { useT, useLocale } from '@/lib/locale'
 import { useRoomPresence } from '@/lib/usePresence'
+import type { User } from '@supabase/supabase-js'
 import { getPlayerId, clearPlayerId } from '@/lib/utils'
 import type { Dict } from '@/lib/i18n'
 import { GameState, Player, Question, Room } from '@/lib/types'
@@ -1300,11 +1301,46 @@ const ShareCard = forwardRef<HTMLDivElement, {
 // ---- End screen ----
 
 function EndScreen({
-  gs, players, myId, isHost, theme, onNewRound, onLeave,
+  gs, players, myId, isHost, theme, onNewRound, onLeave, user, saved, setSaved, code,
 }: {
   gs: GameState; players: Player[]; myId: string | null; isHost: boolean; theme: string; onNewRound: () => void; onLeave: () => void
+  user: User | null; saved: boolean; setSaved: (v: boolean) => void; code: string
 }) {
   const fr = useT()
+  const isSignedIn = !!user
+
+  // STAT write effect (D-01, D-02, D-03). Fires once when the ended phase mounts
+  // (and again retroactively when user?.id flips non-null after the CTA OAuth — D-05).
+  // Idempotent via UNIQUE(user_id, session_id) + ignoreDuplicates: true (STAT-03).
+  // Gated on user?.id (not a stale boolean) to prevent anon attempts (Pitfall 2).
+  // session_uuid read inside the body (not from a closure) to avoid stale Pitfall 1.
+  // No write in cleanup / unmount / beforeunload — D-02.
+  useEffect(() => {
+    if (gs?.phase !== 'ended' || !user?.id || !gs.session_uuid) return
+    const totalRounds = gs.stats.rounds_a + gs.stats.rounds_b + gs.stats.rounds_c
+    const titleKey = computeGroupTitle(gs.stats, theme, totalRounds)
+    supabase
+      .from('user_session_stats')
+      .upsert(
+        {
+          user_id:           user.id,
+          session_id:        gs.session_uuid,
+          designated_count:  (gs.stats.designated  ?? {})[myId ?? ''] ?? 0,
+          confessed_count:   (gs.stats.confessed   ?? {})[myId ?? ''] ?? 0,
+          volunteered_count: (gs.stats.volunteered ?? {})[myId ?? ''] ?? 0,
+          group_title:       titleKey,
+          theme,
+          rounds_played:     totalRounds,
+          tag_scores:        {},
+        },
+        { onConflict: 'user_id,session_id', ignoreDuplicates: true }
+      )
+      .then(({ error }) => {
+        if (error) console.error('[stats write]', error)
+        else setSaved(true)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gs?.phase, gs?.session_uuid, user?.id])
   // Derive from the accumulated stats so the count and the title percentages
   // share the same denominator (every completed round lands in exactly one of these).
   const totalRounds = gs.stats.rounds_a + gs.stats.rounds_b + gs.stats.rounds_c
@@ -1373,6 +1409,19 @@ function EndScreen({
     } finally {
       setExporting(false)
     }
+  }
+
+  // CTA sign-in: D-04 + CLAUDE.md "OAuth redirectTo" gotcha.
+  // redirectTo MUST route through /auth/callback?next=<path> — NEVER the raw game URL
+  // (the PKCE flow returns with ?code=<uuid> which would collide with ?code=<room>).
+  async function handleCTASignIn() {
+    const next = `/room/${code}/game`
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      },
+    })
   }
 
   return (
@@ -1456,6 +1505,42 @@ function EndScreen({
           })}
         </div>
 
+        {/* Sign-in CTA — shown to anonymous users; hidden once signed in (PROF-02 / D-04). */}
+        {!isSignedIn && (
+          <div
+            className="rounded-2xl p-4 mt-4"
+            style={{ background: C.surface, border: `1px solid ${C.a}33` }}
+          >
+            <p
+              className="text-sm font-extrabold"
+              style={{ fontFamily: 'var(--font-display)', color: C.text, margin: 0 }}
+            >
+              {fr.save_prompt.heading}
+            </p>
+            <p
+              className="text-xs mt-1"
+              style={{ fontFamily: 'var(--font-body)', color: C.muted, margin: '4px 0 0' }}
+            >
+              {fr.save_prompt.body}
+            </p>
+            <div style={{ marginTop: 12 }}>
+              <PrimaryBtn onClick={handleCTASignIn} accent={C.a}>
+                {fr.save_prompt.cta}
+              </PrimaryBtn>
+            </div>
+          </div>
+        )}
+
+        {/* "✓ saved" receipt — discreet confirmation for signed-in users (Claude's discretion). */}
+        {isSignedIn && saved && (
+          <p
+            className="text-xs text-center mt-4"
+            style={{ color: C.muted, fontFamily: 'var(--font-body)' }}
+          >
+            {fr.end.stats_saved}
+          </p>
+        )}
+
         <p className="text-center text-xs mt-6" style={{ color: C.faint, fontFamily: 'var(--font-body)' }}>
           {fr.end.thanks}
         </p>
@@ -1522,6 +1607,9 @@ export default function GamePage() {
   const [hasVoted, setHasVoted] = useState(false)
   const [voteCount, setVoteCount] = useState(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  // Auth state — WR-01 pattern (same as join/page.tsx); drives stats write and CTA.
+  const [user, setUser] = useState<User | null>(null)
+  const [saved, setSaved] = useState(false)
 
   const prevPhaseRef = useRef<string | null>(null)
   const roomRef = useRef<Room | null>(null)
@@ -1735,6 +1823,38 @@ export default function GamePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code])
+
+  // Auth state + retroactive-save listener + Realtime JWT refresh (SC-5).
+  // One subscription carries three responsibilities:
+  //   1. TOKEN_REFRESHED → supabase.realtime.setAuth (keeps channels alive >1h)
+  //   2. SIGNED_IN       → update user state (re-fires write effect in EndScreen for D-05)
+  //   3. SIGNED_IN       → silently link player row's user_id (D-05 discretion / RESEARCH Pattern 5)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED' && session?.access_token) {
+        // SC-5: propagate refreshed JWT to all open Realtime channels.
+        // Only on TOKEN_REFRESHED — never on INITIAL_SESSION (Pitfall 5).
+        await supabase.realtime.setAuth(session.access_token)
+      }
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user)
+        // D-05 / Pattern 5: try to link this player's DB row to the newly-signed-in user.
+        // Failure is acceptable — the room may have died during the OAuth round-trip.
+        const pid = getPlayerId(code)
+        if (pid) {
+          supabase.from('players').update({ user_id: session.user.id }).eq('id', pid)
+            .then(({ error }) => {
+              if (error) console.warn('[players user_id link]', error)
+            })
+        }
+      }
+    })
+    return () => subscription.unsubscribe()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Host stopped the session → everyone returns to the lobby to pick a theme.
   // Any non-game status ('waiting', legacy 'lobby') bounces back; only
@@ -2112,7 +2232,7 @@ export default function GamePage() {
       case 'round_c_roulette':
         return <CRouletteScreen gs={gs} players={players} isHost={isHost} nextLabel={nextLabel} onNext={onNextRound} onEnd={onEndGame} />
       case 'ended':
-        return <EndScreen gs={gs} players={players} myId={myId} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={onQuit} />
+        return <EndScreen gs={gs} players={players} myId={myId} isHost={isHost} theme={room.theme} onNewRound={returnToLobby} onLeave={onQuit} user={user} saved={saved} setSaved={setSaved} code={code} />
       default:
         return <LoadingScreen />
     }
