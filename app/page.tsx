@@ -194,15 +194,28 @@ export default function Home() {
             </button>
           )}
           {!authLoading && user && (
-            <button
-              onClick={handleSignOut}
-              className="flex items-center text-xs px-2.5 py-1.5 rounded-xl max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap"
+            <div
+              className="flex items-center text-xs px-2.5 py-1.5 rounded-xl max-w-[180px]"
               style={{ background: C.surface, border: `1px solid ${C.border}`, fontFamily: 'var(--font-body)' }}
             >
-              <span style={{ color: '#fff', fontWeight: 800 }}>{getGoogleFirstName(user)}</span>
+              {/* Name tap → /profile (A-02 locked) */}
+              <Link
+                href="/profile"
+                className="overflow-hidden text-ellipsis whitespace-nowrap"
+                style={{ color: '#fff', fontWeight: 800, textDecoration: 'none', maxWidth: 90 }}
+              >
+                {getGoogleFirstName(user)}
+              </Link>
               <span style={{ color: C.faint }}> · </span>
-              <span style={{ color: C.muted }}>{fr.auth.sign_out}</span>
-            </button>
+              {/* Sign-out stays as a separate tap target — stop propagation not needed (no wrapping button) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleSignOut() }}
+                className="flex-shrink-0"
+                style={{ color: C.muted, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 'inherit' }}
+              >
+                {fr.auth.sign_out}
+              </button>
+            </div>
           )}
           <LangSwitch />
         </div>
