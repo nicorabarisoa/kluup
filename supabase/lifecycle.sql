@@ -39,16 +39,27 @@ CREATE TRIGGER trg_rooms_bump_activity
   FOR EACH ROW EXECUTE FUNCTION rooms_bump_activity();
 
 -- === Block 3 ================================================================
--- Sweep: delete rooms with no connected client for ~90 seconds. players + votes
--- cascade away. Connected clients refresh last_activity via the presence
--- heartbeat (HEARTBEAT_MS = 30s in lib/usePresence.ts); 90s = 3× the heartbeat
--- interval, giving a safe 60s margin against delayed heartbeats. Active rooms
--- are never swept mid-session; only truly-abandoned rooms age past the threshold.
+-- Sweep: delete rooms that have had no connected client for too long. players +
+-- votes cascade away. Connected clients refresh last_activity via the presence
+-- heartbeat (HEARTBEAT_MS = 30s in lib/usePresence.ts).
+--
+-- Status-aware TTL (gap fix — .planning/debug/oauth-return-lands-on-home.md):
+--   • status = 'ended'  → 30-minute TTL.
+--     A completed game's end screen may still be active: the player is sharing
+--     their stat card, or in the middle of an OAuth Google sign-in round-trip
+--     (which pauses the heartbeat). Ended rooms are cheap to keep alive briefly
+--     and "Rejouer" (replay from the same lobby) also relies on the room
+--     surviving the sign-in detour.
+--   • All other statuses ('waiting', legacy 'lobby', 'playing', NULL)
+--     → 90-second TTL (3× heartbeat, ~60s margin).
+--     SC-3 ("empty room auto-deleted within ~1 min") is unchanged for abandoned
+--     lobbies and crashed in-progress rooms.
+--
 -- Returns how many rooms were removed.
 --
--- NOTE: The ~60s threshold means SC-3 ("room auto-deleted") has an acceptance
--- window of ~1 min (the pg_cron sweep interval), not >15s. This is the locked
--- approach (user, 2026-06-10): server-side sweep instead of client-side beacon.
+-- NOTE: The ~60s threshold for non-ended rooms means SC-3 has an acceptance
+-- window of ~1 min (the pg_cron sweep interval). This is the locked approach
+-- (user, 2026-06-10): server-side sweep instead of client-side beacon.
 CREATE OR REPLACE FUNCTION cleanup_dead_rooms()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER AS $fn$
 DECLARE
@@ -56,7 +67,11 @@ DECLARE
 BEGIN
   WITH dead AS (
     DELETE FROM rooms
-    WHERE COALESCE(last_activity, created_at) < now() - interval '90 seconds'
+    WHERE COALESCE(last_activity, created_at) < now() - (
+      CASE WHEN status = 'ended' THEN interval '30 minutes'
+           ELSE interval '90 seconds'
+      END
+    )
     RETURNING id
   )
   SELECT count(*) INTO n FROM dead;
