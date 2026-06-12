@@ -10,8 +10,8 @@ progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 21
-  completed_plans: 20
-  percent: 60
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State
@@ -69,6 +69,7 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 - [Phase ?]: [Phase 04 P03]: IDEN-02 guard is user && !stored — localStorage entry takes precedence over cross-device lookup
 - [Phase ?]: [Phase 04 P04]: googlePrefill state on landing page mirrors join page pattern — hint shown only when pseudo === googlePrefill
 - [Phase ?]: [Phase 04 P04]: user_id added only to players insert (host row), not to rooms insert — host_id: genId() unchanged (NOT NULL in prod)
+- [Phase 05 P06]: cleanup_dead_rooms() status='ended' TTL = 30 minutes; all other rooms keep 90s (SC-3 intact); CASE expression inside single DELETE WHERE — no second pg_cron job; Blocks 1/2/4/5 untouched
 
 ## Notes
 
@@ -80,10 +81,10 @@ Phase 2 complete. Next: Phase 3 — Sign-in UX + Player Linking
 
 ## Current Position
 
-Phase: 05 (stats-persistence-profile) — EXECUTING
-Plan: 2 of 6
-Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 05 execution started
+Phase: 05 (stats-persistence-profile) — COMPLETE
+Plan: 6 of 6 (all plans done)
+Status: Phase complete
+Last activity: 2026-06-12 -- Phase 05 Plan 06 complete (ended-room TTL exemption live in prod DB)
 
 ## Performance Metrics
 
@@ -103,3 +104,4 @@ Last activity: 2026-06-12 -- Phase 05 execution started
 | Phase 05 P01 | 3min | 2 tasks | 3 files |
 | Phase 05-stats-persistence-profile P03 | 18min | 2 tasks | 2 files |
 | Phase 05 P04 | 18min | 2 tasks | 2 files |
+| Phase 05 P06 | ~5min + human DB apply | 2 tasks (1 auto + 1 human-action checkpoint) | 1 file |

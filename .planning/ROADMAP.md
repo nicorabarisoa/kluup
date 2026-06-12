@@ -8,7 +8,7 @@
 - [x] **Phase 2: Auth Infrastructure + Schema** - Lay auth plumbing and DB schema before any user-facing auth ships
 - [x] **Phase 3: Playtest Quality Fixes** - Fix core game bugs found in playtest before auth ships (8/8 plans complete, all SCs addressed)
 - [x] **Phase 4: Sign-in UX + Player Linking** - Surface optional Google sign-in and wire signed-in identity into player rows (completed 2026-06-11)
-- [~] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page (UAT gap-closure pass: OAuth-survival of end-of-game stats)
+- [x] **Phase 5: Stats Persistence + Profile** - Persist per-session stats for signed-in players and expose a profile page (UAT gap-closure pass: OAuth-survival of end-of-game stats) (completed 2026-06-12)
 
 ---
 
@@ -132,7 +132,7 @@ Plans:
 **Gap closure** *(UAT test 2 — major: slow-OAuth end-screen CTA loses stats; both plans run in parallel, disjoint files)*
 
 - [x] 05-05-PLAN.md — [gap] localStorage stash of the save payload before the OAuth redirect + global PendingStatsFlusher (flush on SIGNED_IN, idempotent, localized toast) → stats survive room deletion + landing on `/`
-- [ ] 05-06-PLAN.md — [gap] cleanup_dead_rooms() TTL exemption: `status='ended'` rooms get 30-min TTL (90s for all others) — defense-in-depth; manual DB apply checkpoint
+- [x] 05-06-PLAN.md — [gap] cleanup_dead_rooms() TTL exemption: `status='ended'` rooms get 30-min TTL (90s for all others) — defense-in-depth; manual DB apply checkpoint (applied 2026-06-12)
 
 **UI hint**: yes
 
@@ -179,4 +179,4 @@ Plans:
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
 | 3. Playtest Quality Fixes | 8/8 | Complete   | 2026-06-10 |
 | 4. Sign-in UX + Player Linking | 4/4 | Complete   | 2026-06-11 |
-| 5. Stats Persistence + Profile | 5/6 | In Progress|  |
+| 5. Stats Persistence + Profile | 6/6 | Complete   | 2026-06-12 |
