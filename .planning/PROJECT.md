@@ -18,20 +18,9 @@ Creating genuine human moments through structured social questions — the app t
 
 ## Context
 
-**MVP deployed on Railway.** Full game loop playable: landing → room creation/join → lobby (theme selection) → rounds A/B/C → end screen + share card. i18n FR/EN/ES/DE. Room lifecycle managed (presence + cleanup). Two rounds of playtesting integrated.
+**v2.0 shipped 2026-06-12 on Railway.** Full game loop + optional Google OAuth accounts + cross-session stats profile. Anonymous flow unchanged — accounts never required. i18n FR/EN/ES/DE. 134 files changed, 20 544 insertions across v2.0 milestone.
 
-**Stack:** Next.js 16 (App Router, client-only), React 19, TypeScript, Tailwind v4, Supabase (Postgres + Realtime), Railway hosting.
-
-## Current Milestone: v2.0 Auth & Stats
-
-**Goal:** Add optional Google accounts that persist personal stats across sessions — no impact on the frictionless anonymous game.
-
-**Target features:**
-- Google OAuth sign-in via Supabase Auth (optional for everyone — host or player)
-- Player identity linked to account when signed in (`players.user_id` FK)
-- Personal stats saved per account across sessions (designation count, confession reveals, volunteer count, sessions played, group titles history)
-- Stats profile page to view personal history
-- Anonymous game flow unchanged — account never required to play
+**Stack:** Next.js 16 (App Router, client-only), React 19, TypeScript, Tailwind v4, Supabase (Postgres + Realtime + Auth), Railway hosting.
 
 ## Requirements
 
@@ -48,53 +37,47 @@ Creating genuine human moments through structured social questions — the app t
 - ✓ End screen: group title + personal stats + share card — existing
 - ✓ i18n FR/EN/ES/DE with locale detection — existing
 - ✓ Responsive layout (mobile-first, desktop-centered columns) — existing
-- ✓ `GET /api/health` returning `{"status":"ok","uptime":<seconds>}` — implemented
+- ✓ `GET /api/health` returning `{"status":"ok","uptime":<seconds>}` — v2.0 Phase 1
+- ✓ Optional Google OAuth sign-in (host or player) via Supabase Auth — v2.0 Phase 4
+- ✓ Player rows linkable to user account (`players.user_id` nullable FK) — v2.0 Phase 2
+- ✓ Cross-device reconnect via `user_id` lookup (IDEN-02) — v2.0 Phase 4
+- ✓ Personal stats persisted per account across sessions (`user_session_stats`) — v2.0 Phase 5
+- ✓ Stats profile page at `/profile` (history, cumulative grid, group titles) — v2.0 Phase 5
+- ✓ Anonymous end-screen CTA + stats survive slow OAuth (PendingStatsFlusher) — v2.0 Phase 5
 
-### Active
+### Active (v3.0)
 
-- [ ] Optional Google OAuth accounts (host or player) via Supabase Auth
-- [ ] Player rows linkable to user account (`players.user_id` FK)
-- [ ] Personal stats persisted per account across sessions
-- [ ] Stats profile page (designation count, confession reveals, volunteer count, sessions played, group titles)
+- [ ] Social archetypes: trait scores from in-game behaviour + 21 named archetypes on share card
+- [ ] Duo awards: 4 named awards for most notable player pairs, 2-faced share card
+- [ ] Contextual questions: adaptive follow-ups between rounds triggered by in-game events
+- [ ] Power cards: secret cards to volunteers, usable during Type B roulette for extra reveals
 
 ### Out of Scope
 
 - Premium feature gating / quota — v3.0 monetisation milestone
 - Payment / Stripe — v3.0
-- Auth / accounts — post-MVP (monetisation milestone)
 - Custom Theme mode — validated direction, not yet built
 - Configurable round count — validated direction, not yet built
 - In-app chat — deliberately excluded (WhatsApp does it better)
 - Automatic sanctions / dare pack — post-v1 optional mode
+- Magic link / email+password auth — Google OAuth only for v2.0
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Host is always a player | Simplifies roster logic, better social dynamic | Locked |
-| Confession (Type B) = single roulette | Playtest #3 feedback — B1/B2 split added friction | Locked |
-| Intensity ignored at question selection | Theme already bounds spice; randomness = unpredictability | Locked |
-| Broadcast `phase_changed` as primary convergence | `postgres_changes` can be stale; refetch after broadcast is reliable | Locked |
-| `modern-screenshot` not `html2canvas` | html2canvas distorted custom fonts on share card | Locked |
-| Player identity per room in localStorage | Reconnect without duplicate row; global sessionStorage caused bugs | Locked |
-| Health endpoint at `/api/health` (not `/health`) | Next.js App Router convention; rewrites available if needed | Locked |
-
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+| Host is always a player | Simplifies roster logic, better social dynamic | ✓ Locked |
+| Confession (Type B) = single roulette | Playtest #3 feedback — B1/B2 split added friction | ✓ Locked |
+| Intensity ignored at question selection | Theme already bounds spice; randomness = unpredictability | ✓ Locked |
+| Broadcast `phase_changed` as primary convergence | `postgres_changes` can be stale; refetch after broadcast is reliable | ✓ Locked |
+| `modern-screenshot` not `html2canvas` | html2canvas distorted custom fonts on share card | ✓ Locked |
+| Player identity per room in localStorage | Reconnect without duplicate row; global sessionStorage caused bugs | ✓ Locked |
+| Health endpoint at `/api/health` | Next.js App Router convention; rewrites available if needed | ✓ Locked |
+| `@supabase/ssr` with `getUser()` not `getSession()` | Authoritative server-side validation; detects server-side logout | ✓ Locked |
+| `session_uuid` generated in `startGame()` not `makeInitialGameState()` | Ensures fresh UUID on replay (factory default `''` overwritten each launch) | ✓ Locked |
+| OAuth `redirectTo` always via `/auth/callback?next=<path>` | PKCE `?code=<uuid>` must be exchanged server-side; raw URL causes silent failure | ✓ Locked |
+| `PendingStatsFlusher` as global layout component | Stats survive room lifecycle independently of game page; idempotent flush | ✓ Locked |
+| `status='ended'` 30-min TTL in `cleanup_dead_rooms()` | Defense-in-depth: OAuth round-trip can take minutes; primary mechanism is localStorage stash | ✓ Locked |
 
 ---
-*Last updated: 2026-06-07 after v2.0 milestone start*
+*Last updated: 2026-06-12 after v2.0 milestone*
