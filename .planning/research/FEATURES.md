@@ -1,182 +1,129 @@
-# Feature Landscape: Optional Auth + Cross-Session Stats
+# Feature Research — v3.0 Superpowers
 
-**Domain:** Optional authentication and persistent stats in a social/party game web app
-**Researched:** 2026-06-07
-**Confidence:** HIGH (Supabase docs + official sources + real precedents)
+> All 5 features have approved design specs in `docs/superpowers/specs/`. This cross-references existing game state, vote data model, and social/party game patterns.
 
----
+## Critical cross-cutting findings
 
-## Context: What "Optional" Actually Means Here
-
-Kluup already has an anonymous game loop. This milestone adds a second layer on top: signed-in users get persistence. The core constraint is that **anonymous play must remain 100% unchanged** — adding auth is additive, never a gate.
-
-The right mental model is Duolingo: let users play the full experience first, then surface a "save your stats" nudge at the moment they have something worth saving (end of game). This timing is critical — the nudge lands when the user already has a concrete result to lose, not as a pre-session barrier.
+- **Question tagging is the hidden critical path.** Archetypes are blocked by content curation: ~134 questions need manual editorial tagging with 1–3 trait tags each, in 4 languages. Not a code problem — ~2–4h of judgment work that must precede archetype code.
+- **Archetypes + Duo Awards are a pair, not siblings.** The 2-faced share card (Face 1 = Duo Awards, Face 2 = Archetype) only makes sense if both ship together. Ship one alone → empty card face or missing card-flip justification.
+- **Bipolar Sliders are blocked on cross-session data.** Sliders need `tag_scores` accumulated across multiple sessions in `user_session_stats`. One session's 7 rounds is too noisy. v3.0 delivers the archetype *name* on `/profile` as a preview; full sliders land once cross-session accumulation exists.
+- **Power Cards are the highest implementation risk.** 2 new GamePhases, a 5s timed host-button delay, and a race between two card types that must be serialized — all on the B2 roulette, the most emotionally loaded moment. Build last, QA independently.
+- **The end screen / share card is the convergence point for 4 of 5 features.** Design the 2-faced card layout as a single unit or rebuild it repeatedly.
 
 ---
 
-## Table Stakes
-
-Features users expect when optional auth is added. Missing any of these makes the auth feel broken or trust-breaking.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Google OAuth one-tap** | No-form sign-in is the standard for web social apps; users will not fill a username/password form for a party game | Low-Med | Supabase Auth handles Google OAuth; requires `app/auth/callback/route.ts` for PKCE code exchange; one env var for Google Client ID/Secret |
-| **Sign-in optional, never blocking** | Users must be able to complete the entire game without an account | Low | Auth state check on end screen only; zero auth checks in game loop |
-| **Session persistence** (stay logged in) | Users will not re-authenticate every session | Low | Supabase Auth stores tokens in localStorage by default with `supabase-js`; or HTTP-only cookies with `@supabase/ssr` |
-| **Stats saved automatically on sign-in** | If user signs in during/after a game, that game's stats are retroactively saved without manual action | Med | `players.user_id` FK is the join; end-screen should flush stats when user sign-in state resolves |
-| **Stats profile page** | Users who sign in expect to see their history somewhere | Med | `/profile` route with simple table/card of cumulative stats |
-| **Sign out** | Users expect to be able to detach their account | Low | `supabase.auth.signOut()` + clear local state |
-| **Anonymous play unchanged** | Zero regression on the existing flow | Critical | No auth check anywhere in game loop; `players.user_id` is nullable (no NOT NULL constraint) |
-
----
-
-## Differentiators
-
-Features that make sign-up feel valuable rather than just a form. These are the "why would I bother?" answerers.
-
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Personality snapshot** | Cumulative stats reframed as identity ("You've been designated 23 times — the group always suspects you") | Low | Pure presentation layer; same data, different copy |
-| **Cross-session group titles history** | List of all group titles earned across sessions ("Ruthless × 3, Unclassifiable × 1") | Low | One column `titles_history jsonb[]` in user_stats or store raw per-session rows |
-| **Avatar from Google** | User's Google profile photo surfaced in-app (lobby, profile) — instant recognition | Low | `user.user_metadata.avatar_url` returned by Google OAuth; just render it |
-| **"Your best game" highlight** | Most designated in a single session, most confessions, etc. — surfaced on profile | Low-Med | Requires per-session row storage (not just cumulative), then a MAX query |
-| **End-screen nudge with preview** | Show "You were designated 4 times this session — sign in to track your record" with a glimpse of the stats profile | Low | Only shown when user is anonymous AND has non-zero stats |
-| **Lobby sign-in indicator** | Signed-in users show a small avatar badge in the lobby — passive social proof that accounts are real | Low | Only visual; no game behavior change |
+## Feature 1 — Social Archetypes (6 traits → 21 named archetypes)
+### Table stakes
+- Algorithm computed from real session behaviour (votes + question tags)
+- All 21 archetypes named in i18n (FR/EN/ES/DE)
+- Fallback archetype ("Une simple personne") for thin data
+- Question tagging migration complete (the blocker)
+### Differentiators
+- Hybrid archetypes (21 vs 6 makes the system feel specific to you)
+- Negative tag points for nuanced profiles
+- "Plus tu joues" CTA pointing at the cross-session future
+### Anti-features
+- Showing archetypes to the whole group (private only)
+- Explaining the algorithm to the user
+- Forcing a non-fallback archetype on thin data
+### Complexity: **High** (content), Low (code)
+### Dependencies on existing system
+- `questions.tags jsonb` column (new); votes already capture actor behaviour
+- End-screen + share card display path
 
 ---
 
-## Anti-Features
-
-Features to explicitly NOT build in v1 of auth.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **Email/password signup** | Massive drop-off; party game users will not fill a form mid-session | Google OAuth only; add email later if demanded |
-| **Mandatory account for hosting** | Breaks the "no install, no friction" positioning; loses casual hosts | Keep optional for everyone in v2.0; gate hosting behind auth only in v3.0 monetisation milestone |
-| **Force re-authenticate if token expires** | Kills sessions silently; users lose data and don't understand why | Handle `onAuthStateChange` gracefully; show soft "reconnect" prompt, not a hard redirect |
-| **Public profile / leaderboard** | Privacy violation for a game built on personal confessions; wrong genre for competition | Stats are private by default; add social features only if explicitly requested post-launch |
-| **Account linking (anonymous → existing Google account)** | Supabase `linkIdentity()` has a documented bug when linking via OAuth where `user_metadata` returns only `{email_verified: true}` — missing avatar, full_name; conflict resolution with pre-existing accounts is also manual and complex | Do not use `signInAnonymously()` + `linkIdentity()`; use a separate clean `signInWithOAuth()` flow; stats are merged via `players.user_id` FK, not via user merging |
-| **Stats visible to other players in the room** | Adds social comparison pressure that contradicts the game's "authentic connection" spirit | Stats stay on user's own profile page |
-| **Push notifications / email digests** | Scope creep; users are not installing an app; they're playing a browser game | Out of scope entirely |
-| **Username/display name editing** | Adds account settings complexity; Google name is sufficient | Use Google `full_name` as display name; editable display names are v4+ |
-
----
-
-## Feature Dependencies
-
-```
-Google OAuth (Supabase Auth configured)
-  → auth/callback route.ts exists (PKCE code exchange)
-    → Supabase session stored (localStorage or cookie)
-      → players.user_id FK nullable column added to schema
-        → End-screen reads auth.user → links player row → flushes stats
-          → user_stats table (cumulative) upserted
-            → /profile page reads user_stats
-              → Personality snapshot copy rendered
-```
-
-**Dependency on existing anonymous identity model:**
-- `players.user_id` is currently absent; the entire identity is `kluup_pid_{CODE}` in localStorage.
-- Adding `user_id` must be nullable with no default — anonymous players stay anonymous.
-- On game end: if `supabase.auth.getUser()` returns a user, write `user_id` to the player row and upsert stats; otherwise do nothing.
-- `getPlayerId(code)` / `setPlayerId(code, id)` in `lib/utils.ts` must remain the primary identity source for game join/reconnect — auth is a parallel layer, not a replacement.
-
-**No dependency on Supabase Anonymous Sign-ins feature:**
-Kluup's anonymous players are NOT Supabase anonymous users (created via `signInAnonymously()`). They are unauthenticated (anon role). Do not conflate. This means `linkIdentity()` is not in play; opt-in means a fresh `signInWithOAuth()` call.
+## Feature 2 — Bipolar Trait Sliders on /profile
+### Table stakes
+- 6 sliders with opposite-pole labels (Drôle ↔ Sérieux, etc.)
+- Position derived from real `tag_scores`
+- "Basé sur N sessions" label; hidden entirely when no data
+### Differentiators
+- Bipolar framing more engaging than bar charts
+- Archetype consistency across /profile and share card
+### Anti-features
+- Precise % numbers presented as fact (pseudoscientific)
+- Public profile / player comparison / leaderboard
+- Radar / spider chart
+### Complexity: **Low** (UI only), blocked on cross-session `tag_scores`
+### Dependencies on existing system
+- `user_session_stats.tag_scores jsonb` accumulated across sessions
+- `/profile` page (exists)
 
 ---
 
-## UX Patterns — Nudge Placement and Timing
-
-### The Duolingo Pattern (recommended)
-Show the "sign in to save" prompt **after** the user has experienced something worth saving — at the end-of-game screen, after they've seen their personal stats and the group title. Timing: prompt appears below personal stats, above "Replay" and "Quit" buttons.
-
-**Copy pattern:** "You were designated 4 times — sign in to keep your record." (Loss-aversion framing: something concrete to lose.)
-
-**Implementation:** If `!authUser && hasMeaningfulStats` (e.g., any stat > 0), render a dismissible inline card with a single "Sign in with Google" button. One-tap, no form, no modal.
-
-### Session re-entry
-If user returns to a new room code and is already signed in (session still valid), `supabase.auth.getUser()` resolves immediately — no additional action needed. Stats accumulate silently.
-
-### What NOT to do (dark patterns)
-- Do not show the nudge before or during the game.
-- Do not block "Replay" or "Quit" behind sign-in.
-- Do not show a countdown ("Your stats will be lost in 30s...").
-- Do not add the nudge to the landing page or lobby — wrong moment, wrong context.
-
----
-
-## Stats That Are Compelling Enough to Motivate Sign-up
-
-The stats must feel like **identity**, not just numbers. Examples from existing session stats (`stats` in `GameState`):
-
-| Stat | Display framing | Compelling? |
-|------|-----------------|-------------|
-| Times designated (Type A) | "Your group's favourite suspect" | HIGH — social ego, fun to share |
-| Confession reveals (Type B roulette) | "Caught in the act N times" | HIGH — memorable personal moment |
-| Volunteer count (Type C) | "Stepped up N times" | MEDIUM — virtue signal, some appeal |
-| Sessions played | "N sessions played" | LOW alone — only meaningful with other stats |
-| Group titles history | "Ruthless × 2, Unclassifiable × 1" | HIGH — identity narrative |
-| Total players met | "Played with N people" | MEDIUM — social proof of engagement |
-
-**Minimum compelling profile:** designation count + confession reveals + group titles history. A profile with only "sessions played: 1" will not drive sign-up motivation.
+## Feature 3 — Duo Awards (4 named pair awards)
+### Table stakes
+- 4 awards computed from real vote data (Magnétisme Suspicieux, Même longueur d'onde, Les Ennemis Jurés, Les Complices)
+- Minimum threshold (≥2 occurrences) to avoid false positives
+- Award slide omitted if < 2 awards qualify
+- 2-faced share card with tap-to-flip
+### Differentiators
+- "Les Ennemis Jurés" — conflict is interesting
+- Variété rule: prevents one pair sweeping all awards
+- Named awards vs generic labels
+### Anti-features
+- Ranking all pairs (creates irrelevance)
+- Awards visible before the end screen
+- A new DB table (pure computation from existing `votes`)
+### Complexity: **Medium** (the 2-faced share card refactor is the real work)
+### Dependencies on existing system
+- `votes` table (exists), share card refactor (shared with Feature 1)
 
 ---
 
-## MVP Recommendation
-
-**Phase 1 (v2.0 as specified):**
-1. Google OAuth via Supabase Auth — `signInWithOAuth({ provider: 'google' })`
-2. `app/auth/callback/route.ts` for PKCE code exchange
-3. `players.user_id` nullable FK — migration, no NOT NULL
-4. `user_stats` table: `user_id PK, sessions_played, times_designated, confession_reveals, volunteer_count, titles_history jsonb, updated_at`
-5. End-screen: flush stats to `user_stats` via upsert if signed in
-6. End-screen: show nudge if not signed in AND stats > 0
-7. `/profile` page: cumulative stats display (designation count, confessions, volunteers, sessions, titles)
-
-**Defer:**
-- Avatar in lobby — nice to have, adds complexity to lobby realtime (player row needs avatar_url synced)
-- Per-session history rows (for "best game" stat) — requires additional table, not worth it in v1
-- `total_players_met` — requires set tracking, not a simple counter; defer
-- Personality snapshot copy — easy add in a follow-up, not blocking
-
----
-
-## Technical Constraints and Risks
-
-### Risk 1: Current app is entirely `'use client'` — no server components
-**Impact:** The standard Supabase SSR cookie-based auth (`@supabase/ssr` with middleware) requires server components and middleware. The current architecture has none.
-
-**Resolution:** Use `supabase-js` client-side auth with `localStorage` token storage (the default). This works perfectly for a client-only app. Create `app/auth/callback/route.ts` as a minimal Next.js Route Handler (this IS a server route, not a server component — no conflict). PKCE code exchange happens in this route handler.
-
-**Confidence:** HIGH — this is the documented path for client-only + App Router.
-
-### Risk 2: `NEXT_PUBLIC_*` vars inlined at build time
-**Impact:** Any new env vars for Google OAuth (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` already exist; Google Client ID/Secret go in Supabase dashboard, not in Next.js env). No additional `NEXT_PUBLIC_*` vars needed for Google OAuth when using Supabase Auth — Supabase handles the OAuth handshake server-side.
-
-**Resolution:** Configure Google provider in Supabase dashboard (Authentication → Providers → Google). Rebuild Railway after adding Google credentials to Supabase.
-
-### Risk 3: RLS is fully open (anon has all permissions)
-**Impact:** `user_stats` table should NOT be fully open — users should only read/write their own stats.
-
-**Resolution:** Enable RLS on `user_stats` with policy `auth.uid() = user_id`. This is safe because the table requires an authenticated user — anonymous (unauthenticated) users simply cannot insert. This does NOT affect the game tables which remain open.
-
-### Risk 4: `user_metadata` incomplete when using linkIdentity
-**Impact:** If we ever try to link an anonymous Supabase user to Google, the returned metadata is `{ email_verified: true }` only — avatar_url and full_name are missing (known Supabase bug, Discussion #37797).
-
-**Resolution:** Avoid `linkIdentity()` entirely. Use a clean `signInWithOAuth()`. The "anonymous" in Kluup's context is not a Supabase anonymous user — it's an unauthenticated session. No linking required.
+## Feature 4 — Contextual Questions (adaptive follow-ups between rounds)
+### Table stakes
+- Question causally linked to the previous round
+- Probability curve (≈0% round 1 → ≈60% round 7)
+- Max 1 per round
+- Silent skip when no follow-up exists or target player left
+- Multilingual templates with `{pseudo}` substitution
+- Host-only "Continuer"
+### Differentiators
+- Multiple sub-questions per parent (prevents memorization)
+- "Le jeu reprend la parole" dramatic moment
+- Late-game charge (probability rises)
+### Anti-features
+- Timer on the contextual screen
+- Questions every round
+- Revealing anonymous vote data in templates
+- Player-triggerable questions
+- Contextual questions counting as a round
+### Complexity: **High** (content curation + new GamePhase + `onNextRound` modification)
+### Dependencies on existing system
+- New `contextual_questions` table, new `contextual_question` GamePhase
+- Round-advance handler, event detection from prior round
 
 ---
 
-## Sources
+## Feature 5 — Power Cards (Target & Reveal)
+### Table stakes
+- Card private to holder only
+- 5-second window enforced
+- Public announcement on use
+- Card consumed after use
+- Disabled during "moutons" (100% yes) screen
+- Host "Manche suivante" re-enabled after 5s regardless of card use
+- Weighted assignment by volunteer count
+### Differentiators
+- Two distinct card types (Target = spy on a person, Reveal = force a second confession)
+- Assignment uncertainty creates anticipation
+- Second roulette animation for the Reveal card
+### Anti-features
+- Cards usable outside `round_b2_roulette`
+- Revealing card-holder identity before use
+- Auto-resolving the card after 5s
+- Blocking all players during the 5s window
+### Complexity: **High** (timing mechanics, 2 new GamePhases, anti-race condition)
+### Dependencies on existing system
+- `game_state.power_cards` jsonb, B2 roulette flow, host advance button
 
-- Supabase Anonymous Sign-ins: https://supabase.com/docs/guides/auth/auth-anonymous
-- Supabase Google OAuth: https://supabase.com/docs/guides/auth/social-login/auth-google
-- Supabase Auth with Next.js Quickstart: https://supabase.com/docs/guides/auth/quickstarts/nextjs
-- Supabase user_metadata Google fields (community): https://github.com/orgs/supabase/discussions/4047
-- linkIdentity missing metadata bug: https://github.com/orgs/supabase/discussions/37797
-- Google OAuth Next.js App Router guide (DEV): https://dev.to/mohamed3on/how-to-add-google-oauth-to-nextjs-app-router-with-supabase-auth-f0e
-- Duolingo gradual engagement / "sign in to save" pattern: https://goodux.appcues.com/blog/duolingo-user-onboarding
-- Social login conversion rates (+20-60%): https://www.dogtownmedia.com/social-login-for-mobile-apps-google-apple-linkedin-boosting-sign-up-conversion-by-removing-friction/
-- Progressive profiling UX: https://www.descope.com/learn/post/progressive-profiling
-- Dark patterns vs nudges in UX: https://uxplanet.org/dark-patterns-versus-behavioural-nudges-in-ux-e79633970b3f
+---
+
+## Build Order Recommendation
+1. **Archetypes** — unblocks Duo Awards; highest share-card value; start question tagging immediately as a parallel content task
+2. **Duo Awards** — design the 2-faced card as a unit with Archetypes; no DB migration
+3. **Contextual Questions** — independent of 1/3; content curation is the critical path
+4. **Power Cards** — highest risk; ship last; QA independently on the B2 roulette flow
+5. **Bipolar Sliders** — blocked on cross-session `tag_scores`; ship archetype name on `/profile` as v3.0 preview, full sliders follow

@@ -1,361 +1,354 @@
-# Pitfalls Research
+# Pitfalls Research — v3.0 Superpowers
 
-**Domain:** Adding optional Supabase Auth (Google OAuth) to an anonymous-first Next.js party game
-**Researched:** 2026-06-07
-**Confidence:** HIGH (Supabase official docs + GitHub issues + project-specific codebase analysis)
-
----
-
-## Critical Pitfalls
-
-### Pitfall 1: RLS Policy Migration Locks Out All Anonymous Players
-
-**What goes wrong:**
-Adding an authenticated-user RLS policy on `players` or `rooms` without keeping the open `anon` policy causes every non-authenticated player action to silently return 0 rows or fail with a PostgREST 406/403. The anonymous game appears to work on the surface (no JS crash), but players cannot join, votes are not recorded, and game state does not advance. This is the same root cause as the "Room introuvable" bug already documented in CLAUDE.md — and it will happen again if policies are tightened carelessly.
-
-**Why it happens:**
-The natural migration instinct is to replace the `USING (true)` open policy with a `USING (auth.uid() = user_id)` check. But `auth.uid()` returns `NULL` for the `anon` role, and `NULL = anything` is always false in Postgres. The result: every anonymous query is silently rejected.
-
-**How to avoid:**
-Keep the `anon` role explicitly covered with a separate, open policy using the `TO anon` clause. Do not modify or drop the existing open policies until anon access is intentionally being removed (which is not part of this milestone). The pattern for the `players` table:
-
-```sql
--- existing open anon policy — DO NOT REMOVE
-CREATE POLICY "anon_full_players" ON players
-  TO anon
-  USING (true)
-  WITH CHECK (true);
-
--- new auth-scoped policy (additive, not a replacement)
-CREATE POLICY "auth_own_player" ON players
-  TO authenticated
-  USING (auth.uid() = user_id OR user_id IS NULL);
-```
-
-For this milestone, the safest approach is to leave existing policies entirely untouched and only add NEW policies for authenticated operations (stats writes, profile reads).
-
-**Warning signs:**
-- Players cannot join rooms (join page hangs or redirects unexpectedly)
-- Vote inserts silently fail (no console error, but `voteCount` never increments)
-- `console.log('[join] lookup:')` returns an empty array in the browser devtools
-- Room creation from the landing page appears to succeed but room lookup immediately returns nothing
-
-**Phase to address:**
-First phase of the milestone (DB schema + RLS setup). Must be validated with a real anonymous join before proceeding.
+**Domain:** Real-time party game — adding 5 social features to existing Next.js 16 / Supabase system
+**Researched:** 2026-06-12
+**Scope:** System-specific pitfalls for Social Archetypes, Bipolar Trait Profile, Duo Awards, Contextual Questions, Power Cards
 
 ---
 
-### Pitfall 2: PKCE Code Verifier Lost — OAuth Callback Silently Fails
+## P-01: Power Card Race Condition on Attribution Roll
 
-**What goes wrong:**
-Google OAuth with Supabase uses PKCE flow. The code verifier is stored in a cookie during the redirect to Google. If that cookie is not set or is lost (third-party cookie blocking, Safari ITP, the user switches devices, or the callback URL is on a different subdomain than the origin), the code exchange in `app/auth/callback/route.ts` fails with "invalid grant" or "code verifier mismatch". The user lands on the callback route, the exchange fails, and they end up unauthenticated with no visible error.
+**Risk level:** High
+**Feature affected:** Power Cards
+**What goes wrong:** The power card attribution roll is meant to be run by "the elected advancer (smallest player.id present)." But the advancer pattern was designed for timer expiry — a single bounded trigger. Post-round attribution fires at the same moment for every client after `resolveVotes` writes `phase_changed`. If two clients both evaluate "I am the smallest id" before the first write lands in Supabase and broadcasts back, both attempt to write `power_cards` to `game_state`. The second write silently overwrites the first because `updateRoomGameState` is a full jsonb replace (not a partial update). Result: one card attribution is lost.
 
-**Why it happens:**
-Kluup is currently all `'use client'` — no middleware, no server components. The standard `@supabase/ssr` middleware that manages cookie refresh does not exist. The callback route must be a Next.js Route Handler (server-side), not a client component, because `exchangeCodeForSession` needs to set `httpOnly` cookies that the browser cannot set from client JS. Developers unfamiliar with this will create a client component callback page and wonder why the session is not persisted.
+**Prevention:** Gate the roll behind an atomic DB guard. The advancer writes a sentinel value first (e.g., `power_cards_rolling: true`) using a conditional UPDATE (`WHERE game_state->>'power_cards_rolling' IS DISTINCT FROM 'true'`). Only the client that wins the conditional update proceeds with the full roll and writes the result. Alternatively, move the roll to a Postgres RPC (`SECURITY DEFINER`) so the DB enforces atomicity. The design spec says "same pattern as the timer advancer" — but the timer advancer does not have this multi-write risk because it sets a single new phase; here two card types are computed and written simultaneously in a full-blob replace.
 
-Additionally, the Railway domain (`kluup.app`) must be registered in both the Supabase Auth allowed redirect URLs AND the Google Cloud Console authorized redirect URIs. A mismatch on either side produces "redirect_uri_mismatch" which looks like an OAuth error but is actually a configuration error.
-
-**How to avoid:**
-- Create `app/auth/callback/route.ts` as a proper Next.js **Route Handler** (not a page component):
-
-```typescript
-// app/auth/callback/route.ts — server-side Route Handler
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-
-export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
-  if (code) {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll(),
-                   setAll: (cs) => cs.forEach(c => cookieStore.set(c)) } }
-    )
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) return NextResponse.redirect(`${origin}${next}`)
-  }
-  return NextResponse.redirect(`${origin}/?error=auth`)
-}
-```
-
-- Install `@supabase/ssr` alongside the existing `@supabase/supabase-js`. The existing `lib/supabase.ts` `createClient` is fine for all game operations; `@supabase/ssr` is needed only for the callback route and any future server-side auth reads.
-- Register `https://kluup.app/auth/callback` in both Supabase Dashboard → Authentication → URL Configuration, and Google Cloud Console → OAuth Client → Authorized redirect URIs.
-- Register `http://localhost:3000/auth/callback` separately for local dev.
-
-**Warning signs:**
-- Browser console shows "invalid grant" or "pkce_code_verifier" in the OAuth error response
-- User is redirected to callback route but `supabase.auth.getUser()` returns null immediately after
-- Safari users fail to authenticate while Chrome users succeed (third-party cookie blocking)
-- The redirect URL in the error message does not exactly match what is registered in Google Console
-
-**Phase to address:**
-Auth integration phase. Must be end-to-end tested on Safari iOS before shipping.
+**Which phase to address:** First phase implementing Power Cards, before any card attribution logic is wired.
 
 ---
 
-### Pitfall 3: Supabase Realtime Channels Disconnect When JWT Expires During a Game
+## P-02: `game_state` Shape Break for In-Flight Rooms
 
-**What goes wrong:**
-When an authenticated user is in the middle of a game (which can last 20–40 minutes), their Supabase access token (default TTL: 1 hour, but can be shorter if configured) may expire. The Realtime WebSocket connection is terminated when the JWT expires, with the server sending a disconnect. The `@supabase/supabase-js` client auto-refreshes access tokens for REST API calls, but it does NOT automatically re-subscribe expired Realtime channels with the new token. The channel goes silent: the user no longer receives `phase_changed` broadcasts, `postgres_changes` events, or presence updates. From their perspective, the game simply freezes — other players advance, but their screen stays stuck.
+**Risk level:** High
+**Feature affected:** Contextual Questions, Power Cards (both add new `GameState` fields)
+**What goes wrong:** When new fields are added to `GameState` (`last_contextual_round`, `contextual_question`, `power_cards`, `used_cards`, `b2_revealed_at`), existing rooms whose `game_state` was written before the deploy will not have these fields. Any client code that reads these fields without optional-chaining or defaults will throw at runtime: `gs.power_cards.target` crashes if `power_cards` is `undefined`. TypeScript's type system does not protect against missing fields from older DB blobs at runtime. Players mid-game during a Railway deploy will hit this.
 
-**Why it happens:**
-Realtime authorization is separate from REST authorization. The Realtime server requires a new JWT to be sent via an `access_token` message when the old one expires. This must be done explicitly. The `supabase-js` SDK does not wire this up automatically for existing channel subscriptions (confirmed in supabase/realtime-js#274, affecting SDK v2.x).
+**Prevention:**
+1. Declare all new `GameState` fields as optional (`field?: Type`), not required.
+2. Access them with nullish coalescing everywhere: `gs.power_cards?.target ?? null`.
+3. Add a `normalizeGameState(gs: Partial<GameState>): GameState` helper that fills defaults for any missing field. Call it immediately after every Supabase fetch (`applyRoom`, `useEffect` on room data).
+4. Do NOT add required fields to `GameState` without a migration path for old blobs.
 
-**How to avoid:**
-Listen for `onAuthStateChange` events with the `TOKEN_REFRESHED` event type, and call `supabase.realtime.setAuth(newToken)` to push the refreshed token to all active Realtime connections:
-
-```typescript
-useEffect(() => {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (event, session) => {
-      if (event === 'TOKEN_REFRESHED' && session?.access_token) {
-        supabase.realtime.setAuth(session.access_token)
-      }
-    }
-  )
-  return () => subscription.unsubscribe()
-}, [])
-```
-
-Place this in `app/room/[code]/game/page.tsx` (the long-lived game page). Anonymous users are unaffected because they use the anon key, which does not expire.
-
-**Warning signs:**
-- Game screen freezes for one player while others continue advancing
-- No Realtime events received after ~1 hour of play (no `phase_changed`, no vote count updates)
-- Browser devtools WebSocket tab shows the connection closed with a 1008/1009 close code
-- `onAuthStateChange` fires `TOKEN_REFRESHED` but vote progress does not resume
-
-**Phase to address:**
-Auth integration phase. Specifically during the Realtime subscription setup in game page modifications.
+**Which phase to address:** Before writing any code that reads the new fields. The normalize helper must be the first thing built in each phase that touches `GameState`.
 
 ---
 
-### Pitfall 4: Stats Double-Counted on Game Replay
+## P-03: Contextual Question Trigger Runs Differently on Different Clients
 
-**What goes wrong:**
-Kluup already has a documented replay bug: replaying without purging votes caused duplicate vote entries. The same category of bug applies to stats: if personal stats are written to a `user_stats` table at end-of-session and the player uses "Rejouer" (which returns to lobby without reloading the page), the end screen is re-reached and stats are written again for the same logical session — doubling designation counts, confession reveals, volunteer counts, etc.
+**Risk level:** High
+**Feature affected:** Contextual Questions
+**What goes wrong:** The trigger logic uses `Math.random() < probability`. If this check runs on every client independently when the host presses "Next Round," each client computes a different random outcome. Clients that roll "no contextual" transition to `voting_question` immediately; the host (who rolled "yes") transitions to `contextual_question`. The room's `game_state.phase` is `contextual_question` (written by the host) but other clients may have already rendered to `voting_question` based on their own roll. They self-correct only after the broadcast refetch. More critically: if the trigger is not exclusively host-gated and two clients both "win" the check, they could write conflicting phases — last write wins, producing a non-deterministic phase.
 
-**Why it happens:**
-The end screen (`EndScreen` component) in `game/page.tsx` accumulates stats from `game_state.stats` (the jsonb on the room row). If the stat-write trigger fires on every render of the end screen, and the player navigates lobby → game → end screen again with stats from the new game, any idempotency constraint on the stats table will either silently ignore the second write (losing real data from game 2) or allow it (double-counting game 1 data if the room_id/round data is the same).
+**Prevention:**
+1. The contextual question probability roll MUST happen exclusively inside the host's `onNextRound` handler (already host-only). No other client computes or writes this.
+2. Store the resolved template text (with `{pseudo}` already substituted for all 4 locales) in `game_state.contextual_question` — never store the raw template and re-resolve on each client, which would require each client to query `contextual_questions` independently.
+3. The DB query to fetch a contextual question template must complete before the `updateRoomGameState` write. Write phase first → fetch after is wrong; fetch first → write is correct.
 
-**How to avoid:**
-Design the stats write as a one-time fire using a dedicated `session_id` (can be `room.id + '_' + timestamp_of_game_start` stored in `game_state`). Use `UPSERT` with `ON CONFLICT (user_id, session_id) DO NOTHING` semantics:
-
-```sql
-CREATE TABLE user_session_stats (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-  session_id text NOT NULL,
-  -- stat columns...
-  UNIQUE(user_id, session_id)
-);
-```
-
-The stat write in `onEndGame` checks a React ref `statsWrittenRef.current` before calling Supabase, setting it to `true` after the first successful write. On `returnToLobby`, the ref is cleared (or a new `session_id` is generated for the next game).
-
-Also: existing `votes.delete().eq('room_id', ...)` on replay already clears votes. Stats must be written BEFORE this purge if they depend on votes, or use the already-accumulated `game_state.stats` jsonb (which is already the correct source of truth).
-
-**Warning signs:**
-- User's designation count doubles after each replay
-- Stats profile page shows inflated numbers after a multi-game evening
-- `user_session_stats` table has multiple rows for the same `user_id` and `room_id` after a replay session
-
-**Phase to address:**
-Stats persistence phase. Schema design must include the `UNIQUE(user_id, session_id)` constraint from day 1.
+**Which phase to address:** Core of the Contextual Questions phase. Treat it as a host-exclusive write path from day one, not something that can be added "to all clients" later.
 
 ---
 
-### Pitfall 5: localStorage Player Identity Conflicts With Auth Identity
+## P-04: Archetype Computation Anonymity Leak via Type B Votes
 
-**What goes wrong:**
-The current identity system uses `localStorage` key `kluup_pid_<CODE>` to store a UUID per room. When an authenticated user plays on Device A and then tries to join the same room on Device B (or after clearing browser storage), `getPlayerId(code)` returns null on Device B, so the join flow creates a new `players` row. The room now has two rows for the same Google account: one with `user_id = X` (Device A) and one with `user_id = X` (Device B, or `user_id = NULL` if the auth context was not loaded before join). The vote threshold is `players.length`, so phantom duplicate rows break the vote completion check.
+**Risk level:** High
+**Feature affected:** Social Archetypes
+**What goes wrong:** For Type B, the design spec says "the player who voted 'oui' receives the points — read from their own votes." The computation fetches `votes WHERE player_id = myId AND answer = true`. This is intentionally private. However, `game_state.revealed_player_ids` and `game_state.designated_player_id` (for B roulette winner) are public fields shared to all clients via the room row. If the archetype code instead reads from these public fields to determine "who confessed" for trait scoring, it exposes which players voted "oui" to all clients — breaking the fundamental "confession roulette only reveals one name" guarantee. This is an easy mistake to make because `game_state.designated_player_id` is already in scope when the end screen renders.
 
-**Why it happens:**
-localStorage is device-local and does not sync. The player identity is intentionally tied to localStorage for the anonymous case (reconnect without duplicate rows). When auth is added, the app has two identity systems that can diverge: `user_id` (auth, global) and `kluup_pid_<CODE>` (localStorage, local). If they are not reconciled at join time, they produce duplicate rows.
+**Prevention:**
+1. For Type B archetype points: always use a per-player vote fetch (`votes WHERE player_id = myId AND room_id = roomId AND vote_type = 'confession' AND answer = true`). Never use `game_state.revealed_player_ids`, `game_state.designated_player_id`, or `game_state.stats.confessed` as the source for self-attribution of B points.
+2. Add a code comment: `// PRIVACY: Type B points are self-reported from own votes only. Do NOT use game_state fields here.`
+3. During code review, flag any read of `game_state.confessed` or `revealed_player_ids` inside the archetype computation module as a privacy bug.
 
-**How to avoid:**
-At join time (`app/join/page.tsx` and lobby redirect), after resolving the auth session:
-1. Check `getPlayerId(code)` from localStorage first (existing behavior).
-2. If null, check if there is already a `players` row for this room where `user_id = auth.uid()` (new check for authenticated users).
-3. If found, reuse that row's `id` and write it to `setPlayerId(code, existingRow.id)` to re-anchor the localStorage identity.
-4. Only insert a new row if neither lookup finds a match.
-
-This reconciliation prevents the two-device duplicate row problem for authenticated users while keeping anonymous flow unchanged (step 2 finds nothing, so step 4 runs normally).
-
-**Warning signs:**
-- Players appear twice in the lobby roster with the same pseudo
-- Vote threshold (`players.length`) is 2 higher than expected
-- The duplicate player row has `user_id` set on one entry and `NULL` on the other
-
-**Phase to address:**
-Auth integration phase, specifically in the join flow (`app/join/page.tsx`).
+**Which phase to address:** During Social Archetypes implementation, before the archetype calculation is wired to the end screen.
 
 ---
 
-### Pitfall 6: Middleware Token Refresh Required for Cookie-Based Sessions
+## P-05: Duo Awards Fetch Re-Fires on Every EndScreen Re-render
 
-**What goes wrong:**
-The Supabase recommended pattern for Next.js App Router requires a `middleware.ts` file to refresh expired auth tokens and write updated cookies. Without it, a user who signs in, closes their laptop for a few hours, and then reopens the game will appear signed out — even though their refresh token is valid. The middleware is the only place in the App Router that can both read AND write cookies, making it the necessary proxy for token refresh. Without this file, sessions expire after the access token TTL (default: 1 hour) regardless of the refresh token's validity.
+**Risk level:** High
+**Feature affected:** Duo Awards
+**What goes wrong:** The design says "fetch all votes for the room: `supabase.from('votes').select().eq('room_id', roomId)`." A 7-round game with 8 players produces approximately 110 vote rows. Small — but this fetch is called by every player at the end screen. If the end screen re-renders due to presence updates, roster changes, or other realtime events while players are on it, the fetch re-fires per client on every re-render cycle. At 8 players, that is potentially 8 × N fetches where N = number of re-renders. The awards are also recomputed on every render if not memoized.
 
-**Why it happens:**
-Kluup currently has zero server-side code (`'use client'` everywhere, no middleware). The temptation is to handle auth entirely client-side with `createBrowserClient`. This works for the initial sign-in but fails to keep sessions alive across navigation because the token refresh runs in the browser but the new cookie cannot be propagated back to server routes (Route Handlers like `/auth/callback`).
+**Prevention:**
+1. Fetch votes exactly once via a `useEffect` with `[roomId]` as dependency (or `session_uuid`), store in local state. Never re-fetch on re-renders from other causes.
+2. Memoize the award computation with `useMemo` keyed on the fetched votes array.
+3. Verify via React DevTools that `EndScreen` does not unmount/remount when players join or leave (presence updates hit the roster, which may trigger re-renders of the parent but should not remount `EndScreen` if it is keyed correctly).
 
-**How to avoid:**
-Create `middleware.ts` at project root with a minimal token-refresh-only setup. This is not a route guard (anonymous access must remain unrestricted) — it only refreshes cookies:
-
-```typescript
-// middleware.ts
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
-
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll: (cs) => cs.forEach(c => supabaseResponse.cookies.set(c)),
-      },
-    }
-  )
-  // refresh session if expired — required for SSR cookie sync
-  await supabase.auth.getUser()
-  return supabaseResponse
-}
-
-// only run on relevant paths — do NOT run on static assets
-export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-}
-```
-
-Key: this middleware does NOT block or redirect any routes. It only refreshes the token. Route protection is handled client-side via the existing `'use client'` components.
-
-**Warning signs:**
-- User signs in successfully, refreshes the page, and is shown as signed out
-- `supabase.auth.getUser()` returns null after navigating to a new page despite a recent sign-in
-- Stats profile page shows empty data because the auth session was not available when the page loaded
-
-**Phase to address:**
-Auth integration phase — must be the first thing set up before any auth-dependent features.
+**Which phase to address:** During Duo Awards implementation. Verify fetch lifecycle before shipping.
 
 ---
 
-## Technical Debt Patterns
+## P-06: Power Card 5-Second Window Desync Between Clients
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Skip middleware, handle auth client-only via `onAuthStateChange` | Avoids adding server code to a `'use client'` codebase | Sessions expire after 1 hour; stats profile requires page reload after sign-in | Only acceptable if session duration > 1 hour is tolerable and no server-side auth reads are ever needed |
-| Write stats on every `EndScreen` mount without idempotency guard | Simple code | Double-counting after replay, inflated lifetime stats | Never — the unique constraint is not optional |
-| Use `service_role` key client-side to bypass RLS during development | Unblocks development fast | Exposes master key; bypasses the exact security layer being tested | Never in client code — use only in server-side scripts |
-| Store `user_id` in `players` but not index it | Avoids migration complexity | RLS policy `user_id = auth.uid()` triggers full table scan at scale | Acceptable at MVP scale (<1000 concurrent games); add index before public launch |
-| Use a single `createClient` (existing `lib/supabase.ts`) for all operations including auth callback | No new file | Auth callback cannot set httpOnly cookies; session is not persisted server-side | Never — the callback route MUST use `@supabase/ssr`'s `createServerClient` |
+**Risk level:** High
+**Feature affected:** Power Cards
+**What goes wrong:** The 5-second host button block is implemented client-side as a timer started when `b2_revealed` flips to true. Each client starts the timer independently from the moment they receive the `phase_changed` broadcast and refetch. Network latency means Client A may receive the broadcast 800ms later than Client B. Client B's 5s window expires first; the card holder (on Client B) sees their button disappear. The host (on Client A) still has their "Next Round" locked. Meanwhile, a card use write and the host's eventual "Next Round" write race in a full-blob `game_state` replace — last writer wins, dropping the earlier write silently.
 
----
+**Prevention:**
+1. Do not use client-side `setTimeout` for the 5-second window. Add a `b2_revealed_at` ISO timestamp to `game_state`, written when `b2_revealed` is set. Each client computes remaining time as `Math.max(0, 5000 - (Date.now() - new Date(gs.b2_revealed_at).getTime()))`. This is the exact same pattern as `round_started_at` which already solves timer desync for votes.
+2. The host button unlock and the card use window must both derive from this server-written timestamp, not from independent local timers.
+3. Guard the "Next Round" handler: if `game_state.power_cards_pending` is true (a card was used but its result phase has not been shown yet), do not allow phase transition.
 
-## Integration Gotchas
-
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Google OAuth redirect | Registering only `kluup.app` without the `/auth/callback` path in Google Console | Register the full callback URL: `https://kluup.app/auth/callback` in both Google Console and Supabase Dashboard |
-| `@supabase/ssr` | Installing it and calling `createServerClient` from a `'use client'` component | `createServerClient` is for Route Handlers and Server Components only; use `createBrowserClient` in client components |
-| Realtime + auth token | Letting the SDK manage token refresh without wiring it to Realtime | Call `supabase.realtime.setAuth(token)` in the `TOKEN_REFRESHED` auth state change handler |
-| RLS policy audit | Running `schema.sql` (which uses `CREATE TABLE IF NOT EXISTS`) to add new policies | Use `ALTER TABLE` or `CREATE POLICY` statements directly; `CREATE TABLE IF NOT EXISTS` silently no-ops on an existing table |
-| `user_id` FK on `players` | Adding a `NOT NULL` constraint on `user_id` for "cleanliness" | Keep `user_id` nullable — anonymous players always have `NULL`; making it NOT NULL breaks the entire anonymous game |
-| Stats write timing | Writing stats inside `useEffect` that fires when `phase === 'ended'` | Stats write inside the effect will re-fire on component remount (e.g. hot reload, tab focus); use a `statsWrittenRef` guard |
+**Which phase to address:** First implementation of Power Cards. The `b2_revealed_at` field addition and the 5s window logic must be in the same commit.
 
 ---
 
-## Performance Traps
+## P-07: Share Card DOM Capture Breaks with New Archetype Block and 2-Face Card
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| No index on `players.user_id` | `user_id = auth.uid()` RLS policy causes full table scan | `CREATE INDEX idx_players_user_id ON players(user_id)` | At ~10,000 players rows (many sessions accumulated) |
-| No index on `user_session_stats.user_id` | Stats profile page slow to load | `CREATE INDEX idx_user_session_stats_user_id ON user_session_stats(user_id)` | Noticeable above ~100 completed sessions per user |
-| Fetching full vote history to compute stats at display time | Stats profile page takes 2–5s to load | Pre-compute and store aggregates in `user_session_stats` at end-of-game | From the first user with >20 sessions |
+**Risk level:** High
+**Feature affected:** Social Archetypes, Duo Awards (2-face card)
+**What goes wrong:** The share card uses `modern-screenshot` / `domToBlob` on a 540×540 off-screen `div` with `position: relative` and explicit pixel dimensions. This works because all existing content uses fixed inline styles. Adding the archetype block introduces:
+- Trait bar elements with percentage-based widths (`width: X%`) that may compute to 0 in the off-screen capture context if the container has no rendered width at capture time.
+- The 2-face card (Face 1 group / Face 2 personal) may use `display: none` or `visibility: hidden` to hide the inactive face. `modern-screenshot` can include hidden elements in layout calculations or produce visual artifacts.
+- Emoji glyphs in award names (🧲 ⚔️ 💥 🔥) may render as boxes on some Android WebViews using the system emoji font. The existing card already uses text-only content.
 
----
+**Prevention:**
+1. Use explicit pixel widths for trait bars: compute `barWidthPx = Math.round((traitPercent / 100) * MAX_BAR_PX)` and apply as `style={{ width: barWidthPx }}` where `MAX_BAR_PX` is a fixed constant.
+2. For the 2-face card: do NOT render both faces simultaneously with one hidden. Render only the active face in the capture container. Maintain a separate state variable for `activeCard: 'group' | 'personal'` and conditionally render one face.
+3. Validate `domToBlob` on the new card shape in a dev build before shipping. Use the existing `getBoundingClientRect()` check pattern from CLAUDE.md gotchas.
+4. Replace emoji in card text with SVG icons or plain text alternatives. Do not rely on emoji rendering for card-critical visual elements.
 
-## Security Mistakes
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Tightening RLS policies before the anonymous game is regression-tested | Silent lockout of all players — the game breaks completely | Test anonymous join+play flow in staging after every RLS change, before merging |
-| Adding `user_id` as NOT NULL to `players` | Every anonymous player insert fails with constraint error 23502 | `user_id uuid REFERENCES auth.users(id) DEFAULT NULL` — nullable always |
-| Reading `supabase.auth.getSession()` in Route Handlers for auth validation | Session from cookie can be spoofed; JWT is not re-validated | Use `supabase.auth.getUser()` in server code — it validates the JWT against Supabase Auth server |
-| Exposing `service_role` key in `NEXT_PUBLIC_` env var | Client can bypass all RLS policies | `service_role` key must never be `NEXT_PUBLIC_*`; use only in server-side scripts with `SUPABASE_SERVICE_ROLE_KEY` |
+**Which phase to address:** During Duo Awards (2-face card) and Social Archetypes (archetype block). Card capture validation must be a done-definition item for both phases.
 
 ---
 
-## UX Pitfalls
+## P-08: Anonymous Players' `tag_scores` Lost Through OAuth Flow
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Forcing auth before joining a room ("sign in to see stats") | Breaks the frictionless join that is Kluup's core value proposition | Auth must be entirely opt-in, available from a "Save my stats" prompt on the end screen only |
-| OAuth redirect during a game (e.g. prompted mid-round) | Player loses game state, others are blocked waiting | Only allow sign-in from non-game screens (landing, end screen, profile page); never trigger OAuth from lobby or game |
-| "Sign in with Google" button with no explanation | Players don't know why they'd sign in | Label and context: "Create a free account to track your stats across sessions" |
-| Showing auth errors to players who are anonymous | Confusing — they don't know what "session expired" means | Auth error states must only appear on auth-optional screens (profile, end screen CTA); never inside the game |
-| Requiring a page reload after sign-in to see stats | Jarring UX | Use `onAuthStateChange` to reactively update the end screen stats CTA when auth state changes |
+**Risk level:** Medium
+**Feature affected:** Social Archetypes (cross-session), Bipolar Trait Profile
+**What goes wrong:** The `user_session_stats` upsert is gated on `user?.id` — correct. For anonymous players, the end screen computes a session archetype correctly (client-side only). The pitfall: if the end screen CTA says "sign in to save your archetype" and the player signs in via Google OAuth (which redirects away from the page), the `PendingStatsFlusher` mechanism carries the existing stats fields when the player returns. But if `tag_scores` is not included in the `setPendingStats` payload, the `PendingStatsFlusher` upsert writes `tag_scores: {}` permanently. With `ignoreDuplicates: true`, a subsequent write with the real `tag_scores` is silently ignored — the row keeps `tag_scores = {}` forever.
 
----
+**Prevention:**
+1. Compute `tag_scores` synchronously on the end screen (before any OAuth redirect), then include it in the `setPendingStats` payload alongside existing stats fields.
+2. Update `PendingStatsFlusher` to include `tag_scores` in its upsert call.
+3. Add a null-guard: if `tag_scores` is absent from a pending stats object (old format stashed before v3.0), default to `{}` — do not crash on outdated stash format.
 
-## "Looks Done But Isn't" Checklist
-
-- [ ] **Anonymous game unchanged:** After adding auth, verify a full anonymous game session (create room → join → 7 rounds → end screen → replay) with browser devtools Network tab open, confirming zero 403/406 responses on any Supabase request.
-- [ ] **OAuth callback on Safari iOS:** Test the Google sign-in flow specifically on Safari iOS (strict ITP cookie policy) — Chrome passing is not sufficient.
-- [ ] **Token refresh in long game:** Verify that a game lasting >60 minutes does not freeze for an authenticated user; manually shorten JWT TTL to 5 minutes in Supabase Auth settings for testing.
-- [ ] **Duplicate player row on two-device join:** Sign in on Device A, join a room as an authenticated player; then join the same room on Device B with the same Google account and verify that only one `players` row exists.
-- [ ] **Stats not double-counted after replay:** Play a full game, replay it, and verify that `user_session_stats` has exactly 2 rows (not 4) and that the counts reflect real totals.
-- [ ] **Stats profile RLS:** Verify that `SELECT` on `user_session_stats` returns only the authenticated user's own rows and returns zero rows (not an error) for anonymous users.
-- [ ] **Redirect URL in Railway:** After adding the callback route, redeploy (not just restart) Railway to bake in any new env vars; verify `/auth/callback` is reachable at `https://kluup.app/auth/callback` returning the expected redirect behavior.
+**Which phase to address:** When wiring `tag_scores` into `user_session_stats`. Check `PendingStatsFlusher` before writing the stats upsert.
 
 ---
 
-## Recovery Strategies
+## P-09: `contextual_questions` Table Missing RLS Policy — Silent Empty Results
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| RLS lockout of anonymous players | HIGH (production outage) | Immediately run `supabase/rls.sql` (already in repo) to restore open anon policies; then diagnose what policy change caused the lockout |
-| PKCE cookie verifier lost | LOW | User simply retries sign-in; the auth code is single-use and 5-minute TTL, so there is no stale-code accumulation risk |
-| Realtime channel silent after token expiry | MEDIUM (frustrating UX, not data loss) | The game can continue after the authenticated user manually refreshes the page; long-term fix: add the `TOKEN_REFRESHED` → `setAuth` handler |
-| Stats double-counted | MEDIUM (data cleanup required) | Write a one-time SQL migration to deduplicate `user_session_stats` by keeping `MAX(id)` per `(user_id, session_id)` grouping |
-| Duplicate player row on multi-device join | MEDIUM (breaks vote threshold) | The existing ghost-pruning system (usePresence) will eventually remove the second row after 60s grace; short-term fix is host pressing "Passer sans attendre" |
+**Risk level:** Medium
+**Feature affected:** Contextual Questions
+**What goes wrong:** The `contextual_questions` table is created in `seed_contextual_questions.sql` with `CREATE TABLE IF NOT EXISTS` but there is no RLS policy for it in `schema.sql`. Without `ALTER TABLE contextual_questions ENABLE ROW LEVEL SECURITY` and a SELECT policy for `anon`, the host client will get an empty result set (0 rows, no PostgREST error) when querying `contextual_questions`. The game silently skips all contextual questions. This is the exact same root cause as the "Room introuvable" bug documented in CLAUDE.md gotcha #1 — RLS enabled without an open anon SELECT policy.
 
----
+**Prevention:**
+1. Add to `schema.sql` (or a dedicated migration):
+   ```sql
+   ALTER TABLE contextual_questions ENABLE ROW LEVEL SECURITY;
+   CREATE POLICY "contextual_questions_read" ON contextual_questions FOR SELECT USING (true);
+   ```
+2. Note: `contextual_questions` does NOT need to be added to `supabase_realtime` — it is queried on-demand, not subscribed to.
+3. Add a diagnostic log in the contextual fetch: if the query returns 0 rows for a `parent_question_id` that definitely has sub-questions (known from the seed), log the PostgREST error. `{ data: [], error: null }` with 0 rows = silent RLS rejection.
 
-## Pitfall-to-Phase Mapping
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| RLS lockout of anonymous players | Phase 1: DB schema + RLS setup | Anonymous join test passes after every policy change |
-| PKCE callback failure | Phase 1: OAuth setup + callback route | Full OAuth flow on Chrome + Safari iOS |
-| Realtime disconnect on token expiry | Phase 1: Auth integration in game page | Confirmed via short-TTL JWT test in staging |
-| Stats double-counted on replay | Phase 2: Stats persistence schema | `UNIQUE(user_id, session_id)` constraint + replay test |
-| localStorage / auth identity conflict | Phase 1: Join flow reconciliation | Two-device join test with same Google account |
-| Middleware missing for session persistence | Phase 1: Middleware setup (before anything else) | Sign in → navigate away → return → still authenticated |
+**Which phase to address:** In the same migration/schema update that creates the `contextual_questions` table. Run before any end-to-end contextual question test.
 
 ---
 
-## Sources
+## P-10: `played_question_ids` / Contextual FK Mismatch from Duplicate Seeds
 
-- Supabase RLS official docs: https://supabase.com/docs/guides/database/postgres/row-level-security
-- Supabase Auth + Next.js App Router: https://supabase.com/docs/guides/auth/server-side/nextjs
-- Supabase PKCE flow: https://supabase.com/docs/guides/auth/sessions/pkce-flow
-- Supabase Google OAuth: https://supabase.com/docs/guides/auth/social-login/auth-google
-- Supabase Realtime authorization: https://supabase.com/docs/guides/realtime/authorization
-- Supabase anonymous sign-ins: https://supabase.com/docs/guides/auth/auth-anonymous
-- GitHub issue — Realtime token not refreshed after standby: https://github.com/supabase/realtime-js/issues/274
-- Kluup project codebase: `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/CONCERNS.md`, `.planning/codebase/INTEGRATIONS.md`
-- CLAUDE.md (project source of truth) — "Room introuvable" root cause, host_id NOT NULL precedent, replay vote purge bug
+**Risk level:** Medium
+**Feature affected:** Contextual Questions
+**What goes wrong:** The contextual trigger algorithm queries `contextual_questions WHERE parent_question_id IN (game_state.played_question_ids)`. This works only if the UUIDs in `played_question_ids` match the UUIDs stored in `contextual_questions.parent_question_id`. The `seed_contextual_questions.sql` inserts rows using `(SELECT id FROM questions WHERE question->>'fr' = '...' LIMIT 1)`. If `seed.sql` or `seed_themes.sql` was run more than once (documented CLAUDE.md gotcha: "ré-exécution = doublons"), multiple question rows exist for the same text. `LIMIT 1` picks one UUID arbitrarily; the game may pick the other UUID when recording `played_question_ids`. The contextual lookup returns 0 results silently.
+
+**Prevention:**
+1. Never re-run `seed.sql`, `seed_themes.sql`, or `seed_cut.sql` on a production database that already has question rows.
+2. In development, if resetting the DB, drop and recreate tables before re-seeding.
+3. Validate after running `seed_contextual_questions.sql`: `SELECT COUNT(*) FROM contextual_questions WHERE parent_question_id IS NULL` — a non-zero count means the FK lookup failed (parent question not found), indicating duplicate question rows.
+
+**Which phase to address:** During DB setup for the Contextual Questions phase. Document in the migration runbook as a pre-condition check.
 
 ---
 
-*Pitfalls research for: optional Supabase Auth on anonymous-first Next.js party game (Kluup v2.0)*
-*Researched: 2026-06-07*
+## P-11: Power Card Attribution Write Does Not Trigger Visible Phase Change
+
+**Risk level:** Medium
+**Feature affected:** Power Cards
+**What goes wrong:** The power card roll writes new `game_state.power_cards` values after each round. The existing convergence model: write `game_state` → broadcast `phase_changed` → all clients refetch. But `phase` does not change during the card roll (it stays `voting_question` for the next round). Some client code may shortcut re-rendering if the phase value did not change — particularly if local state is compared against the refetched phase. If the card holder's client does not fully re-render after the roll, it never sees `power_cards.target = myId` and does not know it holds a card.
+
+**Prevention:**
+1. Always broadcast `phase_changed` after writing `power_cards`, even though the phase value did not change — the broadcast is the convergence mechanism, not a "phase diff" mechanism.
+2. Read `power_cards` directly from the refetched `game_state` object in the component. Do not cache a "I have a card" boolean in local state separately from `game_state`.
+3. Add a `power_cards_seq` integer to `game_state` that increments with each roll. Clients compare `power_cards_seq` (not `phase`) to detect card state changes.
+
+**Which phase to address:** During Power Cards implementation, in the advancer roll logic.
+
+---
+
+## P-12: Duo Awards Confession Overlap Metric Breaches Type B Anonymity
+
+**Risk level:** Medium
+**Feature affected:** Duo Awards
+**What goes wrong:** The `confession_overlap` metric (for "Les Complices" award) counts rounds where both players A and B voted "oui" on the same Type B question. Computing this requires reading `votes WHERE vote_type = 'confession' AND answer = true` for all players. Current RLS is fully open (anon can SELECT all votes including `answer` fields). This means every client can read every player's confession votes — including who voted "oui" on which question. The Duo Awards computation makes this cross-player reading unavoidable for the Complices score. Even if the award UI only shows "Nico & Sarah are Complices," a developer tool inspection of the fetched vote data exposes individual confession answers to any player.
+
+**Prevention:**
+1. For v3.0 with open RLS: scope the computation output to pair-level scores only — do not expose raw vote rows in any component prop or rendered content. The intermediate vote data is used only in the computation function scope and discarded.
+2. Add a comment in the computation: `// PRIVACY NOTE: This fetch exposes all confession answers. Open RLS is a known MVP gap. Move to server-side RPC before premium launch.`
+3. Long term: move Duo Awards computation to a Postgres RPC that returns only aggregate pair scores, not raw `answer` fields.
+
+**Which phase to address:** During Duo Awards design review. Flag as a known privacy gap in the phase documentation.
+
+---
+
+## P-13: `tag_scores` Upsert Uses `ignoreDuplicates: true` — Partial Write Becomes Permanent
+
+**Risk level:** Medium
+**Feature affected:** Social Archetypes (cross-session), Bipolar Trait Profile
+**What goes wrong:** The existing `user_session_stats` upsert uses `{ onConflict: 'user_id,session_id', ignoreDuplicates: true }`. This is intentional for idempotency. But if `tag_scores` is written as `{}` on the first write (before archetype computation completes) and the computation fires in a later effect, `ignoreDuplicates: true` means the second write with the real `tag_scores` is silently ignored. The row permanently keeps `tag_scores = {}`. This bug is invisible — no error, no warning, just wrong data.
+
+**Prevention:**
+1. Compute `tag_scores` synchronously before the upsert. Await any async vote fetch for Type B self-votes inside the same effect that performs the write. Do not split computation and write into separate effects.
+2. Do not write a partial row first and plan to update `tag_scores` later. If the computation requires async work, delay the entire upsert until the computation is complete.
+3. If an update path is needed (e.g., for retries), use an explicit UPDATE query targeting only `tag_scores`, not another upsert with `ignoreDuplicates`.
+
+**Which phase to address:** During Social Archetypes stats persistence. Determine write order before implementing.
+
+---
+
+## P-14: Contextual Question Template Stored in Host's Locale Only
+
+**Risk level:** Medium
+**Feature affected:** Contextual Questions
+**What goes wrong:** The design spec says the template is "resolved in the locale active at trigger time" — meaning the host substitutes `{pseudo}` into the FR/EN/ES/DE template based on the host's current locale, and stores the resolved string. If the host is in FR and a player has EN set, that player sees a French contextual question despite their EN preference. The "store resolved template" approach is correct for preventing multi-client resolution divergence, but it bakes in the host's locale for all players.
+
+**Prevention:**
+1. Store the full multilingue object in `game_state.contextual_question` with `{pseudo}` already substituted for each language key:
+   ```ts
+   contextual_question: {
+     fr: "Thomas, vu que...",
+     en: "Thomas, since...",
+     es: "Thomas, ya que...",
+     de: "Thomas, da..."
+   } | null
+   ```
+2. Each client renders `gs.contextual_question[locale]`. No randomness is involved in rendering — pure locale lookup.
+3. This requires the host to fetch and substitute all 4 locale variants before writing, not just the active locale.
+
+**Which phase to address:** During Contextual Questions implementation, before the `game_state` schema is finalized for this feature.
+
+---
+
+## P-15: Bipolar Trait Profile Uses `select('*')` as User Session Count Grows
+
+**Risk level:** Medium
+**Feature affected:** Bipolar Trait Profile
+**What goes wrong:** The `/profile` page currently fetches all `user_session_stats` rows with `select('*')`. Adding `tag_scores` jsonb to each row means each fetched row is larger. For a user with 50 sessions, this is still small. The pitfall is establishing the pattern of `select('*')` with no row limit — future column additions accumulate without bounds, and the cumulative archetype computation (sum of `tag_scores` across all rows) runs synchronously on mount without memoization, recomputing on every re-render triggered by any parent state change.
+
+**Prevention:**
+1. Use an explicit column select: `select('session_id, tag_scores, played_at, group_title, theme, rounds_played, designated_count, confessed_count, volunteered_count')` — not `select('*')`.
+2. Memoize the cumulative `tag_scores` sum with `useMemo` keyed on the fetched rows array.
+3. If cross-session archetype computation becomes a bottleneck at scale, move it to a materialized view or a dedicated `user_cumulative_scores` table updated at end-of-session.
+
+**Which phase to address:** During Bipolar Trait Profile implementation. The explicit column select is a day-one practice.
+
+---
+
+## P-16: Power Card Simultaneous Use Race — Full-Blob Write Drops Earlier Effect
+
+**Risk level:** Medium
+**Feature affected:** Power Cards
+**What goes wrong:** Two card holders (one with Target, one with Reveal) could both tap "Use my card" within the same broadcast window, before either has seen the other's action via a refetch. Both see `used_cards = { target: [], reveal: [] }` and proceed. Both `updateRoomGameState` calls are full-blob replaces. Even though they write different fields (`power_cards.target` vs `power_cards.reveal`), both writes include the full `game_state` object. The second write overwrites the first write's entire blob — the first card's result is lost from `game_state`.
+
+**Prevention:**
+1. Use phase transitions as a serialization mechanism: Target card use writes a new phase `card_target_result`; Reveal card use writes `card_reveal_roulette`. Since both transitions try to set `game_state.phase` via a full-blob replace, only one can be the final value — the client that writes second will see the phase has changed on the next refetch and abort.
+2. If both card types could be used in the same round simultaneously, the spec must clarify priority. "First arrived, first served" requires DB-level atomicity (RPC with conditional write) to be reliable.
+3. For v3.0, the simpler safe approach: only one card type can be used per Type B round. Make Target and Reveal mutually exclusive in the same reveal cycle.
+
+**Which phase to address:** During Power Cards implementation. Decide on phase-transition vs RPC serialization approach before coding.
+
+---
+
+## P-17: New `GamePhase` Values Have No UI Handler — Rooms Get Stuck
+
+**Risk level:** Low
+**Feature affected:** Contextual Questions (`contextual_question`), Power Cards (`card_target_result`, `card_reveal_roulette`)
+**What goes wrong:** The game page has a main render conditional over `GamePhase` values. Adding 3 new phases without handling them in every conditional causes the game to render nothing (or the wrong component) for any client on those phases. TypeScript catches exhaustive union errors only if the switch uses a `never` type guard — if any branch uses `default: return null`, TypeScript is silent. A room stuck in `card_target_result` with no client handler is unrecoverable without a direct DB UPDATE on the room's `game_state`.
+
+**Prevention:**
+1. Update the `GamePhase` union type in `lib/types.ts` first. For every switch over `GamePhase`, replace `default: return null` with:
+   ```ts
+   default: {
+     const _exhaustiveCheck: never = gs.phase;
+     return null;
+   }
+   ```
+   This produces a compile-time error for unhandled phases.
+2. Build new phase handler components before deploying any `game_state` writes that produce those phases. Deploy order: UI handler first, `game_state` write second.
+3. Add a `phase === 'unknown_phase_fallback'` safety net at the bottom of the render: if an unrecognized phase string arrives (from a newer server than the client), show a "Reconnecting..." spinner rather than a blank screen.
+
+**Which phase to address:** Immediately when adding any new `GamePhase` to `lib/types.ts`. The `never` guard is a one-line TypeScript change with outsized protection.
+
+---
+
+## P-18: Archetype Tags Migration Silently Misses Questions Due to Text Mismatch
+
+**Risk level:** Low
+**Feature affected:** Social Archetypes
+**What goes wrong:** `migration_add_tags.sql` adds `tags jsonb NOT NULL DEFAULT '[]'` and runs UPDATE statements keyed on `question->>'fr'` text matches. If any question text in the DB has a slightly different wording (trailing space, smart apostrophe `'` vs straight `'`), the UPDATE silently matches 0 rows and that question keeps `tags = []`. When the archetype computation runs, questions with empty tags contribute 0 points for everyone. If a significant portion of played questions have no tags, all players fall into the "Une simple personne" fallback, making the archetype feature appear broken with no error surfaced.
+
+**Prevention:**
+1. After running the tags migration, validate:
+   ```sql
+   SELECT COUNT(*) FROM questions WHERE tags = '[]'::jsonb;
+   ```
+   If the count exceeds ~10% of total questions, the text-match updates failed. Investigate encoding differences.
+2. Use `migration_add_tags.sql` is already authored (file exists in the repo) — verify it ran and matched before v3.0 deploy.
+3. Add a minimum-coverage warning in the archetype computation: if fewer than 3 played questions contributed any tag points, display "Not enough data yet" rather than the "Une simple personne" fallback archetype, so players understand it is a data gap not a personality result.
+
+**Which phase to address:** During DB migration validation for Social Archetypes. Run the validation query before deploying the feature.
+
+---
+
+## P-19: Duo Award Tie-Break Produces Different Winners on Different Clients
+
+**Risk level:** Low
+**Feature affected:** Duo Awards
+**What goes wrong:** The "variété préférée" tie-breaking rule ("prefer the pair that does not yet have an award") requires iterating award candidates in a specific order. If two clients sort their pair list differently before applying this rule, they may assign the same award to different pairs. Since Duo Awards is computed purely client-side with no canonical source, different clients would show different award winners on the Face 1 (group) card — the card that is meant to be identical for the whole group.
+
+**Prevention:**
+1. Sort pairs by a stable key before award computation: `[...pairs].sort((a, b) => a[0].id.localeCompare(b[0].id) || a[1].id.localeCompare(b[1].id))`. This ensures every client operates on the same ordered list.
+2. Sort the award types in a fixed canonical order (e.g., `['magnetisme', 'longueur_onde', 'ennemis', 'complices']`) before applying the variété rule.
+3. The computation is fully deterministic given sorted inputs — no randomness involved, so cross-client consistency is achievable with sorting alone.
+
+**Which phase to address:** During Duo Awards implementation. Add the stable sort as a prerequisite to the award computation function.
+
+---
+
+## P-20: `MAX_ROUNDS` Hardcode Interacts with Contextual Phase Round Count
+
+**Risk level:** Low
+**Feature affected:** Contextual Questions
+**What goes wrong:** `MAX_ROUNDS = 7` is a hardcoded constant in `game/page.tsx`. The end-condition check is `gs.round >= MAX_ROUNDS` evaluated somewhere in the round-end flow. Contextual questions do not count as rounds (correct per spec). But if the round increment happens inside a shared handler that also handles `contextual_question` → `voting_question` transitions, the round may increment at the wrong moment. The spec says "round increments only when contextual_question transitions to voting_question" — if this increment fires twice (once at contextual trigger, once at contextual dismiss), a 7-round game ends at round 6.
+
+**Prevention:**
+1. Round increment must happen only in `onNextRound` when transitioning from a reveal phase to `voting_question`. It must NOT increment when inserting `contextual_question` (reveal → contextual) or when dismissing it (contextual → voting_question).
+2. Add explicit guards at the top of any round-count handler: `if (gs.phase === 'contextual_question') return // context is not a round`.
+3. The `last_contextual_round` field prevents back-to-back contextuals within the same round — verify this guard also prevents any double-counting of the round number.
+
+**Which phase to address:** During Contextual Questions implementation, specifically in the round-end and round-start handlers.
+
+---
+
+## Quick-Reference Prevention Checklist
+
+1. **Add `normalizeGameState()` before reading any new field** — fill defaults for all new optional `GameState` fields on every DB fetch. Prevents runtime crashes on in-flight rooms with old state shapes.
+
+2. **Power card attribution uses an atomic DB guard** — conditional UPDATE or RPC, not the bare advancer pattern. Full-blob `game_state` replaces from two clients drop whichever wrote first.
+
+3. **Contextual question probability roll is host-exclusive** — runs only inside `onNextRound` (host-only handler). Template fully resolved (all 4 locales, `{pseudo}` substituted) before the `updateRoomGameState` write.
+
+4. **Type B archetype points fetch `myId` votes from DB** — never read from `game_state.revealed_player_ids` or `confessed` maps for self-attribution. This is a privacy boundary, not a performance choice.
+
+5. **Power card 5-second window uses `b2_revealed_at` server timestamp** — same pattern as `round_started_at`. Client-side `setTimeout` desync is the same failure mode already solved for vote timers.
+
+6. **Share card trait bars use explicit pixel widths** — not percentage widths in the off-screen capture container. Test `domToBlob` on the new card shape before shipping archetype block or 2-face card.
+
+7. **`tag_scores` computed before the upsert, not after** — async Type B vote fetch must complete inside the same effect that writes `user_session_stats`. `ignoreDuplicates: true` makes partial rows with `{}` permanent.
+
+8. **Add RLS policy for `contextual_questions`** — `SELECT USING (true)` for anon in `schema.sql`. Missing policy = silent 0 rows, identical to the "Room introuvable" root cause.
+
+9. **Sort pairs by `player.id` before Duo Awards computation** — lexicographic stable sort ensures every client produces the same award assignments from the same vote data.
+
+10. **Add `never` type guard to every `GamePhase` switch** — catches unhandled new phases (`contextual_question`, `card_target_result`, `card_reveal_roulette`) at compile time, before a room can get stuck in a phase with no UI handler.
