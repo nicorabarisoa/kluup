@@ -3,9 +3,12 @@
 import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
-// 15s grace (D-04/D-06): covers a phone screen-lock + unlock within 15s without
-// pruning the player; a closed tab is pruned after 15s.
-const GRACE_MS = 15_000
+// 20s grace (D-04/D-06): covers a phone screen-lock + unlock within 20s without
+// pruning the player; a closed tab is pruned after 20s. Applies identically to
+// signed-in and anonymous players — the prune deletes by player id and never
+// looks at user_id, so a player who hasn't resumed within the window is removed
+// from the game regardless of auth state.
+const GRACE_MS = 20_000
 // The elected client refreshes the room's last_activity so the server sweep only
 // reclaims rooms that have NO connected clients. 30s keeps presence signal fresher.
 const HEARTBEAT_MS = 30_000
