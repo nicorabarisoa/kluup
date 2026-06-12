@@ -154,6 +154,7 @@ export const fr = {
     stat_confessed: (n: number) => `confession ${n}×`,
     stat_volunteered: (n: number) => `volontaire ${n}×`,
     stat_quiet: "discret·e ce soir",
+    stats_saved: "Stats sauvegardées ✓",
   },
   card: {
     moment: "Le moment fort",
@@ -418,6 +419,7 @@ export const en: Dict = {
     stat_confessed: (n: number) => `confession ${n}×`,
     stat_volunteered: (n: number) => `volunteer ${n}×`,
     stat_quiet: "quiet one tonight",
+    stats_saved: "Stats saved ✓",
   },
   card: {
     moment: "The highlight",
@@ -680,6 +682,7 @@ export const es: Dict = {
     stat_confessed: (n: number) => `confesión ${n}×`,
     stat_volunteered: (n: number) => `voluntario/a ${n}×`,
     stat_quiet: "discreto/a esta noche",
+    stats_saved: "Estadísticas guardadas ✓",
   },
   card: {
     moment: "El momento clave",
@@ -942,6 +945,7 @@ export const de: Dict = {
     stat_confessed: (n: number) => `Geständnis ${n}×`,
     stat_volunteered: (n: number) => `freiwillig ${n}×`,
     stat_quiet: "heute Abend zurückhaltend",
+    stats_saved: "Stats gespeichert ✓",
   },
   card: {
     moment: "Der Höhepunkt",
