@@ -114,7 +114,7 @@ Plans:
   5. A long game (>1 hour) does not lose Realtime channel sync for authenticated users after JWT expiry
   6. `user_session_stats` includes a `tag_scores jsonb` field (per-trait scores for that session) — accumulated into a global archetype on the profile page
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 **Wave 1**
 
@@ -122,7 +122,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 05-02-PLAN.md — [BLOCKING] apply migration to live Supabase DB (manual SQL editor) + AUTH-04 anonymous regression smoke
+- [x] 05-02-PLAN.md — [BLOCKING] apply migration to live Supabase DB (manual SQL editor) + AUTH-04 anonymous regression smoke
 
 **Wave 3** *(blocked on Waves 1-2; plans 03 and 04 run in parallel — no file overlap)*
 
@@ -174,4 +174,4 @@ Plans:
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
 | 3. Playtest Quality Fixes | 8/8 | Complete   | 2026-06-10 |
 | 4. Sign-in UX + Player Linking | 4/4 | Complete   | 2026-06-11 |
-| 5. Stats Persistence + Profile | 1/4 | In Progress|  |
+| 5. Stats Persistence + Profile | 2/4 | In Progress|  |
