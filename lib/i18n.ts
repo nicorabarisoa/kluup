@@ -13,6 +13,7 @@ export const fr = {
     creating: "Création…",
     join_btn: "Rejoindre une room",
     create_error: "Impossible de créer la room. Réessaie dans un instant.",
+    resume_cta: (code: string) => `↩︎ Reprendre ta partie · ${code}`,
   },
   landing: {
     pitch: "Le party game qui brise la glace et révèle votre groupe. Sur vos téléphones, sans rien installer.",
@@ -276,6 +277,7 @@ export const en: Dict = {
     creating: "Creating…",
     join_btn: "Join a room",
     create_error: "Couldn't create the room. Try again in a moment.",
+    resume_cta: (code: string) => `↩︎ Resume your game · ${code}`,
   },
   landing: {
     pitch: "The party game that breaks the ice and reveals your group. On your phones, nothing to install.",
@@ -537,6 +539,7 @@ export const es: Dict = {
     creating: "Creando…",
     join_btn: "Unirse a una sala",
     create_error: "No se pudo crear la sala. Inténtalo de nuevo.",
+    resume_cta: (code: string) => `↩︎ Retomar tu partida · ${code}`,
   },
   landing: {
     pitch: "El party game que rompe el hielo y revela a tu grupo. En vuestros móviles, sin instalar nada.",
@@ -798,6 +801,7 @@ export const de: Dict = {
     creating: "Erstellen…",
     join_btn: "Einem Raum beitreten",
     create_error: "Der Raum konnte nicht erstellt werden. Versuche es erneut.",
+    resume_cta: (code: string) => `↩︎ Spiel fortsetzen · ${code}`,
   },
   landing: {
     pitch: "Das Party-Spiel, das das Eis bricht und eure Gruppe enthüllt. Auf euren Handys, ohne Installation.",

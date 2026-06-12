@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRef, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { genId, setPlayerId, getGoogleFirstName } from '@/lib/utils'
+import { genId, setPlayerId, getPlayerId, getLastRoom, clearLastRoom, getGoogleFirstName } from '@/lib/utils'
 import { useT, LangSwitch } from '@/lib/locale'
 import type { User } from '@supabase/supabase-js'
 
@@ -53,6 +53,31 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [googlePrefill, setGooglePrefill] = useState('')
+
+  // Resume breadcrumb: if this browser recently joined a room that still exists
+  // and we're still in its roster, offer a one-tap way back from the bare base
+  // URL. Routing to the lobby reuses the stored kluup_pid_<CODE> identity (the
+  // lobby/game/join reconnect paths never insert a duplicate row).
+  const [resumeCode, setResumeCode] = useState<string | null>(null)
+
+  useEffect(() => {
+    const code = getLastRoom()
+    if (!code) return
+    const pid = getPlayerId(code)
+    if (!pid) { clearLastRoom(); return }
+    let cancelled = false
+    ;(async () => {
+      const { data: room } = await supabase
+        .from('rooms').select('id, status').eq('code', code).maybeSingle()
+      if (!room) { clearLastRoom(); return }       // room cleaned up / gone
+      const { data: me } = await supabase
+        .from('players').select('id').eq('room_id', room.id).eq('id', pid).maybeSingle()
+      if (cancelled) return
+      if (!me) { clearLastRoom(); return }          // our row was pruned/removed
+      setResumeCode(code)
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -200,6 +225,17 @@ export default function Home() {
         <p className="mt-4 text-sm sm:text-base leading-relaxed mx-auto" style={{ color: C.muted, maxWidth: 460 }}>
           {fr.landing.pitch}
         </p>
+
+        {/* Resume banner — only when a still-valid recent room membership exists. */}
+        {resumeCode && (
+          <Link
+            href={`/room/${resumeCode}/lobby`}
+            className="w-full mt-8 rounded-2xl px-4 py-3 text-center font-bold text-sm block transition-transform active:scale-95"
+            style={{ maxWidth: 340, background: `${C.a}1A`, border: `1px solid ${C.a}`, color: C.a, fontFamily: 'var(--font-body)' }}
+          >
+            {fr.home.resume_cta(resumeCode)}
+          </Link>
+        )}
 
         {/* Create / join form (kept narrow — forms shouldn't be wide) */}
         <div className="flex flex-col gap-3 w-full mt-8" style={{ maxWidth: 340 }}>

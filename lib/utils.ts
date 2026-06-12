@@ -29,6 +29,12 @@ export function genId(): string {
  * Falls back to the legacy global sessionStorage key for in-flight sessions.
  */
 const PID_PREFIX = 'kluup_pid_'
+// Global breadcrumb: the code of the room this browser most recently joined.
+// Lets the landing page offer "resume your game" from the bare base URL — the
+// per-room kluup_pid_<CODE> survives a tab close, but nothing global tracked
+// WHICH room you were in. Written on every successful join/create (via
+// setPlayerId), cleared on explicit quit (via clearPlayerId).
+const LAST_ROOM_KEY = 'kluup_last_room'
 
 export function getPlayerId(code: string): string | null {
   if (typeof window === 'undefined') return null
@@ -41,13 +47,40 @@ export function getPlayerId(code: string): string | null {
 
 export function setPlayerId(code: string, id: string) {
   try { localStorage.setItem(PID_PREFIX + code.toUpperCase(), id) } catch { /* ignore */ }
+  // Remember this as the active room for the resume banner.
+  try { localStorage.setItem(LAST_ROOM_KEY, code.toUpperCase()) } catch { /* ignore */ }
   // Keep the legacy global key in sync for backward compatibility.
   try { sessionStorage.setItem('player_id', id) } catch { /* ignore */ }
 }
 
 export function clearPlayerId(code: string) {
   try { localStorage.removeItem(PID_PREFIX + code.toUpperCase()) } catch { /* ignore */ }
+  // Drop the resume breadcrumb only if it points at the room being left, so
+  // quitting room A doesn't erase a still-active membership in room B.
+  try {
+    if (localStorage.getItem(LAST_ROOM_KEY) === code.toUpperCase()) {
+      localStorage.removeItem(LAST_ROOM_KEY)
+    }
+  } catch { /* ignore */ }
   try { sessionStorage.removeItem('player_id') } catch { /* ignore */ }
+}
+
+/**
+ * The code of the most recently joined room, or null. The landing page uses
+ * this to offer a "resume your game" entry point from the bare base URL.
+ * Returns null if the stored value isn't a valid room code (defensive).
+ */
+export function getLastRoom(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const code = localStorage.getItem(LAST_ROOM_KEY)
+    if (code && /^[A-HJ-NP-Z2-9]{6}$/.test(code)) return code
+  } catch { /* ignore */ }
+  return null
+}
+
+export function clearLastRoom() {
+  try { localStorage.removeItem(LAST_ROOM_KEY) } catch { /* ignore */ }
 }
 
 /**
