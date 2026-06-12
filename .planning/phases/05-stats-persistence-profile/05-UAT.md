@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 05-stats-persistence-profile
 source: [05-VERIFICATION.md]
 started: 2026-06-12T00:00:00Z
@@ -47,7 +47,16 @@ blocked: 0
   reason: "User reported: en fin de partie j'ai fait exprès de mettre du temps a me connecter sur google car je ne trouvais pas mon mot de passe, après avoir réussi ça m'a remis à l'acceuil"
   severity: major
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "OAuth CTA full-page redirect unmounts the solo room's only client → presence heartbeat stops → pg_cron cleanup_dead_rooms() (60-90s TTL, no exemption for status='ended') deletes the room during the multi-minute Google sign-in → on return, room lookup fails and the silent guard at app/room/[code]/game/page.tsx:1642 router.push('/') fires before EndScreen and its retroactive save effect (page.tsx:1318-1343) can mount"
+  artifacts:
+    - path: "app/room/[code]/game/page.tsx"
+      issue: "line 1642: silent room-not-found guard redirects to /; lines 1417-1425: CTA redirect destroys all React state; lines 1318-1343: retroactive save depends on a live rooms.game_state row"
+    - path: "supabase/lifecycle.sql"
+      issue: "lines 52-94: 60-90s TTL sweep with no exemption for status='ended' rooms; pg_cron runs every minute (live in prod, jobid 6)"
+    - path: "lib/usePresence.ts"
+      issue: "heartbeat keeping last_activity fresh stops the instant the sole player navigates to Google"
+  missing:
+    - "Stash the save payload (session_uuid, theme, rounds, my stats, group_title) in localStorage in handleCTASignIn before redirecting; flush it to user_session_stats on SIGNED_IN regardless of room survival"
+    - "Exempt status='ended' rooms from the short TTL sweep (longer TTL) so the end screen survives an OAuth round-trip"
+    - "Replace the silent router.push('/') room-not-found guard with an informative landing when a pending-stats stash exists"
+  debug_session: ".planning/debug/oauth-return-lands-on-home.md"
