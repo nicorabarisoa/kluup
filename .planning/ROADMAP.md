@@ -114,7 +114,7 @@ Plans:
   5. A long game (>1 hour) does not lose Realtime channel sync for authenticated users after JWT expiry
   6. `user_session_stats` includes a `tag_scores jsonb` field (per-trait scores for that session) — accumulated into a global archetype on the profile page
 
-**Plans:** 4/4 base plans complete · 2 gap-closure plans (UAT test 2)
+**Plans:** 5/6 plans executed
 
 **Wave 1**
 
@@ -131,7 +131,7 @@ Plans:
 
 **Gap closure** *(UAT test 2 — major: slow-OAuth end-screen CTA loses stats; both plans run in parallel, disjoint files)*
 
-- [ ] 05-05-PLAN.md — [gap] localStorage stash of the save payload before the OAuth redirect + global PendingStatsFlusher (flush on SIGNED_IN, idempotent, localized toast) → stats survive room deletion + landing on `/`
+- [x] 05-05-PLAN.md — [gap] localStorage stash of the save payload before the OAuth redirect + global PendingStatsFlusher (flush on SIGNED_IN, idempotent, localized toast) → stats survive room deletion + landing on `/`
 - [ ] 05-06-PLAN.md — [gap] cleanup_dead_rooms() TTL exemption: `status='ended'` rooms get 30-min TTL (90s for all others) — defense-in-depth; manual DB apply checkpoint
 
 **UI hint**: yes
@@ -179,4 +179,4 @@ Plans:
 | 2. Auth Infrastructure + Schema | 3/3 | Complete | 2026-06-10 |
 | 3. Playtest Quality Fixes | 8/8 | Complete   | 2026-06-10 |
 | 4. Sign-in UX + Player Linking | 4/4 | Complete   | 2026-06-11 |
-| 5. Stats Persistence + Profile | 4/4 base + 2 gap | Gap closure | 2026-06-12 |
+| 5. Stats Persistence + Profile | 5/6 | In Progress|  |
