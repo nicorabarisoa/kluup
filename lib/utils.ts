@@ -132,6 +132,63 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Pending-stats stash — survives the full-page signInWithOAuth redirect
+//
+// When an anonymous player taps the end-screen "Se connecter" CTA, the OAuth
+// redirect destroys all React state. In a solo room the pg_cron sweep also
+// deletes the room (and its game_state) before the callback returns, so the
+// retroactive-save effect inside EndScreen can never fire (rooms row gone).
+//
+// Fix: stash the entire save payload — everything needed for the
+// user_session_stats upsert EXCEPT user_id, which is only known after sign-in
+// — in localStorage BEFORE the redirect. A globally-mounted PendingStatsFlusher
+// reads the stash on SIGNED_IN and upserts it, independent of room lifetime.
+//
+// The 24-hour TTL prevents a stash left by an abandoned/cancelled OAuth from
+// flushing a stale session on any future unrelated sign-in.
+// ---------------------------------------------------------------------------
+
+const PENDING_STATS_KEY = 'kluup_pending_stats'
+export const PENDING_STATS_TTL_MS = 24 * 60 * 60 * 1000 // 24 h
+
+/** User-agnostic save payload. stashed_at is stash-only metadata (not a DB column). */
+export type PendingStats = {
+  session_id:       string
+  designated_count: number
+  confessed_count:  number
+  volunteered_count: number
+  group_title:      string
+  theme:            string
+  rounds_played:    number
+  code:             string
+  stashed_at:       number
+}
+
+export function setPendingStats(p: PendingStats): void {
+  if (typeof window === 'undefined') return
+  try { localStorage.setItem(PENDING_STATS_KEY, JSON.stringify(p)) } catch { /* ignore */ }
+}
+
+export function getPendingStats(): PendingStats | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(PENDING_STATS_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw) as PendingStats
+    if (!p.stashed_at || Date.now() - p.stashed_at > PENDING_STATS_TTL_MS) {
+      clearPendingStats()
+      return null
+    }
+    return p
+  } catch { return null }
+}
+
+export function clearPendingStats(): void {
+  if (typeof window === 'undefined') return
+  try { localStorage.removeItem(PENDING_STATS_KEY) } catch { /* ignore */ }
+}
+
 /**
  * Extract the Google/OAuth first name from a Supabase User object for
  * pseudo pre-fill. Truncates to 12 chars (UI-SPEC). Returns an empty string

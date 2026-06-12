@@ -233,6 +233,7 @@ export const fr = {
     heading: "Sauvegarde tes stats",
     body: "Connecte-toi pour garder un historique de tes soirées et découvrir ton archétype.",
     cta: "Se connecter avec Google",
+    flushed: "Stats sauvegardées ✓",
   },
   duo_awards: {
     title: "Les duos de la soirée",
@@ -498,6 +499,7 @@ export const en: Dict = {
     heading: "Save your stats",
     body: "Sign in to keep a history of your sessions and discover your archetype.",
     cta: "Sign in with Google",
+    flushed: "Stats saved ✓",
   },
   duo_awards: {
     title: "Tonight's Duos",
@@ -761,6 +763,7 @@ export const es: Dict = {
     heading: "Guarda tus estadísticas",
     body: "Inicia sesión para guardar el historial de tus partidas y descubrir tu arquetipo.",
     cta: "Iniciar sesión con Google",
+    flushed: "Estadísticas guardadas ✓",
   },
   duo_awards: {
     title: "Los dúos de la noche",
@@ -1024,6 +1027,7 @@ export const de: Dict = {
     heading: "Deine Stats sichern",
     body: "Melde dich an, um dein Spielverlauf zu speichern und deinen Archetyp zu entdecken.",
     cta: "Mit Google anmelden",
+    flushed: "Stats gespeichert ✓",
   },
   duo_awards: {
     title: "Die Duos des Abends",
