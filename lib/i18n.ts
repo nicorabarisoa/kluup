@@ -172,6 +172,8 @@ export const fr = {
       rounds: (n: number) => `${n} round${n > 1 ? "s" : ""} joué${n > 1 ? "s" : ""} ensemble`,
       mix: (a: number, b: number, c: number) => `${a} désignations · ${b} confessions · ${c} questions ouvertes`,
     },
+    flip_to_personal: "↻ voir ton archétype",
+    flip_to_group: "↻ voir le groupe",
   },
   titles: {
     title_ruthless: { name: "Sans pitié", desc: "Vous avez désigné sans hésiter. Ce groupe ne fait pas de cadeaux." },
@@ -438,6 +440,8 @@ export const en: Dict = {
       rounds: (n: number) => `${n} round${n > 1 ? "s" : ""} played together`,
       mix: (a: number, b: number, c: number) => `${a} designations · ${b} confessions · ${c} open questions`,
     },
+    flip_to_personal: "↻ see your archetype",
+    flip_to_group: "↻ see the group",
   },
   titles: {
     title_ruthless: { name: "Ruthless", desc: "You named names without hesitation. This group pulls no punches." },
@@ -702,6 +706,8 @@ export const es: Dict = {
       rounds: (n: number) => `${n} ronda${n > 1 ? "s" : ""} jugada${n > 1 ? "s" : ""} juntas`,
       mix: (a: number, b: number, c: number) => `${a} designaciones · ${b} confesiones · ${c} preguntas abiertas`,
     },
+    flip_to_personal: "↻ ver tu arquetipo",
+    flip_to_group: "↻ ver el grupo",
   },
   titles: {
     title_ruthless: { name: "Sin piedad", desc: "Designasteis sin dudar. Este grupo no hace prisioneros." },
@@ -966,6 +972,8 @@ export const de: Dict = {
       rounds: (n: number) => `${n} Runde${n > 1 ? "n" : ""} zusammen gespielt`,
       mix: (a: number, b: number, c: number) => `${a} Designationen · ${b} Geständnisse · ${c} offene Fragen`,
     },
+    flip_to_personal: "↻ Archetyp ansehen",
+    flip_to_group: "↻ Gruppe ansehen",
   },
   titles: {
     title_ruthless: { name: "Gnadenlos", desc: "Ihr habt ohne zu zögern designiert. Diese Gruppe macht keine Gefangenen." },

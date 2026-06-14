@@ -12,6 +12,7 @@ export type Question = {
   type: 'A' | 'B' | 'C'
   intensity: number
   question: { fr: string; en: string; es: string; de: string }
+  tags?: Array<{ tag: string; points: number }>  // optional — '[]' default in DB; absent before migration
 }
 
 export type GamePhase =
