@@ -2,28 +2,29 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Superpowers
-current_phase: 6 — Social Profile & Archetypes + Duo Awards (PLANNED — 5 plans across 4 waves)
-status: phase_planned
-last_updated: "2026-06-14T18:23:45.746Z"
+current_phase: 06
+status: Executing Phase 06
+last_updated: "2026-06-15T00:31:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 5
-  completed_plans: 0
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State
 
-**Last updated:** 2026-06-14
-**Current phase:** 6 — Social Profile & Archetypes + Duo Awards (PLANNED — 5 plans across 4 waves)
-**Overall status:** v3.0 in progress. Phase 6 planned; next is `/gsd-execute-phase 6`.
+**Last updated:** 2026-06-15
+**Current phase:** 06
+**Overall status:** v3.0 in progress. Phase 6 executing — Plan 06-01 complete.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-12)
 
 **Core value:** Creating genuine human moments through structured social questions — the app triggers the moment, the group handles the dynamic.
-**Current focus:** Executing v3.0 Phase 6 (Social Profile & Archetypes + Duo Awards)
+**Current focus:** Phase 06 — Social Profile & Archetypes + Duo Awards
 
 ## Phase 6 Plan Set
 
@@ -55,9 +56,17 @@ Items acknowledged and deferred at milestone close on 2026-06-12:
 | scope | D-08 tag_scores background write | deferred to Bipolar Sliders phase (with D-07) |
 | scope | cross-session archetype on /profile + bipolar sliders | deferred to Bipolar Sliders phase |
 
+## Decisions
+
+| Decision | Context | Made |
+|----------|---------|------|
+| vitest.config.mts (not .ts) | .mts forces ESM loading; avoids ERR_REQUIRE_ESM on Node 22 without adding "type:module" to package.json (which breaks Next.js) | 06-01 |
+| Question.tags optional field | Optional for backward compat with pre-migration rows and existing pickCandidates results (DB default '[]') | 06-01 |
+
 ## Notes
 
 - v2.0 shipped with optional Google OAuth, cross-session stats, /profile page
 - Anonymous game flow unchanged — accounts never required
 - Phase 6: all DB groundwork (tags column, curation, i18n keys) already staged; 06-05 verifies tags live on prod before relying on archetype output (P-18 risk)
-- Next: `/gsd-execute-phase 6` (`/clear` first for a fresh context window)
+- 06-01 complete (2026-06-15): Vitest installed, red test scaffolds, Question.tags, flip i18n keys
+- Next: Plan 06-02 — lib/archetypes.ts (TDD green phase for archetypes)
