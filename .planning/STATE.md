@@ -2,16 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Superpowers
-current_phase: null
+current_phase: None — between milestones
 status: planning
-last_updated: "2026-06-12T17:15:00Z"
-last_activity: 2026-06-12 -- v2.0 milestone archived
+last_updated: "2026-06-14T17:32:44.293Z"
 progress:
   total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 0
 ---
 
 # Project State
