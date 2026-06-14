@@ -28,14 +28,15 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
 
 **Goal:** Assign social archetypes from in-game behaviour tags; compute duo awards for notable pairs — both on a 2-faced share card.
 **Requirements:** REQ-AR-01–06, REQ-DA-01–05
-**Plans:** 5 plans (4 waves: 0–3)
+**Plans:** 5/5 plans complete
 
 Plans:
+
 - [x] 06-01-PLAN.md — Wave 0: Vitest install + config, red test scaffolds, Question.tags type, 2 flip i18n keys
 - [x] 06-02-PLAN.md — Wave 1: lib/archetypes.ts (computeTraitScores + computeArchetype, TDD, P-04 boundary)
 - [x] 06-03-PLAN.md — Wave 1: lib/awards.ts (computeDuoAwards + 5 metrics, TDD, P-19 determinism)
 - [x] 06-04-PLAN.md — Wave 2: ArchetypeBlock.tsx + DuoAwardsBlock.tsx (capture-safe presentation)
-- [ ] 06-05-PLAN.md — Wave 3: ShareCard/EndScreen 2-face refactor + computation hub + end-to-end verify
+- [x] 06-05-PLAN.md — Wave 3: ShareCard/EndScreen 2-face refactor + computation hub + end-to-end verify
 
 ### Phase 7: Contextual Questions
 
@@ -56,6 +57,6 @@ Plans:
 | 3. Playtest Quality Fixes | v2.0 | 8/8 | ✓ Complete | 2026-06-10 |
 | 4. Sign-in UX | v2.0 | 4/4 | ✓ Complete | 2026-06-11 |
 | 5. Stats Persistence | v2.0 | 6/6 | ✓ Complete | 2026-06-12 |
-| 6. Archetypes + Duo Awards | v3.0 | 4/5 | Executing | — |
+| 6. Archetypes + Duo Awards | v3.0 | 5/5 | Complete   | 2026-06-14 |
 | 7. Contextual Questions | v3.0 | 0/? | Not started | — |
 | 8. Power Cards | v3.0 | 0/? | Not started | — |
