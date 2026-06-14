@@ -1,10 +1,10 @@
-# Phase A: Social Profile & Archetypes + Duo Awards - Discussion Log
+# Phase 6: Social Profile & Archetypes + Duo Awards - Discussion Log
 
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
 > Decisions are captured in CONTEXT.md — this log preserves the alternatives considered.
 
 **Date:** 2026-06-14
-**Phase:** A-social-profile-archetypes-duo-awards
+**Phase:** 06-social-profile-archetypes-duo-awards
 **Areas discussed:** Card flip & default face, Share/export scope, Trait bar visuals, Tag coverage & fallback, Scope (session vs cross-session)
 
 ---

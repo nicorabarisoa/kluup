@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v2.0 Auth & Stats** — Phases 1–5 (shipped 2026-06-12)
-- 📋 **v3.0 Superpowers** — Phases A–C (planned)
+- 📋 **v3.0 Superpowers** — Phases 6–8 (planned)
 
 ## Phases
 
@@ -24,25 +24,25 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
 
 > Not part of v2.0. Sequencing validated 2026-06-10 via spec ingest.
 
-### Phase A: Social Profile & Archetypes + Duo Awards
+### Phase 6: Social Profile & Archetypes + Duo Awards
 
 **Goal:** Assign social archetypes from in-game behaviour tags; compute duo awards for notable pairs — both on a 2-faced share card.
 **Requirements:** REQ-AR-01–06, REQ-DA-01–05
 **Plans:** 5 plans (4 waves: 0–3)
 
 Plans:
-- [ ] A-01-PLAN.md — Wave 0: Vitest install + config, red test scaffolds, Question.tags type, 2 flip i18n keys
-- [ ] A-02-PLAN.md — Wave 1: lib/archetypes.ts (computeTraitScores + computeArchetype, TDD, P-04 boundary)
-- [ ] A-03-PLAN.md — Wave 1: lib/awards.ts (computeDuoAwards + 5 metrics, TDD, P-19 determinism)
-- [ ] A-04-PLAN.md — Wave 2: ArchetypeBlock.tsx + DuoAwardsBlock.tsx (capture-safe presentation)
-- [ ] A-05-PLAN.md — Wave 3: ShareCard/EndScreen 2-face refactor + computation hub + end-to-end verify
+- [ ] 06-01-PLAN.md — Wave 0: Vitest install + config, red test scaffolds, Question.tags type, 2 flip i18n keys
+- [ ] 06-02-PLAN.md — Wave 1: lib/archetypes.ts (computeTraitScores + computeArchetype, TDD, P-04 boundary)
+- [ ] 06-03-PLAN.md — Wave 1: lib/awards.ts (computeDuoAwards + 5 metrics, TDD, P-19 determinism)
+- [ ] 06-04-PLAN.md — Wave 2: ArchetypeBlock.tsx + DuoAwardsBlock.tsx (capture-safe presentation)
+- [ ] 06-05-PLAN.md — Wave 3: ShareCard/EndScreen 2-face refactor + computation hub + end-to-end verify
 
-### Phase B: Contextual Questions
+### Phase 7: Contextual Questions
 
 **Goal:** Insert adaptive follow-up questions between rounds, triggered by in-game events with increasing probability.
 **Requirements:** REQ-CQ-01–06
 
-### Phase C: Power Cards (Target & Reveal)
+### Phase 8: Power Cards (Target & Reveal)
 
 **Goal:** Assign secret power cards to volunteers; usable during Type B roulette reveal for dramatic extra revelations.
 **Requirements:** REQ-PC-01–08
@@ -56,6 +56,6 @@ Plans:
 | 3. Playtest Quality Fixes | v2.0 | 8/8 | ✓ Complete | 2026-06-10 |
 | 4. Sign-in UX | v2.0 | 4/4 | ✓ Complete | 2026-06-11 |
 | 5. Stats Persistence | v2.0 | 6/6 | ✓ Complete | 2026-06-12 |
-| A. Archetypes + Duo Awards | v3.0 | 0/5 | Planned | — |
-| B. Contextual Questions | v3.0 | 0/? | Not started | — |
-| C. Power Cards | v3.0 | 0/? | Not started | — |
+| 6. Archetypes + Duo Awards | v3.0 | 0/5 | Planned | — |
+| 7. Contextual Questions | v3.0 | 0/? | Not started | — |
+| 8. Power Cards | v3.0 | 0/? | Not started | — |

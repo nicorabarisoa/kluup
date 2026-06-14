@@ -1,4 +1,4 @@
-# Phase A: Social Profile & Archetypes + Duo Awards — Research
+# Phase 6: Social Profile & Archetypes + Duo Awards — Research
 
 **Researched:** 2026-06-14
 **Domain:** Client-side social-graph computation + 2-face share card refactor (Next.js 16 / Supabase / modern-screenshot)
@@ -16,11 +16,11 @@
 - **D-04:** "Partager" exports only the currently-visible face. `domToBlob` captures the active face — no multi-face capture (avoids iOS Safari backface-visibility quirks).
 - **D-05:** 6 distinct per-trait hues (drôle=amber, fiable=blue, audacieux=red, empathique=green, mystérieux=violet, romantique=pink — exact hex in UI-SPEC). Archetype name UPPERCASE, Bricolage Grotesque 800. Top 3 traits with bar + %. Explicit pixel widths (not %) in capture container.
 - **D-06:** Audit tag coverage across all 4 themes × types A/B/C and backfill gaps. "Une simple personne" is a valid outcome only for balanced profiles, not a curation defect.
-- **D-07:** Phase A is session-only. No cross-session `/profile` archetype display. `user_session_stats.tag_scores` persistence deferred to Bipolar Sliders phase.
+- **D-07:** Phase 6 is session-only. No cross-session `/profile` archetype display. `user_session_stats.tag_scores` persistence deferred to Bipolar Sliders phase.
 - **D-08:** Optional planner fold-in: if it lands cleanly on the existing stats-save path, also write `tag_scores` to `user_session_stats` in the background (no UI). Fold in only if zero added scope/complexity. Compute `tag_scores` BEFORE the upsert (`ignoreDuplicates: true` makes a partial `{}` write permanent). If folded, `PendingStatsFlusher` stash must carry `room_id` + `player_id` to refetch votes.
 
 ### Claude's Discretion
-- Exact trait hex palette and bar styling — hex values confirmed in A-UI-SPEC.md.
+- Exact trait hex palette and bar styling — hex values confirmed in 06-UI-SPEC.md.
 - Flip affordance microcopy and animation (opacity fade 150ms — no 3D rotateY).
 - Precise 2-face layout.
 - Determinism: sort player pairs by `player.id` before duo-award computation so every client derives the same Face 1.
@@ -58,7 +58,7 @@
 
 ## Summary
 
-Phase A adds two mutually-reinforcing social features to the Kluup end screen, both computed purely client-side from data already in the room's `votes` table and `game_state.played_question_ids`. The archetype engine reads a player's own votes and the tags on played questions to derive a trait profile and one of 22 named archetypes. The duo awards engine scans all room votes to identify 4 notable player pairs. Both features feed a refactored share card that gains a second face and a tap-to-flip interaction.
+Phase 6 adds two mutually-reinforcing social features to the Kluup end screen, both computed purely client-side from data already in the room's `votes` table and `game_state.played_question_ids`. The archetype engine reads a player's own votes and the tags on played questions to derive a trait profile and one of 22 named archetypes. The duo awards engine scans all room votes to identify 4 notable player pairs. Both features feed a refactored share card that gains a second face and a tap-to-flip interaction.
 
 The database groundwork is already complete: `questions.tags` column exists (migrated via `migration_add_tags.sql`), all questions have been tagged, `user_session_stats.tag_scores` is already declared in `schema.sql`, and all i18n keys are present in `lib/i18n.ts`. The application code is the only remaining work — two new pure modules (`lib/archetypes.ts`, `lib/awards.ts`), two new components (`ArchetypeBlock`, `DuoAwardsBlock`), and a refactor of `ShareCard` / `EndScreen` in `app/room/[code]/game/page.tsx`.
 
@@ -92,7 +92,7 @@ The critical risks are: (1) iOS-safe capture discipline — explicit pixel width
 | TypeScript | existing | Type safety for archetype/award computation | Already the language |
 | Tailwind v4 | existing | Live-DOM chrome outside the capture container | Already the styling tool |
 
-**No new npm packages.** [VERIFIED: codebase scan] Phase A explicitly prohibits new deps (D-07, A-CONTEXT.md).
+**No new npm packages.** [VERIFIED: codebase scan] Phase 6 explicitly prohibits new deps (D-07, 06-CONTEXT.md).
 
 ### New Files (pure modules, no Supabase inside)
 | File | Purpose |
@@ -153,7 +153,7 @@ lib/
 ├── archetypes.ts      # NEW: computeTraitScores(), computeArchetype(), TRAIT_COLORS, ARCHETYPES_TABLE
 ├── awards.ts          # NEW: computeDuoAwards(), pair metric helpers
 ├── game.ts            # unchanged — computation stays OUT of here
-├── types.ts           # ADD: Question.tags field; no GameState changes needed for Phase A
+├── types.ts           # ADD: Question.tags field; no GameState changes needed for Phase 6
 └── i18n.ts            # ADD: card.flip_to_personal, card.flip_to_group (2 new keys × 4 locales)
 
 components/
@@ -381,7 +381,7 @@ All room votes are already fetched for duo awards. From that dataset, actor stat
 - **Type C volunteer**: `votes WHERE player_id = myId AND vote_type = 'volunteer'` grouped by round.
 - **Type C roulette**: `votes WHERE vote_type = 'designation' AND target_player_id = myId` for rounds where `round_c_roulette` was the outcome — but this is indistinguishable from Type A designations in the vote data alone.
 
-**Recommended simplified approach for Phase A** [ASSUMED — confirm with planner]:
+**Recommended simplified approach for Phase 6** [ASSUMED — confirm with planner]:
 Use `gs.stats.*` maps for a single-value "total" attribution instead of per-round/per-question attribution. The trait score for a player becomes: sum of points across all played questions where the player's stats suggest they were an actor, weighted by how many times they were an actor in total. This is less granular but avoids complex reconstruction and produces stable results.
 
 Alternatively — the **votes table has `round` numbers**. `played_question_ids` is ordered (appended in round order in `accumulateStats`). Map round number → question id by index, then determine actor status per-round from vote rows. This is the precise approach, matching the spec exactly.
@@ -389,7 +389,7 @@ Alternatively — the **votes table has `round` numbers**. `played_question_ids`
 ### Pattern 5: Trait Bar Width — Capture-Safe
 
 ```typescript
-// Source: A-UI-SPEC.md (P-07 prevention)
+// Source: 06-UI-SPEC.md (P-07 prevention)
 // NEVER use percentage widths inside the capture container
 const MAX_BAR_PX = 160
 const barWidthPx = Math.round((pct / 100) * MAX_BAR_PX)
@@ -453,9 +453,9 @@ The `tags` field should be `optional` because `pickCandidates` in `lib/game.ts` 
 
 `migration_add_tags.sql` uses `UPDATE questions SET tags = '...' WHERE question->>'fr' = '...'` — text-matching approach. Risks:
 1. **Text encoding mismatch**: smart apostrophes (`'` vs `'`) silently produce 0-row UPDATE. Validate after migration: `SELECT COUNT(*) FROM questions WHERE tags = '[]'::jsonb` — if > ~10% of rows, the migration partially failed.
-2. **Duplicate seed rows**: `seed.sql` etc. have no unique constraint on question text. If re-run, multiple rows per question exist with different UUIDs; UPDATE tags all matching rows. This is actually safe for tags curation (updates all copies). The risk is `played_question_ids` storing one UUID while `contextual_questions` references another — not a Phase A concern.
+2. **Duplicate seed rows**: `seed.sql` etc. have no unique constraint on question text. If re-run, multiple rows per question exist with different UUIDs; UPDATE tags all matching rows. This is actually safe for tags curation (updates all copies). The risk is `played_question_ids` storing one UUID while `contextual_questions` references another — not a Phase 6 concern.
 
-For Phase A: **do not re-run seed files**. Verify `migration_add_tags.sql` ran successfully using the validation query.
+For Phase 6: **do not re-run seed files**. Verify `migration_add_tags.sql` ran successfully using the validation query.
 
 ---
 
@@ -594,7 +594,7 @@ Existing `ShareCard` is a `forwardRef` component that:
 - **NEW**: ArchetypeBlock (if total points > 0)
 - Spacer + player pills + footer (existing)
 
-### `ArchetypeBlock` Component Spec [VERIFIED: A-UI-SPEC.md]
+### `ArchetypeBlock` Component Spec [VERIFIED: 06-UI-SPEC.md]
 
 ```
 Container: background: C.surface (#1A1A1A), borderRadius: 18, padding: '16px 16px',
@@ -609,7 +609,7 @@ Trait rows (top 3 only, pct > 0):
   - Pct: 13px, C.muted, width: 36px, textAlign: 'right'
 ```
 
-TRAIT_COLORS [VERIFIED: A-UI-SPEC.md]:
+TRAIT_COLORS [VERIFIED: 06-UI-SPEC.md]:
 ```typescript
 export const TRAIT_COLORS: Record<string, string> = {
   drole:       '#F59E0B',  // amber
@@ -621,7 +621,7 @@ export const TRAIT_COLORS: Record<string, string> = {
 }
 ```
 
-### `DuoAwardsBlock` Component Spec [VERIFIED: A-UI-SPEC.md]
+### `DuoAwardsBlock` Component Spec [VERIFIED: 06-UI-SPEC.md]
 
 ```
 Container: same as ArchetypeBlock style (background: C.surface, borderRadius: 18, padding: '16px 16px',
@@ -646,7 +646,7 @@ All archetype, trait, and award keys confirmed present in fr/en/es/de:
 - `archetypes.card_title` — ✓ present
 - `duo_awards.title`, `duo_awards.award_*` (4 keys) — ✓ present in all 4 locales
 
-### New Keys Required [VERIFIED: A-UI-SPEC.md]
+### New Keys Required [VERIFIED: 06-UI-SPEC.md]
 
 Only 2 new keys needed (flip affordance):
 
@@ -671,7 +671,7 @@ DE: flip_to_personal: "↻ Archetyp ansehen" / flip_to_group: "↻ Gruppe ansehe
 
 ### Theme Name Localization for Card Header [VERIFIED: codebase scan]
 
-The existing `ShareCard` uses `THEME_META[theme].name` for the card header — a hardcoded English name. CLAUDE.md notes theme names are localized in `fr.lobby.themes`. For Phase A this is out of scope (existing behavior unchanged). The planner may note this as a cleanup opportunity.
+The existing `ShareCard` uses `THEME_META[theme].name` for the card header — a hardcoded English name. CLAUDE.md notes theme names are localized in `fr.lobby.themes`. For Phase 6 this is out of scope (existing behavior unchanged). The planner may note this as a cleanup opportunity.
 
 ---
 
@@ -739,7 +739,7 @@ The existing `ShareCard` uses `THEME_META[theme].name` for the card header — a
 
 ## Runtime State Inventory
 
-This phase adds no OS-registered state, no new environment variables, no new services, and no new build artifacts. This section is not applicable to Phase A (greenfield computation features on top of existing tables).
+This phase adds no OS-registered state, no new environment variables, no new services, and no new build artifacts. This section is not applicable to Phase 6 (greenfield computation features on top of existing tables).
 
 **Tags column:** Already migrated to the Supabase prod DB via `migration_add_tags.sql`. Not a runtime state item — it is a DB schema change that is already complete. Verify with `SELECT COUNT(*) FROM questions WHERE tags != '[]'::jsonb` on prod.
 
@@ -755,7 +755,7 @@ This phase adds no OS-registered state, no new environment variables, no new ser
 | Quick run command | N/A until framework added |
 | Full suite command | N/A |
 
-**Wave 0 gap:** No test infrastructure exists. The natural fit for Phase A is unit testing the pure computation functions (`lib/archetypes.ts`, `lib/awards.ts`). The planner should add a Wave 0 task to install a test runner (Jest or Vitest) if one is not present.
+**Wave 0 gap:** No test infrastructure exists. The natural fit for Phase 6 is unit testing the pure computation functions (`lib/archetypes.ts`, `lib/awards.ts`). The planner should add a Wave 0 task to install a test runner (Jest or Vitest) if one is not present.
 
 ### Phase Requirements → Test Map
 | Req ID | Behavior | Test Type | Notes |
@@ -813,7 +813,7 @@ test('duo awards variety rule', () => {
 
 | ASVS Category | Applies | Standard Control |
 |---------------|---------|-----------------|
-| V2 Authentication | no | No auth change in Phase A |
+| V2 Authentication | no | No auth change in Phase 6 |
 | V3 Session Management | no | No session change |
 | V4 Access Control | partial | Open RLS is a known MVP gap; `confession_overlap` metric reads all confession votes (P-12) |
 | V5 Input Validation | no | No new user input |
@@ -825,7 +825,7 @@ The project's anonymity contract (Type B confession anonymity) extends to archet
 - **Type B archetype points**: computed from `votes WHERE player_id = myId` only — never from public `game_state` fields.
 - **`confession_overlap` (duo awards)**: fetches all confession votes (including `answer` fields) as an unavoidable side effect. Raw vote data stays scoped to the computation function; no exposure via React props.
 
-Document in code comments. Flag in Phase A implementation notes that `confession_overlap` is a known MVP privacy gap and should move to a server-side RPC before premium launch (P-12).
+Document in code comments. Flag in Phase 6 implementation notes that `confession_overlap` is a known MVP privacy gap and should move to a server-side RPC before premium launch (P-12).
 
 ---
 
@@ -841,7 +841,7 @@ This phase adds no new external dependencies. The existing environment supports 
 | TypeScript | Type safety | ✓ | Installed | — |
 | Tailwind v4 | Live DOM chrome | ✓ | Installed | — |
 
-**No missing dependencies.** Environment is fully ready for Phase A.
+**No missing dependencies.** Environment is fully ready for Phase 6.
 
 ---
 
@@ -849,10 +849,10 @@ This phase adds no new external dependencies. The existing environment supports 
 
 | Old Approach | Current Approach | When Changed | Impact |
 |--------------|------------------|--------------|--------|
-| Single-face share card | 2-face card (group + personal) | Phase A | Enables group reveal + personal archetype |
-| Group title only on end screen | Group title + duo awards (Face 1) | Phase A | Social graph visibility |
-| No archetype | 22 named archetypes from gameplay behavior | Phase A | Personal identity layer |
-| `html2canvas` for card export | `modern-screenshot` `domToBlob` | Already implemented pre-Phase A | Font fidelity; html2canvas is banned |
+| Single-face share card | 2-face card (group + personal) | Phase 6 | Enables group reveal + personal archetype |
+| Group title only on end screen | Group title + duo awards (Face 1) | Phase 6 | Social graph visibility |
+| No archetype | 22 named archetypes from gameplay behavior | Phase 6 | Personal identity layer |
+| `html2canvas` for card export | `modern-screenshot` `domToBlob` | Already implemented pre-Phase 6 | Font fidelity; html2canvas is banned |
 
 **Already deprecated by prior sessions:**
 - `html2canvas` — explicitly banned in CLAUDE.md (font deformation). Do not reference.
@@ -874,9 +874,9 @@ This phase adds no new external dependencies. The existing environment supports 
 
 ## Open Questions (RESOLVED)
 
-> All three resolved during planning: (1) D-08 deferred wholesale in A-05; (2) precise per-round actor mapping chosen, encoded in A-02; (3) explicit votes column list adopted in A-05.
+> All three resolved during planning: (1) D-08 deferred wholesale in 06-05; (2) precise per-round actor mapping chosen, encoded in 06-02; (3) explicit votes column list adopted in 06-05.
 
-1. **D-08 fold-in decision (tag_scores background write)** — RESOLVED: deferred wholesale (A-05).
+1. **D-08 fold-in decision (tag_scores background write)** — RESOLVED: deferred wholesale (06-05).
    - What we know: The existing upsert in `EndScreen` uses `ignoreDuplicates: true`; `tag_scores` is already declared in `schema.sql`; `PendingStatsFlusher` exists for OAuth redirect path.
    - What's unclear: Whether the planner has appetite for the added complexity (2 extra fetches in `PendingStatsFlusher`, stash format update).
    - Recommendation: Planner decides based on complexity assessment. If folded in, enforce: compute `tag_scores` before ANY upsert call; update `PendingStatsFlusher` stash to include `room_id` + `player_id` + pre-computed `tag_scores`.
@@ -906,32 +906,32 @@ This phase adds no new external dependencies. The existing environment supports 
 ### Primary (HIGH confidence — spec documents)
 - `docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md` — archetype algorithm, thresholds, 21 archetypes table
 - `docs/superpowers/specs/2026-06-10-duo-awards-design.md` — 5 pair metrics, 4 awards, variety rule, edge cases
-- `.planning/phases/A-social-profile-archetypes-duo-awards/A-CONTEXT.md` — locked decisions D-01 through D-08
-- `.planning/phases/A-social-profile-archetypes-duo-awards/A-UI-SPEC.md` — exact hex values, spacing, typography, component specs
-- `.planning/research/PITFALLS.md` — P-04, P-05, P-07, P-12, P-13, P-18, P-19 (all directly applicable to Phase A)
+- `.planning/phases/06-social-profile-archetypes-duo-awards/06-CONTEXT.md` — locked decisions D-01 through D-08
+- `.planning/phases/06-social-profile-archetypes-duo-awards/06-UI-SPEC.md` — exact hex values, spacing, typography, component specs
+- `.planning/research/PITFALLS.md` — P-04, P-05, P-07, P-12, P-13, P-18, P-19 (all directly applicable to Phase 6)
 - `.planning/research/ARCHITECTURE.md` — build order, module boundaries, EndScreen as computation hub
 - `.planning/intel/requirements.md` — REQ-AR-01 through REQ-AR-06, REQ-DA-01 through REQ-DA-05
 
 ### Secondary (MEDIUM confidence — design discussions)
-- `.planning/phases/A-social-profile-archetypes-duo-awards/A-DISCUSSION-LOG.md` — rationale for D-01 through D-08
+- `.planning/phases/06-social-profile-archetypes-duo-awards/06-DISCUSSION-LOG.md` — rationale for D-01 through D-08
 
 ---
 
 ## Project Constraints (from CLAUDE.md)
 
-All applicable directives for Phase A:
+All applicable directives for Phase 6:
 
-| Directive | Implication for Phase A |
+| Directive | Implication for Phase 6 |
 |-----------|------------------------|
 | Zero hardcoded text — everything via i18n system | All archetype names, trait names, award names, flip affordance text must use `useT()` / `fr.*` keys |
 | Mobile-first, centered max-width columns | Share card modal already mobile-optimized; new live-DOM chrome follows same Tailwind patterns |
 | `modern-screenshot` for card export — NOT `html2canvas` | `domToBlob` is the capture API; html2canvas is banned regardless of argument |
 | Real-size off-screen capture, scaled visual preview | Two-div pattern must be preserved; `getBoundingClientRect()` check note for sizing |
 | Explicit pixel widths in capture context | Trait bars: `Math.round(pct/100*160)px` — no `%` |
-| Supabase Realtime for sync | No new Realtime channels needed for Phase A (all computation is at `ended` phase, no live sync) |
-| No new npm deps | Confirmed — Phase A uses only pre-existing libraries |
-| `host_id NOT NULL` on room insert | Not relevant to Phase A (no room creation) |
-| Replay must purge votes | Not relevant to Phase A (votes are read-only for computation) |
+| Supabase Realtime for sync | No new Realtime channels needed for Phase 6 (all computation is at `ended` phase, no live sync) |
+| No new npm deps | Confirmed — Phase 6 uses only pre-existing libraries |
+| `host_id NOT NULL` on room insert | Not relevant to Phase 6 (no room creation) |
+| Replay must purge votes | Not relevant to Phase 6 (votes are read-only for computation) |
 | Do not revisit B1/`pickBSubtype` | `accumulateStats` reads `gs.b_subtype === 'B2'` — archetype computation for Type B must NOT use `b_subtype` to filter |
 
 ## Metadata

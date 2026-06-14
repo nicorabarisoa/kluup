@@ -1,4 +1,4 @@
-# Phase A: Social Profile & Archetypes + Duo Awards — Pattern Map
+# Phase 6: Social Profile & Archetypes + Duo Awards — Pattern Map
 
 **Mapped:** 2026-06-14
 **Files analyzed:** 8 (2 new pure modules, 2 new components, 3 modified files, 1 SQL migration verify)
@@ -85,7 +85,7 @@ myVotes.filter(v => v.vote_type === 'confession' && v.answer === true)
 // NEVER: gs.stats.confessed, gs.revealed_player_ids — these break the anonymity contract.
 ```
 
-**Round-to-question mapping** (per A-RESEARCH.md Pattern 4):
+**Round-to-question mapping** (per 06-RESEARCH.md Pattern 4):
 ```typescript
 // played_question_ids[round - 1] gives the question ID for a given vote.round (1-based).
 // Cross-reference: playedQuestions.find(q => q.id === gs.played_question_ids[v.round - 1])
@@ -175,7 +175,7 @@ export type Question = {
 }
 ```
 
-**No other type additions needed for Phase A visible scope.** `ArchetypeResult`, `DuoAward`, `TraitKey` live in their own modules (`lib/archetypes.ts`, `lib/awards.ts`) — do not add to `lib/types.ts`.
+**No other type additions needed for Phase 6 visible scope.** `ArchetypeResult`, `DuoAward`, `TraitKey` live in their own modules (`lib/archetypes.ts`, `lib/awards.ts`) — do not add to `lib/types.ts`.
 
 ---
 
@@ -332,7 +332,7 @@ const ShareCard = forwardRef<HTMLDivElement, {
   players: Player[]
   myPseudo?: string
   myStats?: PlayerStats
-  // ADD for Phase A:
+  // ADD for Phase 6:
   activeCard: 'group' | 'personal'
   archetype: ArchetypeResult | null
   duoAwards: DuoAward[]
@@ -433,7 +433,7 @@ const [playedQuestions, setPlayedQuestions] = useState<Question[] | null>(null)
 useEffect(() => {
   if (gs?.phase !== 'ended') return
   // Fetch all room votes once — powers both duo awards and self-filtered archetype.
-  // Use explicit column list to be future-proof (A-RESEARCH.md open question 3).
+  // Use explicit column list to be future-proof (06-RESEARCH.md open question 3).
   supabase
     .from('votes')
     .select('id, round, player_id, vote_type, target_player_id, answer')
@@ -590,5 +590,5 @@ Pattern from `supabase/schema.sql` (idempotent DDL convention): use `ALTER TABLE
 ## Metadata
 
 **Analog search scope:** `lib/`, `app/room/[code]/game/`, `components/`, `supabase/`
-**Files scanned:** `lib/game.ts`, `lib/types.ts`, `lib/i18n.ts` (lines 1–258), `app/room/[code]/game/page.tsx` (lines 1187–1410, 1575–1590), `A-CONTEXT.md`, `A-RESEARCH.md`, `A-UI-SPEC.md`
+**Files scanned:** `lib/game.ts`, `lib/types.ts`, `lib/i18n.ts` (lines 1–258), `app/room/[code]/game/page.tsx` (lines 1187–1410, 1575–1590), `06-CONTEXT.md`, `06-RESEARCH.md`, `06-UI-SPEC.md`
 **Pattern extraction date:** 2026-06-14

@@ -1,4 +1,4 @@
-# Phase A: Social Profile & Archetypes + Duo Awards - Context
+# Phase 6: Social Profile & Archetypes + Duo Awards - Context
 
 **Gathered:** 2026-06-14
 **Status:** Ready for planning
@@ -33,7 +33,7 @@ Turn in-game behaviour into a **personal archetype** and **named duo awards**, s
 - **D-06:** **Audit tag coverage** — count `questions` with empty `[]` tags across all 4 themes × types A/B/C — and **backfill the gaps** so a player who was an "actor" almost always accumulates points. "Une simple personne" remains a legitimate outcome only for genuinely balanced/quiet profiles, not a symptom of missing curation.
 
 ### Scope
-- **D-07:** Phase A is **session-only** for the user-visible experience (archetype + duo awards from this room's votes). The cross-session piece — writing `tag_scores` to `user_session_stats` and a cumulative archetype on `/profile` — is **deferred to the later Bipolar Sliders phase**. Matches spec étape 1 + research build order.
+- **D-07:** Phase 6 is **session-only** for the user-visible experience (archetype + duo awards from this room's votes). The cross-session piece — writing `tag_scores` to `user_session_stats` and a cumulative archetype on `/profile` — is **deferred to the later Bipolar Sliders phase**. Matches spec étape 1 + research build order.
 - **D-08:** *Optional, planner's call:* if it lands **cleanly on the existing end-screen stats-save path** (the signed-in player's trait scores are already computed for the card), also write `tag_scores` to `user_session_stats` **in the background (no `/profile` UI)** to start accumulation early — so the later sliders phase isn't launched against empty history. **Fold in only if zero added scope/complexity**; otherwise defer wholesale with D-07. If folded, respect PITFALLS: compute `tag_scores` **before** the upsert (`ignoreDuplicates: true` makes a partial `{}` write permanent), and ensure the `PendingStatsFlusher` stash carries `room_id` + `player_id` so it can refetch votes.
 
 ### Claude's Discretion
@@ -103,7 +103,7 @@ Turn in-game behaviour into a **personal archetype** and **named duo awards**, s
 ## Deferred Ideas
 
 - **Cross-session archetype on `/profile`** + `tag_scores` accumulation display + **bipolar trait sliders** (MBTI-style, accuracy grows with sessions) → **Bipolar Sliders phase** (final v3.0 phase). D-08 may seed the `tag_scores` *write* early, but the UI stays deferred.
-- **Contextual questions** → Phase B. **Power cards** → Phase C. (Both out of scope here; no `game_state`/loop changes in Phase A.)
+- **Contextual questions** → Phase B. **Power cards** → Phase C. (Both out of scope here; no `game_state`/loop changes in Phase 6.)
 - Multi-image / stacked-image export, swipe-to-flip — considered and rejected (D-04 / D-01) for iOS reliability and back-swipe conflict; revisit only if the visible-face export underdelivers.
 
 None of the above are blockers — discussion stayed within phase scope.
@@ -111,5 +111,5 @@ None of the above are blockers — discussion stayed within phase scope.
 
 ---
 
-*Phase: A-social-profile-archetypes-duo-awards*
+*Phase: 06-social-profile-archetypes-duo-awards*
 *Context gathered: 2026-06-14*
