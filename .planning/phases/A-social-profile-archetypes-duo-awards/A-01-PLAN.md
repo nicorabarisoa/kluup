@@ -1,0 +1,227 @@
+---
+phase: A-social-profile-archetypes-duo-awards
+plan: 01
+type: execute
+wave: 0
+depends_on: []
+files_modified:
+  - package.json
+  - vitest.config.ts
+  - lib/types.ts
+  - lib/i18n.ts
+  - lib/__tests__/archetypes.test.ts
+  - lib/__tests__/awards.test.ts
+autonomous: true
+requirements: [REQ-AR-01, REQ-AR-06, REQ-DA-05]
+must_haves:
+  truths:
+    - "Running `npx vitest run` executes the test suite and exits 0"
+    - "`next build` succeeds with the two new card.flip_* i18n keys present in all 4 locales"
+    - "The Question type carries an optional tags field readable from a votes/questions fetch"
+  artifacts:
+    - path: "vitest.config.ts"
+      provides: "Vitest config (node environment) so pure-logic tests run"
+      contains: "defineConfig"
+    - path: "lib/__tests__/archetypes.test.ts"
+      provides: "Failing/red stub tests for computeTraitScores + computeArchetype"
+      contains: "computeArchetype"
+    - path: "lib/__tests__/awards.test.ts"
+      provides: "Failing/red stub tests for computeDuoAwards + pair sort determinism"
+      contains: "computeDuoAwards"
+    - path: "lib/types.ts"
+      provides: "Question.tags optional field"
+      contains: "tags?: Array<{ tag: string; points: number }>"
+    - path: "lib/i18n.ts"
+      provides: "card.flip_to_personal + card.flip_to_group keys in fr/en/es/de"
+      contains: "flip_to_personal"
+  key_links:
+    - from: "package.json"
+      to: "vitest"
+      via: "devDependency + test script"
+      pattern: "\"test\""
+    - from: "lib/__tests__/archetypes.test.ts"
+      to: "lib/archetypes.ts"
+      via: "import (will resolve once Wave 1 creates the module)"
+      pattern: "from '\\.\\./archetypes'"
+---
+
+<objective>
+Lay the Wave 0 foundation for Phase A: a test runner (Vitest), red test scaffolds for the two pure
+computation modules, the `Question.tags` type addition, and the two new flip-affordance i18n keys.
+
+Purpose: No test runner currently exists in the repo (package.json has only dev/build/start/lint).
+The natural automated proof for the archetype and duo-awards logic is pure-function unit tests, and
+the i18n `Dict` exhaustiveness is enforced by `next build`. Everything downstream (Waves 1–3) depends
+on this scaffold.
+Output: `vitest.config.ts`, a `test` script, two red test files, `Question.tags`, and 2 i18n keys × 4 locales.
+</objective>
+
+<artifacts_produced>
+## Artifacts this phase produces (Plan 01 contributions)
+
+- New dev dependency: `vitest` (+ its transitive deps) in package.json
+- New script: `package.json` `"test": "vitest run"`
+- New file: `vitest.config.ts`
+- New file: `lib/__tests__/archetypes.test.ts` (red stubs — import `computeTraitScores`, `computeArchetype` from `../archetypes`)
+- New file: `lib/__tests__/awards.test.ts` (red stubs — import `computeDuoAwards` from `../awards`)
+- Modified type: `Question` in `lib/types.ts` gains `tags?: Array<{ tag: string; points: number }>`
+- New i18n keys: `card.flip_to_personal`, `card.flip_to_group` (added to fr/en/es/de in `lib/i18n.ts`)
+
+The source-grounding pass should treat `computeTraitScores`, `computeArchetype`, `computeDuoAwards`,
+`lib/archetypes.ts`, and `lib/awards.ts` as symbols created later in this phase (Waves 1) — the test
+imports here will be unresolved until those modules exist, which is expected for red scaffolds.
+</artifacts_produced>
+
+<execution_context>
+@$HOME/.claude/gsd-core/workflows/execute-plan.md
+@$HOME/.claude/gsd-core/templates/summary.md
+</execution_context>
+
+<context>
+@.planning/STATE.md
+@.planning/ROADMAP.md
+@.planning/phases/A-social-profile-archetypes-duo-awards/A-VALIDATION.md
+@.planning/phases/A-social-profile-archetypes-duo-awards/A-RESEARCH.md
+@.planning/phases/A-social-profile-archetypes-duo-awards/A-PATTERNS.md
+@CLAUDE.md
+@lib/types.ts
+</context>
+
+<tasks>
+
+<task type="auto">
+  <name>Task 1: Install + configure Vitest, add test script</name>
+  <read_first>
+    - package.json (the file being modified — confirm scripts block + devDependencies)
+    - .planning/phases/A-social-profile-archetypes-duo-awards/A-VALIDATION.md (Wave 0 Requirements + Test Infrastructure table)
+  </read_first>
+  <action>
+    Add `vitest` as a devDependency and install it (`npm install -D vitest`). Add a `"test": "vitest run"`
+    script to package.json (NOT watch mode — must be `vitest run` so it exits). Create `vitest.config.ts`
+    at repo root using `defineConfig` from `vitest/config` with `test.environment = 'node'` (the modules
+    under test are pure — no DOM, no React) and `test.include = ['lib/__tests__/**/*.test.ts']`. Do NOT add
+    jsdom or any browser-env dependency — the pure modules need none. Keep the config minimal; no coverage
+    thresholds, no setup files. This satisfies the A-VALIDATION.md "Wave 0 installs Vitest" requirement
+    (Vitest chosen over Jest for native ESM + TS support with zero Babel config).
+  </action>
+  <verify>
+    <automated>npx vitest --version</automated>
+  </verify>
+  <acceptance_criteria>
+    - package.json contains `"test": "vitest run"` in the scripts block
+    - package.json devDependencies contains `vitest`
+    - vitest.config.ts exists at repo root and contains `defineConfig`
+    - `npx vitest --version` prints a version and exits 0
+  </acceptance_criteria>
+  <done>Vitest is installed, `npm test` resolves to `vitest run`, and `vitest.config.ts` targets `lib/__tests__/`.</done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task 2: Red test scaffolds for archetypes + awards</name>
+  <read_first>
+    - .planning/phases/A-social-profile-archetypes-duo-awards/A-RESEARCH.md (§ Validation Architecture → Key Unit Test Fixtures; § Archetype Computation Details; § Duo Awards Computation Details)
+    - .planning/phases/A-social-profile-archetypes-duo-awards/A-PATTERNS.md (lib/archetypes.ts + lib/awards.ts export shapes)
+    - lib/game.ts (tallyDesignation, accumulateStats — pure-function reference style)
+  </read_first>
+  <behavior>
+    archetypes.test.ts:
+    - simple archetype: scores {drole:10, fiable:3, audacieux:2, empathique:1, mysterieux:1, romantique:0} → computeArchetype(...).archetypeKey === 'archetype_farceur' (drole 58.8% > 50%)
+    - hybrid archetype: scores {drole:5, empathique:4, fiable:1, audacieux:0, mysterieux:0, romantique:0} → 'archetype_ame_fete' (drole 50%, empathique 40%, both > 25%, gap 10% < 15%)
+    - fallback: all-zero scores → 'archetype_fallback'
+    - floor-at-zero: a negative trait total never produces a negative pct (computeTraitScores output has no negative values)
+    awards.test.ts:
+    - computeDuoAwards returns [] when no pair reaches score >= 2
+    - threshold: a pair with mutual_designations >= 2 earns award_magnetisme
+    - variety rule: when A-B leads two metrics, the second award prefers a different pair if one is tied
+    - determinism (P-19): same players in two different array orders produce identical award assignments (pair sort by player.id)
+  </behavior>
+  <action>
+    Create `lib/__tests__/archetypes.test.ts` and `lib/__tests__/awards.test.ts`. Import the not-yet-existing
+    functions from `../archetypes` and `../awards` respectively (`computeTraitScores`, `computeArchetype` from
+    archetypes; `computeDuoAwards` from awards). Write the test cases described in <behavior> using Vitest's
+    `describe`/`test`/`expect`. These are RED stubs — they MUST fail (module not found) until Wave 1 creates the
+    modules; that is the expected Wave 0 state. Use fixture vote arrays shaped per the votes table:
+    `{ id, round, player_id, vote_type, target_player_id, answer }` where `answer` is a boolean (NOT the string
+    'oui' — the DB column is `answer boolean`, confirmed in supabase/schema.sql L53) and `vote_type` is one of
+    `'designation' | 'confession' | 'volunteer' | 'question_selection'`. Do NOT implement the modules here —
+    only the tests. Keep player/question fixtures small and inline.
+  </action>
+  <verify>
+    <automated>npx vitest run lib/__tests__/archetypes.test.ts lib/__tests__/awards.test.ts; if [ $? -ne 0 ]; then echo "RED-EXPECTED-OK"; fi</automated>
+  </verify>
+  <acceptance_criteria>
+    - lib/__tests__/archetypes.test.ts exists and contains `computeArchetype` and at least 3 `test(` blocks
+    - lib/__tests__/awards.test.ts exists and contains `computeDuoAwards` and a determinism/P-19 test referencing `player.id` ordering
+    - Both test files import from `../archetypes` / `../awards` (relative imports that Wave 1 will satisfy)
+    - Fixture confession votes use `answer: true` (boolean), never the string `'oui'`
+    - Tests are RED now (modules absent) — the run reports failures/unresolved imports, which is expected
+  </acceptance_criteria>
+  <done>Two red test files exist that fully specify the archetype + awards behavior and will go green in Wave 1.</done>
+</task>
+
+<task type="auto">
+  <name>Task 3: Add Question.tags type + 2 flip i18n keys (4 locales)</name>
+  <read_first>
+    - lib/types.ts (the Question type at L9-15 — the file being modified)
+    - lib/i18n.ts (the card: section L159-175 and the Dict type — the file being modified; confirm card: blocks in all 4 locales)
+    - .planning/phases/A-social-profile-archetypes-duo-awards/A-UI-SPEC.md (§ Copywriting Contract → New i18n keys, exact strings for fr/en/es/de)
+    - .planning/phases/A-social-profile-archetypes-duo-awards/A-PATTERNS.md (lib/types.ts + lib/i18n.ts modification patterns)
+  </read_first>
+  <action>
+    In lib/types.ts add an OPTIONAL field to the `Question` type: `tags?: Array<{ tag: string; points: number }>`.
+    Optional is mandatory for backward compat — pre-migration rows and existing `pickCandidates` results have no
+    tags (REQ-AR-01: column defaults to `'[]'::jsonb`). Do NOT add ArchetypeResult/DuoAward/TraitKey here — those
+    live in their own modules (Wave 1). In lib/i18n.ts add two keys to the `card:` section of ALL FOUR locale
+    objects (fr, en, es, de) and to the `card:` shape in the `Dict` type so TypeScript enforces exhaustiveness:
+    `flip_to_personal` and `flip_to_group`. Exact values per A-UI-SPEC.md — FR: "↻ voir ton archétype" /
+    "↻ voir le groupe"; EN: "↻ see your archetype" / "↻ see the group"; ES: "↻ ver tu arquetipo" /
+    "↻ ver el grupo"; DE: "↻ Archetyp ansehen" / "↻ Gruppe ansehen". Do NOT touch the already-present
+    `archetypes.*` / `duo_awards.*` keys (verified present in all 4 locales — i18n.ts L188-244).
+  </action>
+  <verify>
+    <automated>npx next build</automated>
+  </verify>
+  <acceptance_criteria>
+    - lib/types.ts Question type contains `tags?: Array<{ tag: string; points: number }>`
+    - lib/i18n.ts contains `flip_to_personal` and `flip_to_group` (one occurrence per locale = 4 each + Dict type)
+    - `npx next build` succeeds (Dict exhaustiveness across fr/en/es/de holds — a missing locale key fails the build)
+    - The 22 archetype keys and 4 duo_awards keys are untouched (no diff in those lines)
+  </acceptance_criteria>
+  <done>Question.tags is typed, both flip keys exist in all 4 locales, and `next build` passes.</done>
+</task>
+
+</tasks>
+
+<threat_model>
+## Trust Boundaries
+
+| Boundary | Description |
+|----------|-------------|
+| dev-tooling install | `npm install -D vitest` pulls new packages from the npm registry into devDependencies |
+
+## STRIDE Threat Register
+
+| Threat ID | Category | Component | Disposition | Mitigation Plan |
+|-----------|----------|-----------|-------------|-----------------|
+| T-A-01 | Tampering | vitest npm install (supply chain) | mitigate | Vitest is a first-party, widely-used test runner from the Vite org (vitejs/vitest, 30M+ weekly downloads). Pin via package-lock; no postinstall scripts beyond standard. Single well-known package — no `[ASSUMED]`/`[SUS]`/`[SLOP]` packages in this phase (no Package Legitimacy table required since the only install is the universally-recognized Vitest). |
+| T-A-02 | Information disclosure | i18n strings | accept | Flip-affordance copy is non-sensitive UI text; no data exposure. |
+
+No anonymity-boundary surface in this plan (no votes are read here). The P-04 / P-12 privacy work lives in Plans 02 and 05.
+</threat_model>
+
+<verification>
+- `npx vitest --version` exits 0 (runner installed)
+- `npx vitest run lib/__tests__/archetypes.test.ts lib/__tests__/awards.test.ts` runs and reports RED (modules not yet created) — expected Wave 0 state
+- `npx next build` succeeds (Question.tags compiles; Dict exhaustiveness holds with the 2 new keys)
+</verification>
+
+<success_criteria>
+- Vitest installed, `npm test` → `vitest run`, `vitest.config.ts` targets `lib/__tests__/`
+- Two red test files fully specify archetype + awards behavior (will go green in Wave 1)
+- `Question.tags` optional field added; no other type leakage into lib/types.ts
+- `card.flip_to_personal` + `card.flip_to_group` present in fr/en/es/de; `next build` passes
+</success_criteria>
+
+<output>
+Create `.planning/phases/A-social-profile-archetypes-duo-awards/A-01-SUMMARY.md` when done
+</output>

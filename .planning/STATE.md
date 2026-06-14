@@ -3,28 +3,40 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Superpowers
 current_phase: A
-status: ui_spec_approved
-last_updated: "2026-06-14T17:32:44.293Z"
-resume_file: .planning/phases/A-social-profile-archetypes-duo-awards/A-UI-SPEC.md
+status: phase_planned
+last_updated: "2026-06-14T18:10:00.000Z"
+resume_file: .planning/phases/A-social-profile-archetypes-duo-awards/A-01-PLAN.md
 progress:
   total_phases: 0
   completed_phases: 0
-  total_plans: 0
+  total_plans: 5
   completed_plans: 0
 ---
 
 # Project State
 
 **Last updated:** 2026-06-14
-**Current phase:** A — Social Profile & Archetypes + Duo Awards (CONTEXT.md + UI-SPEC.md approved, ready for planning)
-**Overall status:** v3.0 in progress. Phase A discussed + UI design contract approved (6/6 dimensions); next is `/gsd-plan-phase A`.
+**Current phase:** A — Social Profile & Archetypes + Duo Awards (PLANNED — 5 plans across 4 waves)
+**Overall status:** v3.0 in progress. Phase A planned; next is `/gsd-execute-phase A`.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-12)
 
 **Core value:** Creating genuine human moments through structured social questions — the app triggers the moment, the group handles the dynamic.
-**Current focus:** Planning v3.0 milestone (Social Profile & Archetypes + Duo Awards + Contextual Questions + Power Cards)
+**Current focus:** Executing v3.0 Phase A (Social Profile & Archetypes + Duo Awards)
+
+## Phase A Plan Set
+
+| Plan | Wave | Objective | Autonomous |
+|------|------|-----------|------------|
+| A-01 | 0 | Vitest install + config, red test scaffolds, Question.tags type, 2 flip i18n keys | yes |
+| A-02 | 1 | lib/archetypes.ts — computeTraitScores + computeArchetype (TDD, P-04 boundary) | yes |
+| A-03 | 1 | lib/awards.ts — computeDuoAwards + 5 metrics (TDD, P-19 determinism) | yes |
+| A-04 | 2 | ArchetypeBlock.tsx + DuoAwardsBlock.tsx (capture-safe presentation) | yes |
+| A-05 | 3 | ShareCard/EndScreen 2-face refactor + computation hub + end-to-end verify | no (checkpoints) |
+
+**Planner decision:** D-08 (background `tag_scores` write) DEFERRED wholesale with D-07 — the OAuth-redirect PendingStatsFlusher branch is non-trivial added complexity, which D-08 says NOT to fold in. Phase A stays session-only.
 
 ## Deferred Items
 
@@ -41,10 +53,12 @@ Items acknowledged and deferred at milestone close on 2026-06-12:
 | verification_gap | Phase 02: 02-VERIFICATION.md | human_needed — confirmed passing by user |
 | verification_gap | Phase 03: 03-VERIFICATION.md | human_needed — confirmed passing by user |
 | verification_gap | Phase 05: 05-VERIFICATION.md | human_needed — confirmed passing by user |
+| scope | D-08 tag_scores background write | deferred to Bipolar Sliders phase (with D-07) |
+| scope | cross-session archetype on /profile + bipolar sliders | deferred to Bipolar Sliders phase |
 
 ## Notes
 
 - v2.0 shipped with optional Google OAuth, cross-session stats, /profile page
 - Anonymous game flow unchanged — accounts never required
-- AUTH-02/AUTH-04/IDEN-01 human verification confirmed by user at close
-- Next: `/gsd-new-milestone` to start v3.0 planning
+- Phase A: all DB groundwork (tags column, curation, i18n keys) already staged; A-05 verifies tags live on prod before relying on archetype output (P-18 risk)
+- Next: `/gsd-execute-phase A` (`/clear` first for a fresh context window)

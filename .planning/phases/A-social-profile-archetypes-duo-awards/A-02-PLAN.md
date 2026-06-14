@@ -1,0 +1,198 @@
+---
+phase: A-social-profile-archetypes-duo-awards
+plan: 02
+type: tdd
+wave: 1
+depends_on: ["A-social-profile-archetypes-duo-awards-01"]
+files_modified:
+  - lib/archetypes.ts
+  - lib/__tests__/archetypes.test.ts
+autonomous: true
+requirements: [REQ-AR-03, REQ-AR-04]
+must_haves:
+  truths:
+    - "computeTraitScores returns per-trait integer scores, floored at 0, for a player's own votes + played question tags"
+    - "computeArchetype maps trait scores to one of 22 archetype keys via simple/hybrid/fallback thresholds"
+    - "Type B archetype points come ONLY from the player's own confession votes (answer===true), never from game_state public fields (P-04)"
+    - "npx vitest run exits 0 (archetypes.test.ts green)"
+  artifacts:
+    - path: "lib/archetypes.ts"
+      provides: "Pure archetype engine: computeTraitScores, computeArchetype, TRAIT_COLORS, SIMPLE_ARCHETYPES, HYBRID_ARCHETYPES, TraitKey, ArchetypeResult, TraitEntry"
+      exports: ["computeTraitScores", "computeArchetype", "TRAIT_COLORS", "SIMPLE_ARCHETYPES", "HYBRID_ARCHETYPES"]
+      contains: "export function computeArchetype("
+      min_lines: 80
+  key_links:
+    - from: "lib/archetypes.ts"
+      to: "lib/types.ts"
+      via: "import GameState type"
+      pattern: "from './types'"
+    - from: "lib/archetypes.ts"
+      to: "played_question_ids round mapping"
+      via: "gs.played_question_ids[round - 1] cross-reference"
+      pattern: "played_question_ids"
+---
+
+<objective>
+Implement `lib/archetypes.ts` — the pure, Supabase-free archetype engine — driven by the red tests from
+Plan 01 (TDD: make them green). It computes a player's 6 trait scores from their OWN votes and the played
+questions' `tags`, then maps those scores to one of 22 archetypes (6 simple + 15 hybrid + 1 fallback).
+
+Purpose: This is the data brain behind Face 2 of the share card (REQ-AR-03, REQ-AR-04). It must be pure
+(no Supabase, no React) so it is unit-testable and matches the established `lib/game.ts` engine boundary.
+The anonymity boundary (P-04) is enforced here in code: Type B points read only the player's own
+`confession` votes with `answer === true` — never `game_state.revealed_player_ids` or `gs.stats.confessed`.
+Output: `lib/archetypes.ts` with all exports green against `lib/__tests__/archetypes.test.ts`.
+</objective>
+
+<artifacts_produced>
+## Artifacts this phase produces (Plan 02 contributions)
+
+- New module: `lib/archetypes.ts`
+- New functions: `computeTraitScores(myVotes, playedQuestions, gs)`, `computeArchetype(scores)`
+- New constants: `TRAIT_COLORS`, `SIMPLE_ARCHETYPES`, `HYBRID_ARCHETYPES`
+- New types: `TraitKey`, `TraitEntry`, `ArchetypeResult` (exported from `lib/archetypes.ts`, NOT lib/types.ts)
+- Internal helper: `wasActor` (or equivalent per-round actor determination), not exported
+</artifacts_produced>
+
+<execution_context>
+@$HOME/.claude/gsd-core/workflows/execute-plan.md
+@$HOME/.claude/gsd-core/templates/summary.md
+</execution_context>
+
+<context>
+@.planning/phases/A-social-profile-archetypes-duo-awards/A-RESEARCH.md
+@.planning/phases/A-social-profile-archetypes-duo-awards/A-PATTERNS.md
+@docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md
+@CLAUDE.md
+@lib/game.ts
+@lib/types.ts
+@lib/__tests__/archetypes.test.ts
+</context>
+
+<tasks>
+
+<task type="tdd" tdd="true">
+  <name>Task 1: TraitKey/ArchetypeResult types + computeArchetype (simple/hybrid/fallback)</name>
+  <read_first>
+    - lib/__tests__/archetypes.test.ts (the red tests this task must turn green)
+    - .planning/phases/A-social-profile-archetypes-duo-awards/A-RESEARCH.md (§ Archetype Computation Details → SIMPLE_ARCHETYPES, HYBRID_ARCHETYPES tables, hybrid threshold algorithm; Pattern 1)
+    - docs/superpowers/specs/2026-06-10-social-profile-archetypes-design.md (canonical 21 archetypes + thresholds)
+    - lib/game.ts (computeGroupTitle / tallyDesignation — pure-function export style, Record reduce pattern)
+  </read_first>
+  <behavior>
+    - total === 0 → { archetypeKey: 'archetype_fallback', topTraits: [] }
+    - single trait pct > 50% → SIMPLE_ARCHETYPES[trait] (e.g. drole dominant → 'archetype_farceur')
+    - top-2 both > 25% AND (top0.pct - top1.pct) < 15% → HYBRID_ARCHETYPES[sortedPairKey] (e.g. drole+empathique → 'archetype_ame_fete')
+    - hybrid pair key built by [top0.key, top1.key].sort().join('+') (alphabetical) so both orderings map to the same key
+    - neither simple nor a known hybrid → 'archetype_fallback'
+    - topTraits = top 3 entries with pct > 0, sorted desc, each { key, pct } with pct = Math.round(val/total*100)
+  </behavior>
+  <action>
+    RED→GREEN. Define and export `type TraitKey = 'drole' | 'fiable' | 'audacieux' | 'empathique' |
+    'mysterieux' | 'romantique'`, `interface TraitEntry { key: TraitKey; pct: number }`, and
+    `interface ArchetypeResult { archetypeKey: string; topTraits: TraitEntry[] }`. Export the
+    `SIMPLE_ARCHETYPES` map (drole→archetype_farceur, fiable→archetype_confident, audacieux→archetype_leader,
+    empathique→archetype_diplomate, mysterieux→archetype_mysterieux, romantique→archetype_romantique) and the
+    15-entry `HYBRID_ARCHETYPES` map keyed by alphabetically-sorted `"traitA+traitB"` strings exactly as listed
+    in A-RESEARCH.md § Archetype Computation Details. Export `TRAIT_COLORS` (the 6 hex values from A-UI-SPEC.md:
+    drole #F59E0B, fiable #3B82F6, audacieux #EF4444, empathique #22C55E, mysterieux #A855F7, romantique #EC4899).
+    Implement `computeArchetype(scores: Record<TraitKey, number>): ArchetypeResult` per <behavior>. Use a `never`
+    exhaustiveness discipline where a switch over TraitKey is touched (Claude's discretion per A-CONTEXT.md).
+    No fenced code in this action — copy concrete identifiers from A-RESEARCH.md Pattern 1.
+  </action>
+  <verify>
+    <automated>npx vitest run lib/__tests__/archetypes.test.ts -t "archetype"</automated>
+  </verify>
+  <acceptance_criteria>
+    - lib/archetypes.ts contains `export function computeArchetype(`
+    - lib/archetypes.ts exports `TRAIT_COLORS`, `SIMPLE_ARCHETYPES`, `HYBRID_ARCHETYPES`
+    - HYBRID_ARCHETYPES has exactly 15 entries; SIMPLE_ARCHETYPES has exactly 6
+    - The archetype-named tests in archetypes.test.ts pass (simple, hybrid, fallback cases green)
+    - `npx vitest run lib/__tests__/archetypes.test.ts -t "archetype"` exits 0
+  </acceptance_criteria>
+  <done>computeArchetype maps any trait-score record to the correct one of 22 keys; archetype tests green.</done>
+</task>
+
+<task type="tdd" tdd="true">
+  <name>Task 2: computeTraitScores (per-round actor determination, P-04 anonymity boundary)</name>
+  <read_first>
+    - lib/__tests__/archetypes.test.ts (the computeTraitScores red tests)
+    - .planning/phases/A-social-profile-archetypes-duo-awards/A-RESEARCH.md (§ Archetype Computation Details → Actor Determination Per Question Type table; Pattern 4; PRIVACY NOTE on Type B)
+    - .planning/phases/A-social-profile-archetypes-duo-awards/A-PATTERNS.md (lib/archetypes.ts → Round-to-question mapping; Key archetype-specific rule for Type B)
+    - lib/types.ts (GameState.played_question_ids, SessionStats shape; Question.tags from Plan 01)
+    - supabase/schema.sql (votes columns: round, player_id, vote_type, target_player_id, answer boolean)
+  </read_first>
+  <behavior>
+    Given myVotes (votes WHERE player_id = myId) + playedQuestions (with tags) + gs:
+    - For each played question, map round number → question via played_question_ids[round-1]; read q.type and q.tags.
+    - Type A actor: a designation vote in that round with target_player_id === myId (I was designated). Apply q.tags points.
+    - Type B actor: my own vote in that round with vote_type==='confession' AND answer===true. Apply q.tags points. (P-04: never read gs.revealed_player_ids / gs.stats.confessed)
+    - Type C volunteer actor: my own vote in that round with vote_type==='volunteer'. Apply q.tags points.
+    - Type C roulette actor: a designation vote in that round targeting myId where the played question for that round is type C. Apply q.tags points.
+    - Non-actor rounds contribute 0. Untagged questions ([] tags) contribute 0.
+    - Each trait floored at 0 in the returned Record (negative running totals clamp to 0).
+    - Confession votes use answer===true (boolean), not the string 'oui'.
+  </behavior>
+  <action>
+    RED→GREEN. Implement `computeTraitScores(myVotes: VoteRow[], playedQuestions: QuestionWithTags[],
+    gs: GameState): Record<TraitKey, number>`. Define the `VoteRow` shape inline (or a local type) as
+    `{ id: string; round: number; player_id: string; vote_type: string; target_player_id: string | null;
+    answer: boolean | null }` matching the votes table. Use the round→question mapping
+    `gs.played_question_ids[round - 1]` and the question's `.type` to disambiguate Type A vs Type C-roulette
+    designations (both are `vote_type='designation'` targeting myId — only the played question type distinguishes
+    them, per A-RESEARCH.md Pattern 4). Initialize all 6 traits to 0, accumulate `points` per matching tag,
+    then `Math.max(0, score)` floor each. CRITICAL P-04: the ONLY Type B source is
+    `myVotes.filter(v => v.vote_type === 'confession' && v.answer === true)` for the relevant round — add an
+    inline comment marking this as the anonymity boundary. Do NOT import or read `gs.revealed_player_ids`,
+    `gs.stats.confessed`, or `gs.designated_player_ids` (last-round-only — wrong for cross-round attribution).
+    Reuse the nullish-coalesce/floor patterns from lib/game.ts accumulateStats. No fenced code in the action.
+  </action>
+  <verify>
+    <automated>npx vitest run lib/__tests__/archetypes.test.ts</automated>
+  </verify>
+  <acceptance_criteria>
+    - lib/archetypes.ts contains `export function computeTraitScores(`
+    - The Type B branch references `vote_type === 'confession'` and `answer === true` and contains a comment naming the P-04 anonymity boundary
+    - `lib/archetypes.ts` does NOT contain the strings `revealed_player_ids` or `stats.confessed` (grep returns no match — P-04 code-review gate)
+    - All tests in lib/__tests__/archetypes.test.ts pass: `npx vitest run lib/__tests__/archetypes.test.ts` exits 0
+    - Returned scores are all >= 0 (floor-at-zero test green)
+  </acceptance_criteria>
+  <done>computeTraitScores produces floored per-trait scores from own votes + played question tags, with Type B sourced only from own confession votes; full archetypes suite green.</done>
+</task>
+
+</tasks>
+
+<threat_model>
+## Trust Boundaries
+
+| Boundary | Description |
+|----------|-------------|
+| client computation reads own votes | computeTraitScores receives the player's own vote rows; Type B confession answers are sensitive |
+| public game_state fields | gs.revealed_player_ids / gs.stats.confessed are public to all clients — using them for Type B leaks who confessed |
+
+## STRIDE Threat Register
+
+| Threat ID | Category | Component | Disposition | Mitigation Plan |
+|-----------|----------|-----------|-------------|-----------------|
+| T-A-03 | Information disclosure | Type B archetype point sourcing (P-04) | mitigate | Source Type B points ONLY from `myVotes` (player's own `confession` votes, `answer===true`). Forbid any read of `gs.revealed_player_ids` / `gs.stats.confessed` in this module — enforced by a grep acceptance criterion. Inline comment marks the boundary. |
+| T-A-04 | Tampering | cross-client determinism of archetype | accept | Archetype is per-player (Face 2) and computed from the player's own votes — no cross-client agreement needed (that constraint applies to duo awards / Face 1 in Plan 03). |
+| T-A-05 | Repudiation | none | accept | Pure function, no persistence in this plan (D-08 deferred). |
+</threat_model>
+
+<verification>
+- `npx vitest run lib/__tests__/archetypes.test.ts` exits 0 (all archetype + trait-score tests green)
+- Grep `revealed_player_ids` and `stats.confessed` inside lib/archetypes.ts returns no matches (P-04 gate)
+- `lib/archetypes.ts` has no Supabase or React import (pure-module boundary, like lib/game.ts)
+</verification>
+
+<success_criteria>
+- `computeArchetype` resolves all 22 archetype keys per simple/hybrid/fallback thresholds
+- `computeTraitScores` does per-round actor determination via played_question_ids mapping, floors at 0
+- Type B points sourced exclusively from the player's own confession votes (P-04 enforced + grep-verified)
+- `lib/archetypes.ts` exports TRAIT_COLORS, SIMPLE_ARCHETYPES, HYBRID_ARCHETYPES, TraitKey, ArchetypeResult, TraitEntry
+- Full archetypes test suite green
+</success_criteria>
+
+<output>
+Create `.planning/phases/A-social-profile-archetypes-duo-awards/A-02-SUMMARY.md` when done
+</output>
