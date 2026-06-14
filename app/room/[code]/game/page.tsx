@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, forwardRef, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, forwardRef, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
@@ -20,6 +20,12 @@ import type { User } from '@supabase/supabase-js'
 import { getPlayerId, clearPlayerId, setPendingStats, getPendingStats } from '@/lib/utils'
 import type { Dict } from '@/lib/i18n'
 import { GameState, Player, Question, Room } from '@/lib/types'
+import { computeTraitScores, computeArchetype } from '@/lib/archetypes'
+import type { ArchetypeResult, VoteRow } from '@/lib/archetypes'
+import { computeDuoAwards } from '@/lib/awards'
+import type { DuoAward } from '@/lib/awards'
+import { ArchetypeBlock } from '@/components/ArchetypeBlock'
+import { DuoAwardsBlock } from '@/components/DuoAwardsBlock'
 
 // ---------------------------------------------------------------------------
 // Design tokens
@@ -1184,6 +1190,152 @@ function momentStat(titleKey: string, stats: GameState['stats'], totalRounds: nu
 
 type PlayerStats = { designated: number; confessed: number; volunteered: number }
 
+// ---------------------------------------------------------------------------
+// ShareCard — shared bottom: player pills + footer (both faces reuse this)
+// ---------------------------------------------------------------------------
+
+function CardFooter({ players }: { players: Player[] }) {
+  const fr = useT()
+  return (
+    <>
+      <div style={{ flex: 1, minHeight: 0 }} />
+      {/* Players pills */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0 }}>
+        {players.map((p, i) => {
+          const color = avatarColor(i)
+          return (
+            <span key={p.id} style={{
+              background: C.surface, border: `1px solid ${C.border}`,
+              color: '#fff', fontSize: 14, fontWeight: 500,
+              borderRadius: 999, padding: '6px 14px',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: color, display: 'inline-block' }} />
+              {p.pseudo}
+            </span>
+          )
+        })}
+      </div>
+      <p style={{ color: C.faint, fontSize: 13, margin: 0, textAlign: 'center', flexShrink: 0 }}>
+        {fr.card.footer}
+      </p>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ShareCard — Face 1: group title + DuoAwardsBlock (when >= 2 awards qualify)
+// ---------------------------------------------------------------------------
+
+function Face1GroupContent({
+  titleName, duoAwards, themeColor, players,
+}: {
+  titleName: string
+  duoAwards: DuoAward[]
+  themeColor: string
+  players: Player[]
+}) {
+  const fr = useT()
+  return (
+    <>
+      {/* Group title */}
+      <div style={{ flexShrink: 0 }}>
+        <p style={{ color: C.muted, fontSize: 13, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {fr.end.group_title_label}
+        </p>
+        <h1 style={{
+          fontFamily: 'var(--font-display)', fontWeight: 800, color: '#fff',
+          fontSize: 42, lineHeight: 1.1, margin: '8px 0 0',
+        }}>
+          {titleName}
+        </h1>
+      </div>
+
+      {/* DuoAwardsBlock — only when >= 2 awards qualify (D-03 / REQ-DA-03) */}
+      {duoAwards.length >= 2 && (
+        <DuoAwardsBlock awards={duoAwards} themeColor={themeColor} />
+      )}
+
+      <CardFooter players={players} />
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ShareCard — Face 2: personal stats (existing) + ArchetypeBlock
+// ---------------------------------------------------------------------------
+
+function Face2PersonalContent({
+  statText, myPseudo, myStats, archetype, themeColor, players,
+}: {
+  statText: string
+  myPseudo?: string
+  myStats?: PlayerStats
+  archetype: ArchetypeResult | null
+  themeColor: string
+  players: Player[]
+}) {
+  const fr = useT()
+  const hasPersonal = myStats && (myStats.designated > 0 || myStats.confessed > 0 || myStats.volunteered > 0)
+  return (
+    <>
+      {/* Moment fort — existing, unchanged */}
+      <div style={{
+        background: C.surface, borderRadius: 18, padding: '14px 18px',
+        borderLeft: `4px solid ${themeColor}`, flexShrink: 0,
+      }}>
+        <p style={{ color: C.muted, fontSize: 12, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {fr.card.moment}
+        </p>
+        <p style={{ color: '#fff', fontSize: 16, fontWeight: 500, margin: '6px 0 0', lineHeight: 1.35 }}>
+          {statText}
+        </p>
+      </div>
+
+      {/* Personal stats — existing, unchanged; only shown when the player has at least one event */}
+      {hasPersonal && myPseudo && (
+        <div style={{ background: C.surface, borderRadius: 18, padding: '14px 18px', flexShrink: 0 }}>
+          <p style={{ color: C.muted, fontSize: 11, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {myPseudo} · {fr.card.tonight}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {myStats!.designated > 0 && (
+              <span style={{ background: `${C.a}22`, color: C.a, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
+                {fr.end.stat_designated(myStats!.designated)}
+              </span>
+            )}
+            {myStats!.confessed > 0 && (
+              <span style={{ background: `${C.b}22`, color: C.b, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
+                {fr.end.stat_confessed(myStats!.confessed)}
+              </span>
+            )}
+            {myStats!.volunteered > 0 && (
+              <span style={{ background: `${C.c}22`, color: C.c, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
+                {fr.end.stat_volunteered(myStats!.volunteered)}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ArchetypeBlock — only when archetype is non-null (REQ-AR-05) */}
+      {archetype !== null && (
+        <ArchetypeBlock
+          archetypeKey={archetype.archetypeKey}
+          topTraits={archetype.topTraits}
+          themeColor={themeColor}
+        />
+      )}
+
+      <CardFooter players={players} />
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ShareCard — 2-face share card (rendered to PNG via modern-screenshot).
+// ---------------------------------------------------------------------------
+
 // Square share card (rendered to PNG via modern-screenshot).
 const ShareCard = forwardRef<HTMLDivElement, {
   theme: string
@@ -1192,10 +1344,11 @@ const ShareCard = forwardRef<HTMLDivElement, {
   players: Player[]
   myPseudo?: string
   myStats?: PlayerStats
-}>(function ShareCard({ theme, titleName, statText, players, myPseudo, myStats }, ref) {
-  const fr = useT()
+  activeCard: 'group' | 'personal'
+  archetype: ArchetypeResult | null
+  duoAwards: DuoAward[]
+}>(function ShareCard({ theme, titleName, statText, players, myPseudo, myStats, activeCard, archetype, duoAwards }, ref) {
   const meta = THEME_META[theme] ?? { name: theme, color: C.a }
-  const hasPersonal = myStats && (myStats.designated > 0 || myStats.confessed > 0 || myStats.volunteered > 0)
 
   return (
     <div
@@ -1219,80 +1372,24 @@ const ShareCard = forwardRef<HTMLDivElement, {
           </span>
         </div>
 
-        {/* Group title */}
-        <div style={{ flexShrink: 0 }}>
-          <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{fr.end.group_title_label}</p>
-          <h1 style={{
-            fontFamily: 'var(--font-display)', fontWeight: 800, color: '#fff',
-            fontSize: 42, lineHeight: 1.1, margin: '6px 0 0',
-          }}>
-            {titleName}
-          </h1>
-        </div>
-
-        {/* Moment fort */}
-        <div style={{
-          background: C.surface, borderRadius: 18, padding: '14px 18px',
-          borderLeft: `4px solid ${meta.color}`, flexShrink: 0,
-        }}>
-          <p style={{ color: C.muted, fontSize: 12, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {fr.card.moment}
-          </p>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 500, margin: '6px 0 0', lineHeight: 1.35 }}>
-            {statText}
-          </p>
-        </div>
-
-        {/* Personal stats — only shown when the player has at least one event */}
-        {hasPersonal && myPseudo && (
-          <div style={{ background: C.surface, borderRadius: 18, padding: '14px 18px', flexShrink: 0 }}>
-            <p style={{ color: C.muted, fontSize: 11, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {myPseudo} · {fr.card.tonight}
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {myStats!.designated > 0 && (
-                <span style={{ background: `${C.a}22`, color: C.a, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
-                  {fr.end.stat_designated(myStats!.designated)}
-                </span>
-              )}
-              {myStats!.confessed > 0 && (
-                <span style={{ background: `${C.b}22`, color: C.b, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
-                  {fr.end.stat_confessed(myStats!.confessed)}
-                </span>
-              )}
-              {myStats!.volunteered > 0 && (
-                <span style={{ background: `${C.c}22`, color: C.c, fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '4px 12px' }}>
-                  {fr.end.stat_volunteered(myStats!.volunteered)}
-                </span>
-              )}
-            </div>
-          </div>
+        {/* Conditional face render — NEVER display:none on the other face (P-07 / Pitfall 5) */}
+        {activeCard === 'group' ? (
+          <Face1GroupContent
+            titleName={titleName}
+            duoAwards={duoAwards}
+            themeColor={meta.color}
+            players={players}
+          />
+        ) : (
+          <Face2PersonalContent
+            statText={statText}
+            myPseudo={myPseudo}
+            myStats={myStats}
+            archetype={archetype}
+            themeColor={meta.color}
+            players={players}
+          />
         )}
-
-        {/* Spacer pushes players + footer to the bottom */}
-        <div style={{ flex: 1, minHeight: 0 }} />
-
-        {/* Players pills */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0 }}>
-          {players.map((p, i) => {
-            const color = avatarColor(i)
-            return (
-              <span key={p.id} style={{
-                background: C.surface, border: `1px solid ${C.border}`,
-                color: '#fff', fontSize: 14, fontWeight: 500,
-                borderRadius: 999, padding: '6px 14px',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ width: 8, height: 8, borderRadius: 999, background: color, display: 'inline-block' }} />
-                {p.pseudo}
-              </span>
-            )
-          })}
-        </div>
-
-        <p style={{ color: C.faint, fontSize: 13, margin: 0, textAlign: 'center', flexShrink: 0 }}>
-          {fr.card.footer}
-        </p>
       </div>
     </div>
   )
@@ -1341,6 +1438,59 @@ function EndScreen({
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gs?.phase, gs?.session_uuid, user?.id])
+
+  // ---------------------------------------------------------------------------
+  // Phase 6 — EndScreen computation hub (P-05: single fetch at 'ended')
+  // Fetches all room votes + played questions once; memoizes archetype + awards.
+  // ---------------------------------------------------------------------------
+
+  // Derive roomId from players (Player.room_id is always present — lib/types.ts L5).
+  const roomId = players[0]?.room_id ?? null
+
+  const [allRoomVotes, setAllRoomVotes] = useState<VoteRow[] | null>(null)
+  const [playedQuestions, setPlayedQuestions] = useState<Question[] | null>(null)
+
+  // Single-fire fetch at 'ended' (dependency array: [gs?.phase] — P-05).
+  // roomId and played_question_ids are stable once phase === 'ended'.
+  useEffect(() => {
+    if (gs?.phase !== 'ended' || !roomId) return
+
+    // Fetch all room votes with explicit column list (06-RESEARCH.md open question 3).
+    supabase
+      .from('votes')
+      .select('id, round, player_id, vote_type, target_player_id, answer')
+      .eq('room_id', roomId)
+      .then(({ data }) => setAllRoomVotes((data ?? []) as VoteRow[]))
+
+    // Fetch played questions (with tags for archetype computation).
+    const playedIds = gs.played_question_ids ?? []
+    if (playedIds.length > 0) {
+      supabase
+        .from('questions')
+        .select()
+        .in('id', playedIds)
+        .then(({ data }) => setPlayedQuestions((data ?? []) as Question[]))
+    } else {
+      setPlayedQuestions([])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gs?.phase])
+
+  // archetypeResult: compute from own votes + played question tags (T-A-12 boundary).
+  // Only myVotes (player_id === myId) reach computeTraitScores — never all room votes.
+  const archetypeResult = useMemo((): ArchetypeResult | null => {
+    if (!allRoomVotes || !playedQuestions || !myId) return null
+    const myVotes = allRoomVotes.filter((v) => v.player_id === myId)
+    const scores = computeTraitScores(myVotes, playedQuestions, gs)
+    return computeArchetype(scores)
+  }, [allRoomVotes, playedQuestions, myId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // duoAwardsResult: compute from all room votes + all players (P-19 determinism in computeDuoAwards).
+  const duoAwardsResult = useMemo((): DuoAward[] => {
+    if (!allRoomVotes || !players || players.length < 2) return []
+    return computeDuoAwards(allRoomVotes, players)
+  }, [allRoomVotes, players]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Derive from the accumulated stats so the count and the title percentages
   // share the same denominator (every completed round lands in exactly one of these).
   const totalRounds = gs.stats.rounds_a + gs.stats.rounds_b + gs.stats.rounds_c
@@ -1358,6 +1508,7 @@ function EndScreen({
   } : undefined
 
   const [showCard, setShowCard] = useState(false)
+  const [activeCard, setActiveCard] = useState<'group' | 'personal'>('group')
   const [exporting, setExporting] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -1446,7 +1597,7 @@ function EndScreen({
     <GameScreen
       footer={
         <div className="flex flex-col gap-2">
-          <PrimaryBtn onClick={() => setShowCard(true)} accent={C.a}>{fr.end.share_cta}</PrimaryBtn>
+          <PrimaryBtn onClick={() => { setActiveCard('group'); setShowCard(true) }} accent={C.a}>{fr.end.share_cta}</PrimaryBtn>
           {isHost && <GhostBtn onClick={onNewRound}>{fr.end.new_round}</GhostBtn>}
           <GhostBtn onClick={onLeave}>{fr.end.leave}</GhostBtn>
         </div>
@@ -1572,16 +1723,55 @@ function EndScreen({
           onClick={() => !exporting && setShowCard(false)}
         >
           <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-4">
-            {/* Full-size card rendered off-screen — captured as-is (no transform → no crop). */}
+            {/* Full-size card rendered off-screen — captured as-is (no transform → no crop).
+                Renders ONLY the active face (no display:none — P-07 / REQ-DA-04). */}
             <div style={{ position: 'fixed', top: 0, left: -10000, pointerEvents: 'none' }} aria-hidden>
-              <ShareCard ref={cardRef} theme={theme} titleName={title.name} statText={statText} players={players} myPseudo={myPseudo} myStats={myStats} />
+              <ShareCard
+                ref={cardRef}
+                theme={theme}
+                titleName={title.name}
+                statText={statText}
+                players={players}
+                myPseudo={myPseudo}
+                myStats={myStats}
+                activeCard={activeCard}
+                archetype={archetypeResult}
+                duoAwards={duoAwardsResult}
+              />
             </div>
-            {/* Scaled-down visual preview (display only). */}
-            <div style={{ width: 313, height: 313, overflow: 'hidden', borderRadius: 16 }}>
+
+            {/* Scaled-down visual preview (display only — no ref).
+                onClick tap-to-flip: toggles activeCard (150ms opacity fade, no 3D rotateY — D-01). */}
+            <div
+              style={{ width: 313, height: 313, overflow: 'hidden', borderRadius: 16, cursor: 'pointer' }}
+              onClick={() => setActiveCard((c) => c === 'group' ? 'personal' : 'group')}
+              title={activeCard === 'group' ? fr.card.flip_to_personal : fr.card.flip_to_group}
+            >
               <div style={{ transform: 'scale(0.58)', transformOrigin: 'top left', width: 540, height: 540 }}>
-                <ShareCard theme={theme} titleName={title.name} statText={statText} players={players} myPseudo={myPseudo} myStats={myStats} />
+                <ShareCard
+                  theme={theme}
+                  titleName={title.name}
+                  statText={statText}
+                  players={players}
+                  myPseudo={myPseudo}
+                  myStats={myStats}
+                  activeCard={activeCard}
+                  archetype={archetypeResult}
+                  duoAwards={duoAwardsResult}
+                />
               </div>
             </div>
+
+            {/* Flip affordance — rendered OUTSIDE the capture container (D-02).
+                Never inside the off-screen ShareCard div — not captured in PNG. */}
+            <p
+              style={{ fontSize: 13, color: C.faint, textAlign: 'center', cursor: 'pointer', margin: 0 }}
+              onClick={() => setActiveCard((c) => c === 'group' ? 'personal' : 'group')}
+            >
+              {activeCard === 'group' ? fr.card.flip_to_personal : fr.card.flip_to_group}
+            </p>
+
+            {/* Share button — OUTSIDE capture container (D-02, per 06-UI-SPEC.md) */}
             <div className="flex flex-col gap-2 w-full" style={{ maxWidth: 320 }}>
               <PrimaryBtn onClick={exportCard} accent={C.a} disabled={exporting}>
                 {exporting ? fr.card.generating : fr.card.download}
