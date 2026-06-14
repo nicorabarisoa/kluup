@@ -33,7 +33,7 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
 Plans:
 - [x] 06-01-PLAN.md — Wave 0: Vitest install + config, red test scaffolds, Question.tags type, 2 flip i18n keys
 - [x] 06-02-PLAN.md — Wave 1: lib/archetypes.ts (computeTraitScores + computeArchetype, TDD, P-04 boundary)
-- [ ] 06-03-PLAN.md — Wave 1: lib/awards.ts (computeDuoAwards + 5 metrics, TDD, P-19 determinism)
+- [x] 06-03-PLAN.md — Wave 1: lib/awards.ts (computeDuoAwards + 5 metrics, TDD, P-19 determinism)
 - [ ] 06-04-PLAN.md — Wave 2: ArchetypeBlock.tsx + DuoAwardsBlock.tsx (capture-safe presentation)
 - [ ] 06-05-PLAN.md — Wave 3: ShareCard/EndScreen 2-face refactor + computation hub + end-to-end verify
 
@@ -56,6 +56,6 @@ Plans:
 | 3. Playtest Quality Fixes | v2.0 | 8/8 | ✓ Complete | 2026-06-10 |
 | 4. Sign-in UX | v2.0 | 4/4 | ✓ Complete | 2026-06-11 |
 | 5. Stats Persistence | v2.0 | 6/6 | ✓ Complete | 2026-06-12 |
-| 6. Archetypes + Duo Awards | v3.0 | 2/5 | Executing | — |
+| 6. Archetypes + Duo Awards | v3.0 | 3/5 | Executing | — |
 | 7. Contextual Questions | v3.0 | 0/? | Not started | — |
 | 8. Power Cards | v3.0 | 0/? | Not started | — |

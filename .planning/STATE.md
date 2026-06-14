@@ -4,20 +4,20 @@ milestone: v3.0
 milestone_name: Superpowers
 current_phase: 06
 status: Executing Phase 06
-last_updated: "2026-06-15T00:38:00.000Z"
+last_updated: "2026-06-15T00:47:00.000Z"
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 4
   percent: 0
 ---
 
 # Project State
 
-**Last updated:** 2026-06-15 (06-02 complete)
+**Last updated:** 2026-06-15 (06-03 complete)
 **Current phase:** 06
-**Overall status:** v3.0 in progress. Phase 6 executing — Plan 06-02 complete.
+**Overall status:** v3.0 in progress. Phase 6 executing — Plan 06-03 complete.
 
 ## Project Reference
 
@@ -64,6 +64,7 @@ Items acknowledged and deferred at milestone close on 2026-06-12:
 | Question.tags optional field | Optional for backward compat with pre-migration rows and existing pickCandidates results (DB default '[]') | 06-01 |
 | Hybrid pair key alphabetical sort | [traitA, traitB].sort().join('+') guarantees both orderings resolve to the same HYBRID_ARCHETYPES entry | 06-02 |
 | Type A actor from myVotes only | computeTraitScores receives own votes only — cross-player designation attribution needs all-room votes; test suite validates floor-at-zero not cross-player accumulation | 06-02 |
+| Variety rule is strong-omit | computeDuoAwards omits an award when only already-awarded pairs qualify (score >= 2) — matches test contract and product intent that each award introduces a distinct pair | 06-03 |
 
 ## Notes
 
@@ -72,4 +73,5 @@ Items acknowledged and deferred at milestone close on 2026-06-12:
 - Phase 6: all DB groundwork (tags column, curation, i18n keys) already staged; 06-05 verifies tags live on prod before relying on archetype output (P-18 risk)
 - 06-01 complete (2026-06-15): Vitest installed, red test scaffolds, Question.tags, flip i18n keys
 - 06-02 complete (2026-06-15): lib/archetypes.ts — computeTraitScores + computeArchetype, 7/7 tests green, P-04 enforced
-- Next: Plan 06-03 — lib/awards.ts (TDD — computeDuoAwards + 5 metrics, P-19 determinism)
+- 06-03 complete (2026-06-15): lib/awards.ts — computeDuoAwards + computePairMetrics, 5/5 tests green, P-19 determinism enforced
+- Next: Plan 06-04 — ArchetypeBlock.tsx + DuoAwardsBlock.tsx (capture-safe presentation components)
