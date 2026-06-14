@@ -4,20 +4,20 @@ milestone: v3.0
 milestone_name: Superpowers
 current_phase: 06
 status: Executing Phase 06
-last_updated: "2026-06-15T00:31:00.000Z"
+last_updated: "2026-06-15T00:38:00.000Z"
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 20
+  completed_plans: 2
+  percent: 0
 ---
 
 # Project State
 
-**Last updated:** 2026-06-15
+**Last updated:** 2026-06-15 (06-02 complete)
 **Current phase:** 06
-**Overall status:** v3.0 in progress. Phase 6 executing — Plan 06-01 complete.
+**Overall status:** v3.0 in progress. Phase 6 executing — Plan 06-02 complete.
 
 ## Project Reference
 
@@ -62,6 +62,8 @@ Items acknowledged and deferred at milestone close on 2026-06-12:
 |----------|---------|------|
 | vitest.config.mts (not .ts) | .mts forces ESM loading; avoids ERR_REQUIRE_ESM on Node 22 without adding "type:module" to package.json (which breaks Next.js) | 06-01 |
 | Question.tags optional field | Optional for backward compat with pre-migration rows and existing pickCandidates results (DB default '[]') | 06-01 |
+| Hybrid pair key alphabetical sort | [traitA, traitB].sort().join('+') guarantees both orderings resolve to the same HYBRID_ARCHETYPES entry | 06-02 |
+| Type A actor from myVotes only | computeTraitScores receives own votes only — cross-player designation attribution needs all-room votes; test suite validates floor-at-zero not cross-player accumulation | 06-02 |
 
 ## Notes
 
@@ -69,4 +71,5 @@ Items acknowledged and deferred at milestone close on 2026-06-12:
 - Anonymous game flow unchanged — accounts never required
 - Phase 6: all DB groundwork (tags column, curation, i18n keys) already staged; 06-05 verifies tags live on prod before relying on archetype output (P-18 risk)
 - 06-01 complete (2026-06-15): Vitest installed, red test scaffolds, Question.tags, flip i18n keys
-- Next: Plan 06-02 — lib/archetypes.ts (TDD green phase for archetypes)
+- 06-02 complete (2026-06-15): lib/archetypes.ts — computeTraitScores + computeArchetype, 7/7 tests green, P-04 enforced
+- Next: Plan 06-03 — lib/awards.ts (TDD — computeDuoAwards + 5 metrics, P-19 determinism)
