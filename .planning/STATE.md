@@ -4,20 +4,20 @@ milestone: v3.0
 milestone_name: Superpowers
 current_phase: 06
 status: Executing Phase 06
-last_updated: "2026-06-15T00:47:00.000Z"
+last_updated: "2026-06-15T00:53:25Z"
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
 # Project State
 
-**Last updated:** 2026-06-15 (06-03 complete)
+**Last updated:** 2026-06-15 (06-04 complete)
 **Current phase:** 06
-**Overall status:** v3.0 in progress. Phase 6 executing — Plan 06-03 complete.
+**Overall status:** v3.0 in progress. Phase 6 executing — Plan 06-04 complete.
 
 ## Project Reference
 
@@ -65,6 +65,8 @@ Items acknowledged and deferred at milestone close on 2026-06-12:
 | Hybrid pair key alphabetical sort | [traitA, traitB].sort().join('+') guarantees both orderings resolve to the same HYBRID_ARCHETYPES entry | 06-02 |
 | Type A actor from myVotes only | computeTraitScores receives own votes only — cross-player designation attribution needs all-room votes; test suite validates floor-at-zero not cross-player accumulation | 06-02 |
 | Variety rule is strong-omit | computeDuoAwards omits an award when only already-awarded pairs qualify (score >= 2) — matches test contract and product intent that each award introduces a distinct pair | 06-03 |
+| Bar widths as integer px not % | Math.round(pct/100*160) — % widths render as 0 in off-screen modern-screenshot context (P-07 enforcement) | 06-04 |
+| C tokens copied locally per component | C object in game/page.tsx is module-private; 4 needed hex values copied to each component file rather than extracting lib/tokens.ts (plan 06-05 can decide) | 06-04 |
 
 ## Notes
 
@@ -74,4 +76,5 @@ Items acknowledged and deferred at milestone close on 2026-06-12:
 - 06-01 complete (2026-06-15): Vitest installed, red test scaffolds, Question.tags, flip i18n keys
 - 06-02 complete (2026-06-15): lib/archetypes.ts — computeTraitScores + computeArchetype, 7/7 tests green, P-04 enforced
 - 06-03 complete (2026-06-15): lib/awards.ts — computeDuoAwards + computePairMetrics, 5/5 tests green, P-19 determinism enforced
-- Next: Plan 06-04 — ArchetypeBlock.tsx + DuoAwardsBlock.tsx (capture-safe presentation components)
+- 06-04 complete (2026-06-15): ArchetypeBlock.tsx + DuoAwardsBlock.tsx — capture-safe presentation components, inline-style-only, explicit px bar widths, P-07 enforced, build + 12/12 tests green
+- Next: Plan 06-05 — ShareCard/EndScreen 2-face refactor + computation hub (has checkpoints)
