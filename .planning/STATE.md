@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Superpowers
-current_phase: None — between milestones
-status: planning
+current_phase: A
+status: discussing
 last_updated: "2026-06-14T17:32:44.293Z"
+resume_file: .planning/phases/A-social-profile-archetypes-duo-awards/A-CONTEXT.md
 progress:
   total_phases: 0
   completed_phases: 0
@@ -14,9 +15,9 @@ progress:
 
 # Project State
 
-**Last updated:** 2026-06-12
-**Current phase:** None — between milestones
-**Overall status:** v2.0 complete. Planning v3.0 Superpowers.
+**Last updated:** 2026-06-14
+**Current phase:** A — Social Profile & Archetypes + Duo Awards (context gathered, ready for planning)
+**Overall status:** v3.0 in progress. Phase A CONTEXT.md written; next is `/gsd-plan-phase A`.
 
 ## Project Reference
 
