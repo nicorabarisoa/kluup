@@ -1,7 +1,7 @@
 ---
 phase: A
 slug: social-profile-archetypes-duo-awards
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-14
@@ -23,8 +23,8 @@ created: 2026-06-14
 | Preset | not applicable | — |
 | Component library | none (custom React components) | Codebase scan |
 | Icon library | Unicode emoji only (existing pattern) | `lib/i18n.ts` — award emojis 🧲🧠⚔️🔥 |
-| Font — display | Bricolage Grotesque 700/800, var `--font-display` | `app/layout.tsx` |
-| Font — body | DM Sans 400/500/700, var `--font-body` | `app/layout.tsx` |
+| Font — display | Bricolage Grotesque **800**, var `--font-display` | `app/layout.tsx` |
+| Font — body | DM Sans **400**, var `--font-body` | `app/layout.tsx` |
 
 **shadcn gate result:** Not initialized. Project uses hand-rolled Tailwind v4 design tokens declared in `app/globals.css` and the `C` object in `game/page.tsx`. Registry safety gate: not applicable.
 
@@ -56,20 +56,20 @@ Multiples of 4 only. All card layout uses explicit px inline styles (modern-scre
 
 ## Typography
 
-### In-app UI (Tailwind classes, live DOM)
+### In-app type scale (live-DOM chrome) — 4 sizes
+
+The Phase-A live-DOM chrome (flip affordance, Share button, end-screen text) uses this 4-size scale with **exactly 2 font weights** — Bricolage Grotesque 800 (display) and DM Sans 400 (everything else). **Emphasis comes from size, color, and casing — never extra weights.**
 
 | Role | Size | Weight | Font | Line Height | Usage |
 |------|------|--------|------|-------------|-------|
-| Body | 16px | 400 | DM Sans | 1.5 | Card flip affordance, award player names, trait labels |
-| Label | 14px | 500 | DM Sans | 1.4 | Award section header (`fr.duo_awards.title`), stat pill text |
-| Small label | 12px | 500 | DM Sans | 1.3 | `tonight ·` byline, section divider, "tap to see" hint |
-| Heading | 20px | 700 | DM Sans | 1.2 | Award name text, archetype section heading |
-| Display — archetype name | 28px | 800 | Bricolage Grotesque | 1.1 | Archetype name (UPPERCASE) |
-| Display — group title | 42px | 800 | Bricolage Grotesque | 1.1 | Group title on Face 1 (matches existing ShareCard `h1`) |
+| Display — group title | 42px | 800 | Bricolage Grotesque | 1.1 | Face 1 hero (reuses existing ShareCard `h1`) |
+| Display — archetype name | 28px | 800 | Bricolage Grotesque | 1.1 | Face 2 hero (UPPERCASE) |
+| Body | 16px | 400 | DM Sans | 1.4 | Award names, player names, trait labels (emphasis via size + color, e.g. 16px `C.text` vs 13px `C.muted`) |
+| Small / caption | 13px | 400 | DM Sans | 1.3 | Section labels (ALLCAPS + letter-spacing), trait %, byline, flip affordance, footer |
 
-### In capture container (inline `style={}`, off-screen 540×540 div)
+### Card inline-style zone (modern-screenshot discipline)
 
-Same sizes as above, applied as inline `fontFamily: 'var(--font-display)'` / `fontFamily: 'var(--font-body)'` with explicit `fontSize`, `fontWeight`, `lineHeight`. No Tailwind classes inside the capture div.
+The entire card — the visible card **and** the off-screen capture `<div>` — is rendered with explicit inline `style={}` px values (no Tailwind classes), mirroring the existing `ShareCard` component. Its internal font-sizes mirror the 4 tiers above (display 42 / 28, body 16, small 13); any legacy value carried over from the current card is consolidated toward these tiers. Award emoji glyphs (🧲🧠⚔️🔥) render at an 18px glyph size and are **decorative, not part of the text type scale**. This inline zone is implementation that mirrors the live-DOM scale — it does not introduce new type tiers.
 
 ---
 
@@ -111,7 +111,7 @@ These 6 values are used **only** for: trait bar fill color + trait label color. 
 
 **Trait hues are NOT accent** — they form a separate personality-result palette. They appear only inside the archetype block (Face 2) and must never bleed into structural chrome.
 
-**Destructive:** `#EF4444` (same hex as `audacieux` trait) is already used system-wide for quit/destructive confirmations (`--color-accent-a` is `#FF3C6F`). No destructive actions in Phase A.
+**Destructive:** the system quit/destructive button uses `--color-accent-a` = `#FF3C6F`, **not** `#EF4444`. The `#EF4444` token appears only inside the archetype trait bar in this phase (the `audacieux` hue), so there is no contextual collision. No destructive actions in Phase A.
 
 ---
 
@@ -136,19 +136,19 @@ Renders when `activeCard === 'group'`.
 │  ────────────────────────────────────────────  │
 │  [Theme name]              [Klu·up logo]       │  ← 28px top, 32px sides
 │  ────────────────────────────────────────────  │
-│  "Ce soir vous étiez…" (14px muted)            │
-│  [GROUP TITLE 42px display 800]                │  ← margin-top 6px
+│  "Ce soir vous étiez…" (13px muted)            │
+│  [GROUP TITLE 42px display 800]                │  ← margin-top 8px
 │  ────────────────────────────────────────────  │
 │  [Duo awards block — surface bg #1A1A1A]       │
-│  │ "Les duos de la soirée" (12px muted ALLCAPS)│
-│  │ 🧲  Magnétisme Suspicieux                   │  ← 14px, weight 500
-│  │     Nico & Sarah           (14px muted)     │
+│  │ "Les duos de la soirée" (13px muted ALLCAPS)│
+│  │ 🧲  Magnétisme Suspicieux                   │  ← 16px C.text
+│  │     Nico & Sarah           (13px muted)     │
 │  │ 🧠  Même longueur d'onde                    │
-│  │     Léa & Thomas           (14px muted)     │
+│  │     Léa & Thomas           (13px muted)     │
 │  │ ⚔️   Les Ennemis Jurés                       │
-│  │     Jules & Paul           (14px muted)     │
+│  │     Jules & Paul           (13px muted)     │
 │  │ 🔥  Les Complices                           │
-│  │     Nico & Léa             (14px muted)     │
+│  │     Nico & Léa             (13px muted)     │
 │  ────────────────────────────────────────────  │
 │  [spacer — flex: 1]                            │
 │  [Player pills]                                │
@@ -159,11 +159,11 @@ Renders when `activeCard === 'group'`.
 **Edge case — fewer than 2 qualified awards (D-03):** The duo awards block is omitted entirely. Face 1 shows group title + spacer + player pills. No "no duos" placeholder text is shown; the card is simply the group title card as before.
 
 **Duo awards block layout:**
-- Container: `background: C.surface`, `borderRadius: 18`, `padding: '14px 18px'`, `borderLeft: '4px solid ${meta.color}'` (matches existing "Moment fort" block style)
-- Section label: `font-size: 11px`, uppercase, letter-spacing `0.06em`, color `C.muted`, margin-bottom `10px`
+- Container: `background: C.surface`, `borderRadius: 18`, `padding: '16px 16px'`, `borderLeft: '4px solid ${meta.color}'` (matches existing "Moment fort" block style)
+- Section label: `font-size: 13px`, uppercase, letter-spacing `0.06em`, color `C.muted`, margin-bottom `8px`
 - Award rows: `gap: 8px` between rows, `display: flex`, `alignItems: 'flex-start'`
-- Emoji cell: `width: 32px`, `flexShrink: 0`, `fontSize: 18px`
-- Award name: `fontSize: 14px`, `fontWeight: 600`, `color: C.text`
+- Emoji cell: `width: 32px`, `flexShrink: 0`, `fontSize: 18px` (decorative glyph)
+- Award name: `fontSize: 16px`, `fontWeight: 400`, `color: C.text` (stands out vs 13px `C.muted` player names via size + color)
 - Player names: `fontSize: 13px`, `color: C.muted`, on the same line after `·` separator — format: `{Pseudo1} & {Pseudo2}`
 
 ### Face 2 — Personal (archetype + existing stats)
@@ -181,7 +181,7 @@ Renders when `activeCard === 'personal'`.
 │  [Personal stats pills — existing, unchanged]  │
 │  ────────────────────────────────────────────  │
 │  [Archetype block — surface bg #1A1A1A]        │
-│  │ "Ton archétype" (11px muted ALLCAPS)        │
+│  │ "Ton archétype" (13px muted ALLCAPS)        │
 │  │ LE FARCEUR  (28px Bricolage 800, UPPERCASE) │
 │  │ ────────────────                            │
 │  │ [trait 1 colored label] ████████░░  45%     │
@@ -195,15 +195,15 @@ Renders when `activeCard === 'personal'`.
 ```
 
 **Archetype block layout:**
-- Container: same style as duo awards block (`background: C.surface`, `borderRadius: 18`, `padding: '14px 18px'`, `borderLeft: '4px solid ${meta.color}'`)
-- Section label: `fr.archetypes.card_title` — 11px muted ALLCAPS letter-spacing 0.06em
-- Archetype name: 28px Bricolage Grotesque weight 800, `C.text`, `textTransform: 'uppercase'`, margin-top 6px, margin-bottom 12px
-- Divider: 1px `C.border`, margin-bottom 10px
+- Container: same style as duo awards block (`background: C.surface`, `borderRadius: 18`, `padding: '16px 16px'`, `borderLeft: '4px solid ${meta.color}'`)
+- Section label: `fr.archetypes.card_title` — 13px muted ALLCAPS letter-spacing 0.06em
+- Archetype name: 28px Bricolage Grotesque weight 800, `C.text`, `textTransform: 'uppercase'`, margin-top 8px, margin-bottom 12px
+- Divider: 1px `C.border`, margin-bottom 8px
 - Trait rows: top 3 only. Each row: `display: flex`, `alignItems: 'center'`, `gap: 8px`, margin-bottom 8px (last row 0)
-  - Trait label: `fontSize: 13px`, `fontWeight: 600`, `color: TRAIT_COLORS[traitKey]`, `width: 88px`, `flexShrink: 0`
+  - Trait label: `fontSize: 13px`, `fontWeight: 400`, `color: TRAIT_COLORS[traitKey]`, `width: 88px`, `flexShrink: 0` (trait hue color provides the emphasis)
   - Bar track: `height: 8px`, `flex: 1`, `background: C.border`, `borderRadius: 4`
   - Bar fill: `height: 8px`, `background: TRAIT_COLORS[traitKey]`, `borderRadius: 4`, `width: barWidthPx` (EXPLICIT PIXELS: `Math.round(pct / 100 * 160)`)
-  - Percent: `fontSize: 12px`, `color: C.muted`, `width: 36px`, `textAlign: 'right'`, `flexShrink: 0`
+  - Percent: `fontSize: 13px`, `color: C.muted`, `width: 36px`, `textAlign: 'right'`, `flexShrink: 0`
 
 **Edge case — total points = 0 (D-03):** Render the archetype block with the `fr.archetypes.archetype_fallback` string ("Une simple personne") in place of the archetype name. Trait rows are omitted (show nothing below the name). No "not enough data" variant — fallback is always shown when points > 0 is false.
 
@@ -230,7 +230,7 @@ Displayed below the card content, inside the card wrapper but outside the captur
 ```
 
 - Position: centered, below the card's bottom edge, 8px gap
-- Style: 12px DM Sans weight 400, color `C.faint` (`#555555`), `cursor: pointer`
+- Style: 13px DM Sans weight 400, color `C.faint` (`#555555`), `cursor: pointer`
 - i18n keys to add: `card.flip_to_personal` / `card.flip_to_group` (see Copywriting section)
 - The affordance is rendered in the live DOM only — **never** inside the capture container
 
@@ -379,11 +379,11 @@ No new npm packages. No registry components. This phase uses only existing stack
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: FLAG (non-blocking — 6px color bar, justified vs existing ShareCard)
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** APPROVED (2026-06-14, revision 2)
