@@ -13,7 +13,7 @@ autonomous: true
 requirements: [REQ-AR-05, REQ-DA-03]
 must_haves:
   truths:
-    - "ArchetypeBlock renders the archetype name (uppercase, display font) + top-3 trait bars with explicit pixel widths"
+    - "D-05: ArchetypeBlock renders the archetype name (uppercase, display font) + top-3 trait bars with 6 trait hues and explicit pixel widths"
     - "DuoAwardsBlock renders a section label + one row per award (emoji + award name + 'PlayerA & PlayerB')"
     - "Both components are capture-safe: inline styles only, no Tailwind classes, no % widths inside the card"
     - "next build succeeds (components type-check against ArchetypeResult / DuoAward from Plans 02-03)"

@@ -2,10 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Superpowers
-current_phase: A
+current_phase: A — Social Profile & Archetypes + Duo Awards (PLANNED — 5 plans across 4 waves)
 status: phase_planned
-last_updated: "2026-06-14T18:10:00.000Z"
-resume_file: .planning/phases/A-social-profile-archetypes-duo-awards/A-01-PLAN.md
+last_updated: "2026-06-14T18:23:45.746Z"
 progress:
   total_phases: 0
   completed_phases: 0

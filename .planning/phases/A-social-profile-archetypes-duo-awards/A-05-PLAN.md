@@ -13,9 +13,9 @@ must_haves:
   truths:
     - "At phase 'ended', the client fetches all room votes + played questions (with tags) once and memoizes both"
     - "EndScreen computes the player's archetype (own votes + tags) and the room's duo awards, feeding both into a 2-face ShareCard"
-    - "ShareCard shows Face 1 (group title + duo awards) first; tapping the card flips to Face 2 (personal stats + archetype)"
+    - "D-01: ShareCard shows Face 1 (group title + duo awards) first; tapping the card flips to Face 2 (personal stats + archetype) via a subtle flip affordance"
     - "Share exports ONLY the currently-visible face via domToBlob; the off-screen capture div renders only the active face"
-    - "The migration_add_tags.sql tags column is confirmed live on prod (questions have non-empty tags) before relying on it"
+    - "D-06: tag coverage is audited (empty-tag question count across themes×types) and gaps backfilled — the migration_add_tags.sql tags column is confirmed live on prod (questions have non-empty tags) before relying on it"
   artifacts:
     - path: "app/room/[code]/game/page.tsx"
       provides: "Refactored ShareCard (2-face) + EndScreen (computation hub) wired to ArchetypeBlock/DuoAwardsBlock"

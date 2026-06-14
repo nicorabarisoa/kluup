@@ -872,9 +872,11 @@ This phase adds no new external dependencies. The existing environment supports 
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **D-08 fold-in decision (tag_scores background write)**
+> All three resolved during planning: (1) D-08 deferred wholesale in A-05; (2) precise per-round actor mapping chosen, encoded in A-02; (3) explicit votes column list adopted in A-05.
+
+1. **D-08 fold-in decision (tag_scores background write)** — RESOLVED: deferred wholesale (A-05).
    - What we know: The existing upsert in `EndScreen` uses `ignoreDuplicates: true`; `tag_scores` is already declared in `schema.sql`; `PendingStatsFlusher` exists for OAuth redirect path.
    - What's unclear: Whether the planner has appetite for the added complexity (2 extra fetches in `PendingStatsFlusher`, stash format update).
    - Recommendation: Planner decides based on complexity assessment. If folded in, enforce: compute `tag_scores` before ANY upsert call; update `PendingStatsFlusher` stash to include `room_id` + `player_id` + pre-computed `tag_scores`.
