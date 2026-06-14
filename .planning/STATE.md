@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Superpowers
 current_phase: A
-status: discussing
+status: ui_spec_approved
 last_updated: "2026-06-14T17:32:44.293Z"
-resume_file: .planning/phases/A-social-profile-archetypes-duo-awards/A-CONTEXT.md
+resume_file: .planning/phases/A-social-profile-archetypes-duo-awards/A-UI-SPEC.md
 progress:
   total_phases: 0
   completed_phases: 0
@@ -16,8 +16,8 @@ progress:
 # Project State
 
 **Last updated:** 2026-06-14
-**Current phase:** A — Social Profile & Archetypes + Duo Awards (context gathered, ready for planning)
-**Overall status:** v3.0 in progress. Phase A CONTEXT.md written; next is `/gsd-plan-phase A`.
+**Current phase:** A — Social Profile & Archetypes + Duo Awards (CONTEXT.md + UI-SPEC.md approved, ready for planning)
+**Overall status:** v3.0 in progress. Phase A discussed + UI design contract approved (6/6 dimensions); next is `/gsd-plan-phase A`.
 
 ## Project Reference
 
